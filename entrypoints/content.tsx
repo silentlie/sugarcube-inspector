@@ -17,8 +17,6 @@ export default defineContentScript({
 
     if (!storyData) return;
 
-    const story = document.querySelector<HTMLElement>("#story");
-
     const ui = await createShadowRootUi(ctx, {
       name: "sugarcube-inspector",
       position: "overlay",
@@ -32,13 +30,6 @@ export default defineContentScript({
           <Drawer
             width={DRAWER_WIDTH}
             storyName={storyData.getAttribute("name") ?? "SugarCube Story"}
-            onOpenChange={(open) => {
-              if (!story) return;
-
-              story.style.transition = "margin-right 150ms ease";
-
-              story.style.marginRight = open ? `${DRAWER_WIDTH}px` : "";
-            }}
           />,
         );
 
@@ -47,11 +38,6 @@ export default defineContentScript({
 
       onRemove(root) {
         root?.unmount();
-
-        if (story) {
-          story.style.marginRight = "";
-          story.style.transition = "";
-        }
       },
     });
 
