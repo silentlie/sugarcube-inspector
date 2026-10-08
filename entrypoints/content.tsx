@@ -1,4 +1,6 @@
 import Drawer from "@/src/inspector/Drawer";
+import InspectorContent from "@/src/inspector/InspectorContent";
+import { InspectorProvider } from "@/src/inspector/InspectorContext";
 import "@/src/styles/tailwind.css";
 import {
   CHANNEL,
@@ -44,16 +46,11 @@ export default defineContentScript({
 
         function render() {
           root.render(
-            <Drawer
-              initialWidth={DRAWER_WIDTH}
-              storyName={
-                snapshot?.story.name ??
-                storyData?.getAttribute("name") ??
-                "SugarCube Story"
-              }
-              snapshot={snapshot}
-              onRefresh={requestSnapshot}
-            />,
+            <InspectorProvider>
+              <Drawer initialWidth={DRAWER_WIDTH}>
+                <InspectorContent />
+              </Drawer>
+            </InspectorProvider>,
           );
         }
 

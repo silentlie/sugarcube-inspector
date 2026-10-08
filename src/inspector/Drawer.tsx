@@ -1,12 +1,8 @@
-import { ObjectInspector } from "react-inspector";
-import { deserializeValue } from "../sugarcube/serialize";
-import type { SugarCubeSnapshot } from "../sugarcube/types";
+import type { ReactNode } from "react";
 
 interface DrawerProps {
   initialWidth: number;
-  storyName: string;
-  snapshot: SugarCubeSnapshot | null;
-  onRefresh: () => void;
+  children: ReactNode;
 }
 
 const HANDLE_WIDTH = 8;
@@ -15,30 +11,12 @@ const CLOSE_DELAY = 400;
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 1600;
 
-export default function Drawer({
-  initialWidth,
-  storyName,
-  snapshot,
-  onRefresh,
-}: DrawerProps) {
-  const variables = useMemo(() => {
-    if (!snapshot) return null;
-
-    try {
-      return {
-        story: deserializeValue(snapshot.variables.story),
-        temporary: deserializeValue(snapshot.variables.temporary),
-      };
-    } catch (error) {
-      console.error("[SugarCube Inspector]", error);
-      return null;
-    }
-  }, [snapshot]);
+export default function Drawer({ initialWidth, children }: DrawerProps) {
   const [open, setOpen] = useState(false);
   const [width, setWidth] = useState(initialWidth);
-  const [resizing, setResizing] = useState(false);
 
   const closeTimer = useRef<number | null>(null);
+  const resizePointerId = useRef<number | null>(null);
 
   const resizeStart = useRef({
     x: 0,
@@ -58,7 +36,7 @@ export default function Drawer({
   }
 
   function handleLeave() {
-    if (resizing) return;
+    if (resizePointerId.current !== null) return;
 
     cancelClose();
 
@@ -69,11 +47,14 @@ export default function Drawer({
   }
 
   function handleResizeStart(event: React.PointerEvent<HTMLButtonElement>) {
-    event.preventDefault();
+    if (event.button !== 0) return;
 
+    event.preventDefault();
     cancelClose();
+
     setOpen(true);
-    setResizing(true);
+
+    resizePointerId.current = event.pointerId;
 
     resizeStart.current = {
       x: event.clientX,
@@ -84,26 +65,56 @@ export default function Drawer({
   }
 
   function handleResize(event: React.PointerEvent<HTMLButtonElement>) {
-    if (!resizing) return;
+    if (resizePointerId.current !== event.pointerId) return;
 
     const delta = resizeStart.current.x - event.clientX;
 
+    const maxWidth = Math.min(MAX_WIDTH, window.innerWidth);
+
     const nextWidth = Math.min(
-      MAX_WIDTH,
-      Math.max(MIN_WIDTH, resizeStart.current.width + delta),
+      maxWidth,
+      Math.max(
+        Math.min(MIN_WIDTH, maxWidth),
+        resizeStart.current.width + delta,
+      ),
     );
 
     setWidth(nextWidth);
   }
 
   function handleResizeEnd(event: React.PointerEvent<HTMLButtonElement>) {
-    if (!resizing) return;
+    if (resizePointerId.current !== event.pointerId) return;
 
-    setResizing(false);
+    resizePointerId.current = null;
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setOpen((current) => !current);
+      return;
+    }
+
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+      return;
+    }
+
+    event.preventDefault();
+    setOpen(true);
+
+    const delta = event.key === "ArrowLeft" ? 24 : -24;
+    const maxWidth = Math.min(MAX_WIDTH, window.innerWidth);
+
+    setWidth((current) =>
+      Math.min(
+        maxWidth,
+        Math.max(Math.min(MIN_WIDTH, maxWidth), current + delta),
+      ),
+    );
   }
 
   useEffect(() => {
@@ -118,6 +129,7 @@ export default function Drawer({
       onMouseLeave={handleLeave}
       style={{
         width,
+        maxWidth: "100vw",
         transform: open
           ? "translateX(0)"
           : `translateX(calc(100% - ${HANDLE_WIDTH}px))`,
@@ -134,10 +146,15 @@ export default function Drawer({
       <button
         type="button"
         aria-label="Resize SugarCube Inspector"
+        aria-expanded={open}
         onPointerDown={handleResizeStart}
         onPointerMove={handleResize}
         onPointerUp={handleResizeEnd}
         onPointerCancel={handleResizeEnd}
+        onLostPointerCapture={() => {
+          resizePointerId.current = null;
+        }}
+        onKeyDown={handleKeyDown}
         style={{
           width: HANDLE_WIDTH,
           touchAction: "none",
@@ -161,45 +178,7 @@ export default function Drawer({
         style={{ marginLeft: HANDLE_WIDTH }}
         className="h-full overflow-y-auto p-5"
       >
-        <h1 className="text-lg font-semibold">SugarCube Inspector</h1>
-
-        <p className="mt-1 text-sm text-zinc-400">{storyName}</p>
-
-        <hr className="my-4 border-zinc-800" />
-
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="rounded bg-zinc-800 px-3 py-1 text-sm"
-        >
-          Refresh
-        </button>
-
-        {variables && (
-          <div className="mt-4 space-y-5 text-xs">
-            <section>
-              <h2 className="mb-2 text-sm font-medium">Story Variables</h2>
-
-              <ObjectInspector
-                name="$"
-                data={variables.story}
-                theme="chromeDark"
-                expandLevel={1}
-              />
-            </section>
-
-            <section>
-              <h2 className="mb-2 text-sm font-medium">Temporary Variables</h2>
-
-              <ObjectInspector
-                name="_"
-                data={variables.temporary}
-                theme="chromeDark"
-                expandLevel={1}
-              />
-            </section>
-          </div>
-        )}
+        {children}
       </div>
     </aside>
   );
