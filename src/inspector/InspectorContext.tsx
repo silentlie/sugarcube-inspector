@@ -10,8 +10,7 @@ import {
 
 import {
     CHANNEL,
-    isSignal,
-    isSnapshotMessage,
+    InspectorMessageSchema,
     type InspectorMessage,
 } from "../sugarcube/protocol";
 
@@ -45,19 +44,27 @@ export function InspectorProvider({ children }: InspectorProviderProps) {
     function handleMessage(event: MessageEvent<unknown>) {
       if (event.source !== window) return;
 
-      if (isSignal(event.data, "ready")) {
-        refresh();
-        return;
-      }
+      const result = InspectorMessageSchema.safeParse(event.data);
 
-      if (isSnapshotMessage(event.data)) {
-        setSnapshot(event.data.data);
+      if (!result.success) return;
+
+      switch (result.data.type) {
+        case "ready":
+          refresh();
+          break;
+
+        case "snapshot":
+          setSnapshot(result.data.data);
+          break;
+
+        case "request":
+          break;
       }
     }
 
     window.addEventListener("message", handleMessage);
 
-    // Request the initial snapshot.
+    // Request an initial snapshot.
     refresh();
 
     return () => {

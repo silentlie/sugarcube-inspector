@@ -2,13 +2,7 @@ import Drawer from "@/src/inspector/Drawer";
 import InspectorContent from "@/src/inspector/InspectorContent";
 import { InspectorProvider } from "@/src/inspector/InspectorContext";
 import "@/src/styles/tailwind.css";
-import {
-  CHANNEL,
-  type InspectorMessage,
-  isSignal,
-  isSnapshotMessage,
-} from "@/src/sugarcube/protocol";
-import type { SugarCubeSnapshot } from "@/src/sugarcube/types";
+
 import ReactDOM from "react-dom/client";
 
 const DRAWER_WIDTH = 380;
@@ -32,55 +26,20 @@ export default defineContentScript({
 
       onMount(container) {
         const root = ReactDOM.createRoot(container);
-        let snapshot: SugarCubeSnapshot | null = null;
 
-        function requestSnapshot() {
-          window.postMessage(
-            {
-              channel: CHANNEL,
-              type: "request",
-            } satisfies InspectorMessage,
-            "*",
-          );
-        }
-
-        function render() {
-          root.render(
+        root.render(
+          <Drawer initialWidth={DRAWER_WIDTH}>
             <InspectorProvider>
-              <Drawer initialWidth={DRAWER_WIDTH}>
-                <InspectorContent />
-              </Drawer>
-            </InspectorProvider>,
-          );
-        }
+              <InspectorContent />
+            </InspectorProvider>
+          </Drawer>,
+        );
 
-        function onMessage(event: MessageEvent<unknown>) {
-          if (event.source !== window) return;
-
-          if (isSignal(event.data, "ready")) {
-            requestSnapshot();
-            return;
-          }
-
-          if (isSnapshotMessage(event.data)) {
-            snapshot = event.data.data;
-            render();
-          }
-        }
-
-        window.addEventListener("message", onMessage);
-
-        render();
-        requestSnapshot();
-
-        return { root, onMessage };
+        return root;
       },
 
-      onRemove(mounted) {
-        if (!mounted) return;
-
-        window.removeEventListener("message", mounted.onMessage);
-        mounted.root.unmount();
+      onRemove(root) {
+        root?.unmount();
       },
     });
 

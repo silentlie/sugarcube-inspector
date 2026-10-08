@@ -1,6 +1,6 @@
 import {
   CHANNEL,
-  isSignal,
+  InspectorMessageSchema,
   type InspectorMessage,
 } from "@/src/sugarcube/protocol";
 import { createSugarCubeSnapshot } from "@/src/sugarcube/snapshot";
@@ -31,7 +31,12 @@ export default defineContentScript({
 
     function handleMessage(event: MessageEvent<unknown>) {
       if (event.source !== window) return;
-      if (!isSignal(event.data, "request")) return;
+
+      const result = InspectorMessageSchema.safeParse(event.data);
+
+      if (!result.success || result.data.type !== "request") {
+        return;
+      }
 
       sendSnapshot();
     }
