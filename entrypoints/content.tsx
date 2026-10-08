@@ -1,8 +1,13 @@
-import "../src/styles/tailwind.css";
-
+import Drawer from "@/src/inspector/Drawer";
+import "@/src/styles/tailwind.css";
+import {
+  CHANNEL,
+  type InspectorMessage,
+  isSignal,
+  isSnapshotMessage,
+} from "@/src/sugarcube/protocol";
+import type { SugarCubeSnapshot } from "@/src/sugarcube/types";
 import ReactDOM from "react-dom/client";
-
-import Drawer from "../src/inspector/Drawer";
 
 const DRAWER_WIDTH = 380;
 
@@ -25,19 +30,60 @@ export default defineContentScript({
 
       onMount(container) {
         const root = ReactDOM.createRoot(container);
+        let snapshot: SugarCubeSnapshot | null = null;
 
-        root.render(
-          <Drawer
-            width={DRAWER_WIDTH}
-            storyName={storyData.getAttribute("name") ?? "SugarCube Story"}
-          />,
-        );
+        function requestSnapshot() {
+          window.postMessage(
+            {
+              channel: CHANNEL,
+              type: "request",
+            } satisfies InspectorMessage,
+            "*",
+          );
+        }
 
-        return root;
+        function render() {
+          root.render(
+            <Drawer
+              initialWidth={DRAWER_WIDTH}
+              storyName={
+                snapshot?.story.name ??
+                storyData?.getAttribute("name") ??
+                "SugarCube Story"
+              }
+              snapshot={snapshot}
+              onRefresh={requestSnapshot}
+            />,
+          );
+        }
+
+        function onMessage(event: MessageEvent<unknown>) {
+          if (event.source !== window) return;
+
+          if (isSignal(event.data, "ready")) {
+            requestSnapshot();
+            return;
+          }
+
+          if (isSnapshotMessage(event.data)) {
+            snapshot = event.data.data;
+            render();
+          }
+        }
+
+        window.addEventListener("message", onMessage);
+
+        render();
+        requestSnapshot();
+
+        return { root, onMessage };
       },
 
-      onRemove(root) {
-        root?.unmount();
+      onRemove(mounted) {
+        if (!mounted) return;
+
+        window.removeEventListener("message", mounted.onMessage);
+        mounted.root.unmount();
       },
     });
 
