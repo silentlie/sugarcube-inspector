@@ -1,8 +1,6 @@
 import type { SugarCubeObject } from "twine-sugarcube";
 import type { SugarCubeSnapshot } from "./types";
 
-import { serializeValue } from "./serialize";
-
 export function createSugarCubeSnapshot({
   State,
   Story,
@@ -28,8 +26,8 @@ export function createSugarCubeSnapshot({
     },
 
     variables: {
-      story: serializeValue(State.variables),
-      temporary: serializeValue(State.temporary),
+      story: State.variables,
+      temporary: State.temporary,
     },
 
     capturedAt: Date.now(),

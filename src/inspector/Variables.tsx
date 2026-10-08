@@ -1,36 +1,13 @@
 import { ObjectInspector } from "react-inspector";
-import { deserializeValue } from "../sugarcube/serialize";
 import { useInspector } from "./InspectorContext";
 
 export default function Variables() {
   const { snapshot } = useInspector();
 
-  const variables = useMemo(() => {
-    if (!snapshot) return null;
-
-    try {
-      return {
-        story: deserializeValue(snapshot.variables.story),
-        temporary: deserializeValue(snapshot.variables.temporary),
-      };
-    } catch (error) {
-      console.error(
-        "[SugarCube Inspector] Failed to deserialize variables:",
-        error,
-      );
-
-      return null;
-    }
-  }, [snapshot]);
-
   if (!snapshot) {
     return (
       <p className="text-sm text-zinc-400">Waiting for SugarCube data...</p>
     );
-  }
-
-  if (!variables) {
-    return <p className="text-sm text-red-400">Unable to display variables.</p>;
   }
 
   return (
@@ -40,7 +17,7 @@ export default function Variables() {
 
         <ObjectInspector
           name="$"
-          data={variables.story}
+          data={snapshot.variables.story}
           theme="chromeDark"
           expandLevel={1}
         />
@@ -51,7 +28,7 @@ export default function Variables() {
 
         <ObjectInspector
           name="_"
-          data={variables.temporary}
+          data={snapshot.variables.temporary}
           theme="chromeDark"
           expandLevel={1}
         />

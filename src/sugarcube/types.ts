@@ -1,9 +1,17 @@
+import type {
+  SugarCubeStoryVariables,
+  SugarCubeTemporaryVariables,
+} from "twine-sugarcube";
 import { z } from "zod";
-import type { SerializedValue } from "./serialize";
 
-const SerializedValueSchema = z.custom<SerializedValue>(
-  (value) => Array.isArray(value) && value.length > 0,
-);
+const isVariableContainer = (value: unknown): value is object =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const StoryVariablesSchema =
+  z.custom<SugarCubeStoryVariables>(isVariableContainer);
+
+const TemporaryVariablesSchema =
+  z.custom<SugarCubeTemporaryVariables>(isVariableContainer);
 
 export const SugarCubeSnapshotSchema = z.object({
   story: z.object({
@@ -23,8 +31,8 @@ export const SugarCubeSnapshotSchema = z.object({
   }),
 
   variables: z.object({
-    story: SerializedValueSchema,
-    temporary: SerializedValueSchema,
+    story: StoryVariablesSchema,
+    temporary: TemporaryVariablesSchema,
   }),
 
   capturedAt: z.number(),

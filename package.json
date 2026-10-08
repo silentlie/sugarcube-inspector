@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@ungap/structured-clone": "^1.4.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-inspector": "^9.0.0",
@@ -27,7 +26,6 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/twine-sugarcube": "^2.37.2",
-    "@types/ungap__structured-clone": "^1.2.0",
     "@wxt-dev/module-react": "^1.1.5",
     "typescript": "^5.9.3",
     "web-ext": "^10.5.0",
