@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import { ObjectInspector } from "react-inspector";
 import { deserializeValue } from "../sugarcube/serialize";
 import type { SugarCubeSnapshot } from "../sugarcube/types";

@@ -12,24 +12,37 @@ export default defineContentScript({
   runAt: "document_idle",
 
   main() {
-    window.addEventListener("message", (event: MessageEvent<unknown>) => {
-      if (event.source !== window) return;
-      if (!isSignal(event.data, "request")) return;
+    function sendSnapshot() {
       if (typeof SugarCube === "undefined") return;
 
       try {
-        const response = {
-          channel: CHANNEL,
-          type: "snapshot",
-          data: createSugarCubeSnapshot(SugarCube),
-        } satisfies InspectorMessage;
-
-        window.postMessage(response, "*");
+        window.postMessage(
+          {
+            channel: CHANNEL,
+            type: "snapshot",
+            data: createSugarCubeSnapshot(SugarCube),
+          } satisfies InspectorMessage,
+          "*",
+        );
       } catch (error) {
         console.error("[SugarCube Inspector]", error);
       }
-    });
+    }
 
+    function handleMessage(event: MessageEvent<unknown>) {
+      if (event.source !== window) return;
+      if (!isSignal(event.data, "request")) return;
+
+      sendSnapshot();
+    }
+
+    // Handle manual refresh requests.
+    window.addEventListener("message", handleMessage);
+
+    // Update automatically after passage navigation.
+    $(document).on(":passageend.sugarcubeInspector", sendSnapshot);
+
+    // Announce that the main-world bridge is ready.
     window.postMessage(
       {
         channel: CHANNEL,
