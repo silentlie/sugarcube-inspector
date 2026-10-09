@@ -304,3 +304,25 @@ test("shows a snapshot error and recovers through Retry using the real bridge", 
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("updates visible variables through polling without a passage change", async ({
+  page,
+}) => {
+  await page.goto(storyUrl);
+  const inspector = await openInspector(page);
+  const storyVariables = inspector.getByRole("tabpanel", {
+    name: "Story Variables",
+    exact: true,
+  });
+
+  await expect(storyVariables.getByTitle("7", { exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    SugarCube.State.variables.score = 42;
+  });
+
+  // No passageChanged event or manual snapshot refresh is dispatched.
+  await expect(storyVariables.getByTitle("42", { exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
+});
+
