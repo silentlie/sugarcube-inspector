@@ -27,7 +27,9 @@ export default defineContentScript({
     );
 
     sugarcubeRPC.onMessage("getSnapshot", () => {
-      return structuredClone(createSugarCubeSnapshot(SugarCube));
+      const snapshot = structuredClone(createSugarCubeSnapshot(SugarCube));
+      const watchGeneration = watchService.capture(snapshot);
+      return { ...snapshot, watchGeneration };
     });
 
     $(document).on(":passageend.sugarcubeInspector", () => {

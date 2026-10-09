@@ -36,6 +36,8 @@ export const SugarCubeSnapshotSchema = z.object({
   }),
 
   capturedAt: z.number(),
+  /** MAIN-world watch baseline generation. */
+  watchGeneration: z.number().int().nonnegative().optional(),
 });
 
 export type SugarCubeSnapshot = z.infer<typeof SugarCubeSnapshotSchema>;

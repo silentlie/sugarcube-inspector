@@ -17,16 +17,16 @@ export type WatchPatch =
   | { op: "delete"; scope: VariableScope; path: PathSegment[] };
 
 export interface WatchRequest {
-  session: string;
-  revision: number;
+  generation: number;
   targets: WatchTarget[];
 }
 
 export interface WatchResponse {
-  session: string;
-  baseRevision: number;
-  revision: number;
-  patches: WatchPatch[];
+  generation: number;
+  changes: WatchPatch[];
+  missingTargets: WatchTarget[];
+  /** Synchronous MAIN-world compare and clone time, excluding RPC latency. */
+  mainDurationMs: number;
 }
 
 export function watchKey(target: WatchTarget): string {
@@ -37,15 +37,25 @@ function isAncestor(ancestor: WatchTarget, child: WatchTarget): boolean {
   if (ancestor.scope !== child.scope || ancestor.path.length > child.path.length) {
     return false;
   }
-
   return ancestor.path.every(
     (part, index) => JSON.stringify(part) === JSON.stringify(child.path[index]),
   );
 }
 
-/** Avoid diffing the same subtree several times. */
+/**
+ * Keep ancestors, discard their descendants. Collection iteration positions
+ * are unstable: watch the containing Map/Set rather than an indexed entry.
+ */
 export function minimizeWatchTargets(targets: WatchTarget[]): WatchTarget[] {
-  const unique = [...new Map(targets.map((target) => [watchKey(target), target])).values()];
+  const normalized = targets.map((target) => {
+    const collectionIndex = target.path.findIndex(
+      (part) => part.type === "mapKey" || part.type === "mapValue" || part.type === "setValue",
+    );
+    return collectionIndex < 0 ? target : {
+      scope: target.scope, path: target.path.slice(0, collectionIndex),
+    };
+  });
+  const unique = [...new Map(normalized.map((target) => [watchKey(target), target])).values()];
   return unique.filter(
     (target) => !unique.some((other) => other !== target && isAncestor(other, target)),
   );
