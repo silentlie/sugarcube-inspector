@@ -1,10 +1,13 @@
 import { chromium, test as base, type BrowserContext } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 
-const extensionPath = fileURLToPath(new URL("../../.output/chrome-mv3/", import.meta.url));
+const extensionPath = fileURLToPath(
+  new URL("../../.output/chrome-mv3/", import.meta.url),
+);
 export const storyUrl = new URL(".generated/story.html", import.meta.url).href;
 
 export const test = base.extend<{ context: BrowserContext }>({
+  // eslint-disable-next-line no-empty-pattern -- Required Playwright fixture signature.
   context: async ({}, use) => {
     const context = await chromium.launchPersistentContext("", {
       channel: "chromium",

@@ -4,7 +4,7 @@ import js from "@eslint/js";
 import json from "@eslint/json";
 import markdown from "@eslint/markdown";
 import reactHooks from "eslint-plugin-react-hooks";
-import { defineConfig, includeIgnoreFile } from "eslint/config";
+import { defineConfig, globalIgnores, includeIgnoreFile } from "eslint/config";
 import globals from "globals";
 import { fileURLToPath } from "node:url";
 import tseslint from "typescript-eslint";
@@ -13,6 +13,7 @@ const gitignore = fileURLToPath(new URL(".gitignore", import.meta.url));
 
 export default defineConfig([
   includeIgnoreFile(gitignore, { gitignoreResolution: true }),
+  globalIgnores(["package-lock.json"]),
   {
     files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     plugins: { js },

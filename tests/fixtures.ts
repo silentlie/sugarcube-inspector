@@ -1,6 +1,8 @@
 import type { SugarCubeSnapshot } from "../src/sugarcube/types";
 
-export function createSnapshotFixture(passageName = "Start"): SugarCubeSnapshot {
+export function createSnapshotFixture(
+  passageName = "Start",
+): SugarCubeSnapshot {
   return {
     story: {
       name: "Test Story",
@@ -37,7 +39,9 @@ export function createSugarCubeFixture() {
       name: snapshot.story.name,
       title: snapshot.story.name,
       ifId: snapshot.story.ifId,
-      get: (_name: string) => ({ tags: [...snapshot.passage.tags] }),
+      get: () => ({
+        tags: [...snapshot.passage.tags],
+      }),
     },
     version: { toString: () => snapshot.story.version },
   };

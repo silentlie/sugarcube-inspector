@@ -88,7 +88,9 @@ describe("InspectorProvider", () => {
     async (cause) => {
       const request = Promise.withResolvers<unknown>();
       rpc.sendMessage.mockReturnValueOnce(request.promise);
-      const { result } = renderHook(useInspector, { wrapper: InspectorProvider });
+      const { result } = renderHook(useInspector, {
+        wrapper: InspectorProvider,
+      });
 
       await act(async () => {
         request.reject(cause);
@@ -113,6 +115,58 @@ describe("InspectorProvider", () => {
     },
   );
 
+  it.each([
+    new Error("Bridge threw synchronously"),
+    "Bridge threw synchronously",
+  ])(
+    "handles a synchronous RPC throw (%s) after initialization and recovers on retry",
+    async (cause) => {
+      const retry = Promise.withResolvers<unknown>();
+      rpc.sendMessage
+        .mockImplementationOnce(() => {
+          throw cause;
+        })
+        .mockReturnValueOnce(retry.promise);
+      const { result } = renderHook(useInspector, {
+        wrapper: InspectorProvider,
+      });
+
+      expect(result.current.state).toEqual({
+        status: "loading",
+        snapshot: null,
+      });
+      expect(console.error).not.toHaveBeenCalled();
+
+      await act(async () => {});
+
+      expect(result.current.state).toEqual({
+        status: "error",
+        snapshot: null,
+        error: cause instanceof Error ? cause : new Error(cause),
+      });
+      expect(console.error).toHaveBeenCalledExactlyOnceWith(
+        "[SugarCube Inspector] Snapshot request failed:",
+        cause,
+      );
+
+      act(() => result.current.refresh());
+      expect(result.current.state).toEqual({
+        status: "loading",
+        snapshot: null,
+      });
+      const snapshot = createSnapshotFixture("Recovered");
+      await act(async () => {
+        retry.resolve(snapshot);
+      });
+      expect(result.current.state).toEqual({
+        status: "ready",
+        snapshot,
+        refreshing: false,
+      });
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
   it.each(["manual refresh", "passage change"])(
     "retains the last snapshot during a %s and replaces it on success",
     async (trigger) => {
@@ -123,7 +177,9 @@ describe("InspectorProvider", () => {
       rpc.sendMessage
         .mockReturnValueOnce(initial.promise)
         .mockReturnValueOnce(next.promise);
-      const { result } = renderHook(useInspector, { wrapper: InspectorProvider });
+      const { result } = renderHook(useInspector, {
+        wrapper: InspectorProvider,
+      });
       await act(async () => {
         initial.resolve(snapshot);
       });
@@ -171,7 +227,9 @@ describe("InspectorProvider", () => {
         .mockReturnValueOnce(initial.promise)
         .mockReturnValueOnce(failed.promise)
         .mockReturnValueOnce(retry.promise);
-      const { result } = renderHook(useInspector, { wrapper: InspectorProvider });
+      const { result } = renderHook(useInspector, {
+        wrapper: InspectorProvider,
+      });
       await act(async () => {
         initial.resolve(snapshot);
       });
@@ -319,60 +377,65 @@ describe("InspectorProvider", () => {
     { outcome: "failure", order: "before" },
     { outcome: "success", order: "after" },
     { outcome: "failure", order: "after" },
-  ])("ignores an older request's $outcome $order the latest request settles", async ({ outcome, order }) => {
-    const initial = Promise.withResolvers<unknown>();
-    const older = Promise.withResolvers<unknown>();
-    const latest = Promise.withResolvers<unknown>();
-    const snapshot = createSnapshotFixture();
-    const newest = createSnapshotFixture("Newest Passage");
-    rpc.sendMessage
-      .mockReturnValueOnce(initial.promise)
-      .mockReturnValueOnce(older.promise)
-      .mockReturnValueOnce(latest.promise);
-    const { result } = renderHook(useInspector, { wrapper: InspectorProvider });
-    await act(async () => {
-      initial.resolve(snapshot);
-    });
-    act(() => result.current.refresh());
-    act(() => result.current.refresh());
-
-    const settleOlder = async () => {
-      await act(async () => {
-        if (outcome === "success") {
-          older.resolve(createSnapshotFixture("Stale Passage"));
-        } else {
-          older.reject(new Error("Stale failure"));
-        }
+  ])(
+    "ignores an older request's $outcome $order the latest request settles",
+    async ({ outcome, order }) => {
+      const initial = Promise.withResolvers<unknown>();
+      const older = Promise.withResolvers<unknown>();
+      const latest = Promise.withResolvers<unknown>();
+      const snapshot = createSnapshotFixture();
+      const newest = createSnapshotFixture("Newest Passage");
+      rpc.sendMessage
+        .mockReturnValueOnce(initial.promise)
+        .mockReturnValueOnce(older.promise)
+        .mockReturnValueOnce(latest.promise);
+      const { result } = renderHook(useInspector, {
+        wrapper: InspectorProvider,
       });
-    };
+      await act(async () => {
+        initial.resolve(snapshot);
+      });
+      act(() => result.current.refresh());
+      act(() => result.current.refresh());
 
-    if (order === "before") {
-      await settleOlder();
+      const settleOlder = async () => {
+        await act(async () => {
+          if (outcome === "success") {
+            older.resolve(createSnapshotFixture("Stale Passage"));
+          } else {
+            older.reject(new Error("Stale failure"));
+          }
+        });
+      };
+
+      if (order === "before") {
+        await settleOlder();
+        expect(result.current.state).toEqual({
+          status: "ready",
+          snapshot,
+          refreshing: true,
+        });
+      }
+
+      await act(async () => {
+        latest.resolve(newest);
+      });
+      const newestState = result.current.state;
+
+      if (order === "after") {
+        await settleOlder();
+      }
+
+      expect(result.current.state).toBe(newestState);
       expect(result.current.state).toEqual({
         status: "ready",
-        snapshot,
-        refreshing: true,
+        snapshot: newest,
+        refreshing: false,
       });
-    }
-
-    await act(async () => {
-      latest.resolve(newest);
-    });
-    const newestState = result.current.state;
-
-    if (order === "after") {
-      await settleOlder();
-    }
-
-    expect(result.current.state).toBe(newestState);
-    expect(result.current.state).toEqual({
-      status: "ready",
-      snapshot: newest,
-      refreshing: false,
-    });
-    expect(console.error).not.toHaveBeenCalled();
-    expect(vi.getTimerCount()).toBe(0);
-  });
+      expect(console.error).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
 
   it.each(["success", "failure"])(
     "unsubscribes on unmount and ignores a pending request's %s",

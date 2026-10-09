@@ -1,7 +1,7 @@
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -47,6 +47,13 @@ function toError(value: unknown): Error {
   return value instanceof Error ? value : new Error(String(value));
 }
 
+async function readSnapshot(): Promise<SugarCubeSnapshot> {
+  const result = await withTimeout(
+    sugarcubeRPC.sendMessage("getSnapshot", undefined),
+  );
+  return SugarCubeSnapshotSchema.parse(result);
+}
+
 export function InspectorProvider({ children }: InspectorProviderProps) {
   const [state, setState] = useState<InspectorState>({
     status: "loading",
@@ -56,30 +63,11 @@ export function InspectorProvider({ children }: InspectorProviderProps) {
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
 
-  const refresh = useCallback(() => {
+  const requestSnapshot = useCallback(() => {
     const requestId = ++requestIdRef.current;
 
-    setState((current) =>
-      current.snapshot
-        ? {
-            status: "ready",
-            snapshot: current.snapshot,
-            refreshing: true,
-          }
-        : {
-            status: "loading",
-            snapshot: null,
-          },
-    );
-
-    void (async () => {
-      try {
-        const result = await withTimeout(
-          sugarcubeRPC.sendMessage("getSnapshot", undefined),
-        );
-
-        const snapshot = SugarCubeSnapshotSchema.parse(result);
-
+    void readSnapshot().then(
+      (snapshot) => {
         if (!mountedRef.current || requestId !== requestIdRef.current) {
           return;
         }
@@ -89,7 +77,8 @@ export function InspectorProvider({ children }: InspectorProviderProps) {
           snapshot,
           refreshing: false,
         });
-      } catch (cause) {
+      },
+      (cause: unknown) => {
         if (!mountedRef.current || requestId !== requestIdRef.current) {
           return;
         }
@@ -103,26 +92,40 @@ export function InspectorProvider({ children }: InspectorProviderProps) {
           snapshot: current.snapshot,
           error,
         }));
-      }
-    })();
+      },
+    );
   }, []);
+
+  const refresh = useCallback(() => {
+    setState((current) =>
+      current.snapshot
+        ? {
+            status: "ready",
+            snapshot: current.snapshot,
+            refreshing: true,
+          }
+        : {
+            status: "loading",
+            snapshot: null,
+          },
+    );
+
+    void requestSnapshot();
+  }, [requestSnapshot]);
 
   useEffect(() => {
     mountedRef.current = true;
 
-    // Subscribe before requesting the initial snapshot.
-    const unsubscribe = sugarcubeRPC.onMessage("passageChanged", () => {
-      refresh();
-    });
+    const unsubscribe = sugarcubeRPC.onMessage("passageChanged", refresh);
 
-    refresh();
+    // The initial state is already "loading".
+    void requestSnapshot();
 
     return () => {
       mountedRef.current = false;
-      ++requestIdRef.current;
       unsubscribe();
     };
-  }, [refresh]);
+  }, [refresh, requestSnapshot]);
 
   const value = useMemo(
     () => ({
@@ -132,15 +135,11 @@ export function InspectorProvider({ children }: InspectorProviderProps) {
     [state, refresh],
   );
 
-  return (
-    <InspectorContext.Provider value={value}>
-      {children}
-    </InspectorContext.Provider>
-  );
+  return <InspectorContext value={value}>{children}</InspectorContext>;
 }
 
 export function useInspector(): InspectorContextValue {
-  const context = useContext(InspectorContext);
+  const context = use(InspectorContext);
 
   if (!context) {
     throw new Error("useInspector must be used within InspectorProvider");

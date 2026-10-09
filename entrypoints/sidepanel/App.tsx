@@ -1,6 +1,7 @@
 import "./App.css";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { SugarCubeObject } from "twine-sugarcube";
 
 type DetectionState =
   | { status: "checking" }
@@ -17,110 +18,106 @@ type DetectionState =
       message: string;
     };
 
-function App() {
+async function readDetection(): Promise<DetectionState> {
+  const [tab] = await browser.tabs.query({
+    active: true,
+    currentWindow: true,
+  });
+
+  if (!tab || tab.id == null) {
+    return {
+      status: "error",
+      message: "No active tab found.",
+    };
+  }
+
+  if (!tab.url?.startsWith("file://")) {
+    return {
+      status: "not-local",
+    };
+  }
+
+  const [result] = await browser.scripting.executeScript({
+    target: {
+      tabId: tab.id,
+    },
+    world: "MAIN",
+    func: () => {
+      const page = globalThis as typeof globalThis & {
+        SugarCube?: SugarCubeObject;
+      };
+
+      const sc = page.SugarCube;
+
+      if (!sc?.State) {
+        return {
+          detected: false,
+        };
+      }
+
+      const storyData = document.querySelector("tw-storydata");
+
+      return {
+        detected: true,
+
+        version:
+          sc.version?.toString?.() ??
+          storyData?.getAttribute("format-version") ??
+          "",
+
+        storyName:
+          sc.Story?.name ??
+          sc.Story?.title ??
+          storyData?.getAttribute("name") ??
+          document.title,
+
+        ifid: sc.Story?.ifId ?? storyData?.getAttribute("ifid") ?? "",
+
+        passage: sc.State?.passage ?? "",
+
+        variableCount: Object.keys(sc.State?.variables ?? {}).length,
+      };
+    },
+  });
+
+  const info = result?.result;
+
+  if (!info?.detected) {
+    return {
+      status: "not-detected",
+    };
+  }
+
+  return {
+    status: "detected",
+    storyName: info.storyName,
+    ifid: info.ifid,
+    passage: info.passage,
+  };
+}
+
+export default function App() {
   const [detection, setDetection] = useState<DetectionState>({
     status: "checking",
   });
 
-  async function detectSugarCube() {
-    setDetection({
-      status: "checking",
-    });
-
-    try {
-      const [tab] = await browser.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-
-      if (!tab || tab.id == null) {
-        setDetection({
-          status: "error",
-          message: "No active tab found.",
-        });
-
-        return;
-      }
-
-      if (!tab.url?.startsWith("file://")) {
-        setDetection({
-          status: "not-local",
-        });
-
-        return;
-      }
-
-      const [result] = await browser.scripting.executeScript({
-        target: {
-          tabId: tab.id,
-        },
-
-        world: "MAIN",
-
-        func: () => {
-          const page = globalThis as any;
-
-          const sc = page.SugarCube;
-
-          if (!sc?.State) {
-            return {
-              detected: false,
-            };
-          }
-
-          const storyData = document.querySelector("tw-storydata");
-
-          return {
-            detected: true,
-
-            version:
-              sc.version?.toString?.() ??
-              storyData?.getAttribute("format-version") ??
-              "",
-
-            storyName:
-              sc.Story?.name ??
-              sc.Story?.title ??
-              storyData?.getAttribute("name") ??
-              document.title,
-
-            ifid: sc.Story?.ifId ?? storyData?.getAttribute("ifid") ?? "",
-
-            passage: sc.State?.passage ?? "",
-
-            variableCount: Object.keys(sc.State?.variables ?? {}).length,
-          };
-        },
-      });
-
-      const info = result?.result;
-
-      if (!info?.detected) {
-        setDetection({
-          status: "not-detected",
-        });
-
-        return;
-      }
-
-      setDetection({
-        status: "detected",
-        storyName: info.storyName,
-        ifid: info.ifid,
-        passage: info.passage,
-      });
-    } catch (error) {
+  const readSugarCube = useCallback(() => {
+    void readDetection().then(setDetection, (error: unknown) => {
       setDetection({
         status: "error",
-
         message: error instanceof Error ? error.message : String(error),
       });
-    }
+    });
+  }, []);
+
+  function detectSugarCube() {
+    setDetection({ status: "checking" });
+    void readSugarCube();
   }
 
   useEffect(() => {
-    detectSugarCube();
-  }, []);
+    void readSugarCube();
+  }, [readSugarCube]);
 
   return (
     <main>
@@ -162,9 +159,9 @@ function App() {
         </>
       )}
 
-      <button onClick={detectSugarCube}>Refresh</button>
+      <button type="button" onClick={detectSugarCube}>
+        Refresh
+      </button>
     </main>
   );
 }
-
-export default App;

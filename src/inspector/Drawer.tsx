@@ -15,18 +15,18 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   const [open, setOpen] = useState(false);
   const [width, setWidth] = useState(initialWidth);
 
-  const closeTimer = useRef<number | null>(null);
-  const resizePointerId = useRef<number | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const resizePointerIdRef = useRef<number | null>(null);
 
-  const resizeStart = useRef({
+  const resizeStartRef = useRef({
     x: 0,
     width: initialWidth,
   });
 
   function cancelClose() {
-    if (closeTimer.current !== null) {
-      window.clearTimeout(closeTimer.current);
-      closeTimer.current = null;
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
     }
   }
 
@@ -36,13 +36,13 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   }
 
   function handleLeave() {
-    if (resizePointerId.current !== null) return;
+    if (resizePointerIdRef.current !== null) return;
 
     cancelClose();
 
-    closeTimer.current = window.setTimeout(() => {
+    closeTimerRef.current = window.setTimeout(() => {
       setOpen(false);
-      closeTimer.current = null;
+      closeTimerRef.current = null;
     }, CLOSE_DELAY);
   }
 
@@ -54,9 +54,9 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
 
     setOpen(true);
 
-    resizePointerId.current = event.pointerId;
+    resizePointerIdRef.current = event.pointerId;
 
-    resizeStart.current = {
+    resizeStartRef.current = {
       x: event.clientX,
       width,
     };
@@ -65,9 +65,9 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   }
 
   function handleResize(event: React.PointerEvent<HTMLButtonElement>) {
-    if (resizePointerId.current !== event.pointerId) return;
+    if (resizePointerIdRef.current !== event.pointerId) return;
 
-    const delta = resizeStart.current.x - event.clientX;
+    const delta = resizeStartRef.current.x - event.clientX;
 
     const maxWidth = Math.min(MAX_WIDTH, window.innerWidth);
 
@@ -75,7 +75,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
       maxWidth,
       Math.max(
         Math.min(MIN_WIDTH, maxWidth),
-        resizeStart.current.width + delta,
+        resizeStartRef.current.width + delta,
       ),
     );
 
@@ -83,9 +83,9 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   }
 
   function handleResizeEnd(event: React.PointerEvent<HTMLButtonElement>) {
-    if (resizePointerId.current !== event.pointerId) return;
+    if (resizePointerIdRef.current !== event.pointerId) return;
 
-    resizePointerId.current = null;
+    resizePointerIdRef.current = null;
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -134,14 +134,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
           ? "translateX(0)"
           : `translateX(calc(100% - ${HANDLE_WIDTH}px))`,
       }}
-      className="
-        fixed right-0 top-0
-        h-screen
-        font-sans
-        bg-zinc-950 text-zinc-100
-        shadow-2xl
-        transition-transform duration-150
-      "
+      className="fixed top-0 right-0 h-screen bg-zinc-950 font-sans text-zinc-100 shadow-2xl transition-transform duration-150"
     >
       <button
         type="button"
@@ -152,37 +145,19 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
         onPointerUp={handleResizeEnd}
         onPointerCancel={handleResizeEnd}
         onLostPointerCapture={() => {
-          resizePointerId.current = null;
+          resizePointerIdRef.current = null;
         }}
         onKeyDown={handleKeyDown}
         style={{
           width: HANDLE_WIDTH,
           touchAction: "none",
         }}
-        className="
-          absolute left-0 top-0
-          h-full
-          cursor-ew-resize
-          border-0
-          bg-zinc-500/40
-          p-0
-          hover:bg-zinc-400/70
-          focus:outline-none
-          focus:ring-2
-          focus:ring-inset
-          focus:ring-zinc-300
-        "
+        className="absolute top-0 left-0 h-full cursor-ew-resize border-0 bg-zinc-500/40 p-0 hover:bg-zinc-400/70 focus:ring-2 focus:ring-zinc-300 focus:outline-none focus:ring-inset"
       />
 
       <div
         style={{ marginLeft: HANDLE_WIDTH }}
-        className="
-    h-full overflow-y-auto p-5
-    scrollbar-thin
-    scrollbar-thumb-zinc-700
-    scrollbar-track-transparent
-    hover:scrollbar-thumb-zinc-600
-  "
+        className="h-full scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent overflow-y-auto p-5 hover:scrollbar-thumb-zinc-600"
       >
         {children}
       </div>
