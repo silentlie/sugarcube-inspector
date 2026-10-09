@@ -93,11 +93,7 @@ export function WatchProvider({
             session, revision, targets,
           }),
         );
-        const elapsed = performance.now() - started;
         if (!active) return;
-        if (elapsed > SLOW_WATCH_THRESHOLD_MS) {
-          setSlowRequestMs(Math.round(elapsed));
-        }
 
         if (response.session !== session || response.baseRevision !== revision) {
           throw new Error("Watch response revision mismatch.");
@@ -116,6 +112,10 @@ export function WatchProvider({
       } catch (error) {
         if (active) console.error("[SugarCube Inspector] Watch poll failed:", error);
       } finally {
+        const elapsed = performance.now() - started;
+        if (active && elapsed > SLOW_WATCH_THRESHOLD_MS) {
+          setSlowRequestMs(Math.round(elapsed));
+        }
         busy = false;
       }
     }
