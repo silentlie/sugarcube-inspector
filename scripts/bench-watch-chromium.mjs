@@ -136,6 +136,7 @@ async function main() {
       ["compare-first","arrays-map"],
       ["compare-first","keys-lazy"],
       ["compare-first","arrays-lazy"],
+      ["compare-first","arrays-reverse"],
       ["clone-first","keys-weak"],
       ["always-clone","keys-weak"],
     ];
