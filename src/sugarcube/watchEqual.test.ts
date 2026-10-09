@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { equalWatchedValues as equal } from "./watchEqual";
+import {
+  equalWatchedValues as equal,
+  equalWatchedValuesArrayFirst,
+  equalWatchedValuesMapRefs,
+  equalWatchedValuesArrayFirstMapRefs,
+} from "./watchEqual";
 
 describe("optimized watch equality", () => {
   it("compares scalar values using Object.is semantics", () => {
@@ -134,5 +139,57 @@ describe("optimized watch equality", () => {
     expect(equal(new WeakMap(), new WeakMap())).toBe(false);
     expect(equal(new WeakSet(), new WeakSet())).toBe(false);
     expect(equal({ a: 1 }, new Date())).toBe(false);
+  });
+});
+
+describe.each([
+  ["array-first, WeakMap refs", equalWatchedValuesArrayFirst],
+  ["keys-first, Map refs", equalWatchedValuesMapRefs],
+  ["array-first, Map refs", equalWatchedValuesArrayFirstMapRefs],
+])("%s", (_name, compare) => {
+  it("detects early and late mutations in dense arrays", () => {
+    const values = Array.from({ length: 1000 }, (_, i) => ({ score: i }));
+    const first = structuredClone(values);
+    const last = structuredClone(values);
+    expect(compare(values, first)).toBe(true);
+    first[0]!.score++;
+    last[999]!.score++;
+    expect(compare(values, first)).toBe(false);
+    expect(compare(values, last)).toBe(false);
+  });
+
+  it("detects sparse and custom-property array changes", () => {
+    const sparse: unknown[] = new Array(3);
+    sparse[0] = 1;
+    sparse[2] = 3;
+    const clone = structuredClone(sparse);
+    expect(compare(sparse, clone)).toBe(true);
+    clone[1] = undefined;
+    expect(compare(sparse, clone)).toBe(false);
+
+    const withExtra = Object.assign([1, 2], { note: "ok" });
+    const copy = structuredClone(withExtra);
+    expect(compare(withExtra, copy)).toBe(true);
+    copy.note = "changed";
+    expect(compare(withExtra, copy)).toBe(false);
+  });
+
+  it("tracks shared references and cycles", () => {
+    const shared = { n: 1 };
+    const original: { a: { n: number }; b: { n: number }; self?: unknown } =
+      { a: shared, b: shared };
+    original.self = original;
+    expect(compare(original, structuredClone(original))).toBe(true);
+    const broken = structuredClone(original);
+    broken.b = { n: 1 };
+    expect(compare(original, broken)).toBe(false);
+  });
+
+  it("compares nested maps and typed-array backing buffers", () => {
+    const value = new Map([[{ key: 1 }, new Uint8Array([1, 2, 3])]]);
+    const clone = structuredClone(value);
+    expect(compare(value, clone)).toBe(true);
+    clone.values().next().value![2] = 9;
+    expect(compare(value, clone)).toBe(false);
   });
 });
