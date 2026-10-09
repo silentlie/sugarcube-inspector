@@ -41,3 +41,16 @@ readiness request and has no automatic reconnect.
 
 Upstream references: [Playwright extension testing](https://playwright.dev/docs/chrome-extensions)
 and [SugarCube 2](https://www.motoslave.net/sugarcube/2/).
+
+## GitHub Actions
+
+The [CI workflow](../.github/workflows/ci.yml) runs on pushes to `main`, pull
+requests targeting `main`, and manual runs from the Actions tab. It uses Node.js
+24 on Ubuntu 24.04 and installs the locked dependencies with `npm ci`.
+
+Each run checks TypeScript, runs the unit and RPC integration tests, installs
+Playwright's Chromium and its Linux dependencies, then builds the extension and
+runs the browser smoke tests. Superseded runs on the same branch are cancelled.
+Failed browser runs upload `test-results` as the `browser-test-results` artifact
+and retain it for seven days. Download the artifact and open a trace with
+`npx playwright show-trace path/to/trace.zip` to inspect the failure.
