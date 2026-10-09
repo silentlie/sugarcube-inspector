@@ -19,7 +19,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "compile": "tsc --noEmit",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "bench:watch": "node scripts/bench-watch.cjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
