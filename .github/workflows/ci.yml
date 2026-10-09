@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   test:
-    name: TypeScript, integration, and browser tests
+    name: Lint, TypeScript, integration, and browser tests
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -35,6 +35,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
 
       - name: Check TypeScript
         run: npm run compile
