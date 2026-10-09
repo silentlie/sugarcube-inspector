@@ -8,10 +8,27 @@
 const hasOwn = Object.prototype.hasOwnProperty;
 const objectTag = Object.prototype.toString;
 
-type References = WeakMap<object, object>;
+type References = WeakMap<object, object> | Map<object, object>;
+
+type ArrayStrategy = "keys-first" | "values-first";
 
 export function equalWatchedValues(previous: unknown, current: unknown): boolean {
-  return compare(previous, current, new WeakMap(), new WeakMap());
+  return compare(previous, current, new WeakMap(), new WeakMap(), "keys-first");
+}
+
+/** Compare array elements before enumerating keys (still checks holes and custom keys). */
+export function equalWatchedValuesArrayFirst(previous: unknown, current: unknown): boolean {
+  return compare(previous, current, new WeakMap(), new WeakMap(), "values-first");
+}
+
+/** Compare with strong Map-based pair tracking instead of WeakMaps. */
+export function equalWatchedValuesMapRefs(previous: unknown, current: unknown): boolean {
+  return compare(previous, current, new Map(), new Map(), "keys-first");
+}
+
+/** Combine array-first traversal with strong Map-based pair tracking. */
+export function equalWatchedValuesArrayFirstMapRefs(previous: unknown, current: unknown): boolean {
+  return compare(previous, current, new Map(), new Map(), "values-first");
 }
 
 function equalBytes(
@@ -51,6 +68,7 @@ function compareProperties(
   right: object,
   leftToRight: References,
   rightToLeft: References,
+  strategy: ArrayStrategy,
   leftKeys = Object.keys(left),
   rightKeys = Object.keys(right),
 ): boolean {
@@ -60,7 +78,7 @@ function compareProperties(
   const b = right as Record<string, unknown>;
   for (let i = 0; i < leftKeys.length; i++) {
     const key = leftKeys[i]!;
-    if (!hasOwn.call(b, key) || !compare(a[key], b[key], leftToRight, rightToLeft)) {
+    if (!hasOwn.call(b, key) || !compare(a[key], b[key], leftToRight, rightToLeft, strategy)) {
       return false;
     }
   }
@@ -72,6 +90,7 @@ function compare(
   right: unknown,
   leftToRight: References,
   rightToLeft: References,
+  strategy: ArrayStrategy,
 ): boolean {
   if (typeof left !== "object" || left === null ||
       typeof right !== "object" || right === null) {
@@ -90,6 +109,14 @@ function compare(
   if (Array.isArray(left)) {
     if (!Array.isArray(right) || left.length !== right.length) return false;
 
+    // Values-first is safe because we validate holes and enumerable extras
+    // after comparing indices. It makes first-element changes very cheap.
+    if (strategy === "values-first") {
+      for (let i = 0; i < left.length; i++) {
+        if (!compare(left[i], right[i], leftToRight, rightToLeft, strategy)) return false;
+      }
+    }
+
     const leftKeys = Object.keys(left);
     const rightKeys = Object.keys(right);
 
@@ -104,13 +131,15 @@ function compare(
         (leftKeys[left.length - 1] === lastIndex &&
          rightKeys[right.length - 1] === lastIndex));
     if (dense) {
-      for (let i = 0; i < left.length; i++) {
-        if (!compare(left[i], right[i], leftToRight, rightToLeft)) return false;
+      if (strategy === "keys-first") {
+        for (let i = 0; i < left.length; i++) {
+          if (!compare(left[i], right[i], leftToRight, rightToLeft, strategy)) return false;
+        }
       }
       return true;
     }
 
-    return compareProperties(left, right, leftToRight, rightToLeft, leftKeys, rightKeys);
+    return compareProperties(left, right, leftToRight, rightToLeft, strategy, leftKeys, rightKeys);
   }
   if (Array.isArray(right)) return false;
 
@@ -128,8 +157,8 @@ function compare(
     for (let i = 0; i < left.size; i++) {
       const oldEntry = a.next().value!;
       const newEntry = b.next().value!;
-      if (!compare(oldEntry[0], newEntry[0], leftToRight, rightToLeft) ||
-          !compare(oldEntry[1], newEntry[1], leftToRight, rightToLeft)) {
+      if (!compare(oldEntry[0], newEntry[0], leftToRight, rightToLeft, strategy) ||
+          !compare(oldEntry[1], newEntry[1], leftToRight, rightToLeft, strategy)) {
         return false;
       }
     }
@@ -140,7 +169,7 @@ function compare(
     const a = left.values();
     const b = right.values();
     for (let i = 0; i < left.size; i++) {
-      if (!compare(a.next().value, b.next().value, leftToRight, rightToLeft)) {
+      if (!compare(a.next().value, b.next().value, leftToRight, rightToLeft, strategy)) {
         return false;
       }
     }
@@ -157,15 +186,15 @@ function compare(
       left.byteLength === right.byteLength &&
       // structuredClone transfers the entire backing buffer, not just the view.
       // Comparing it also tracks aliasing between multiple views of one buffer.
-      compare(left.buffer, right.buffer, leftToRight, rightToLeft);
+      compare(left.buffer, right.buffer, leftToRight, rightToLeft, strategy);
   }
   if (left instanceof Error) {
     return right instanceof Error &&
       left.name === right.name &&
       left.message === right.message &&
       left.stack === right.stack &&
-      compare(left.cause, right.cause, leftToRight, rightToLeft) &&
-      compareProperties(left, right, leftToRight, rightToLeft);
+      compare(left.cause, right.cause, leftToRight, rightToLeft, strategy) &&
+      compareProperties(left, right, leftToRight, rightToLeft, strategy);
   }
 
   // Plain objects dominate SugarCube state. Unsupported classes are conservatively
@@ -174,7 +203,7 @@ function compare(
   const rightPrototype: unknown = Object.getPrototypeOf(right);
   const leftPlain = leftPrototype === Object.prototype || leftPrototype === null;
   const rightPlain = rightPrototype === Object.prototype || rightPrototype === null;
-  if (leftPlain && rightPlain) return compareProperties(left, right, leftToRight, rightToLeft);
+  if (leftPlain && rightPlain) return compareProperties(left, right, leftToRight, rightToLeft, strategy);
 
   // Boxed primitives are supported by structuredClone.
   const tag = objectTag.call(left);
@@ -185,7 +214,7 @@ function compare(
       (left as { valueOf(): unknown }).valueOf(),
       (right as { valueOf(): unknown }).valueOf(),
     )) return false;
-    return compareProperties(left, right, leftToRight, rightToLeft);
+    return compareProperties(left, right, leftToRight, rightToLeft, strategy);
   }
 
   return false;
