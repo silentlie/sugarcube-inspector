@@ -1,15 +1,12 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
-import type { SugarCubeSnapshot } from "../sugarcube/types";
 import VariableTree from "./variable-tree/VariableTree";
+import { useWatch } from "./watch/WatchProvider";
 
 type Tab = "story" | "temporary";
 
-interface VariablesProps {
-  snapshot: SugarCubeSnapshot;
-}
-
-export default function Variables({ snapshot }: VariablesProps) {
+export default function Variables() {
   const [activeTab, setActiveTab] = useState<Tab>("story");
+  const { variables } = useWatch();
   const id = useId();
 
   const storyTabRef = useRef<HTMLButtonElement>(null);
@@ -93,7 +90,7 @@ export default function Variables({ snapshot }: VariablesProps) {
         hidden={activeTab !== "story"}
         className="pt-3"
       >
-        <VariableTree scope="story" value={snapshot.variables.story} />
+        <VariableTree scope="story" value={variables.story} />
       </section>
 
       <section
@@ -103,7 +100,7 @@ export default function Variables({ snapshot }: VariablesProps) {
         hidden={activeTab !== "temporary"}
         className="pt-3"
       >
-        <VariableTree scope="temporary" value={snapshot.variables.temporary} />
+        <VariableTree scope="temporary" value={variables.temporary} />
       </section>
     </div>
   );
