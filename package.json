@@ -11,6 +11,9 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "npm run build && node tests/browser/prepare-story.mjs && playwright test",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
@@ -24,11 +27,16 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/twine-sugarcube": "^2.37.2",
     "@wxt-dev/module-react": "^1.1.5",
+    "happy-dom": "^20.14.6",
     "typescript": "^5.9.3",
+    "vitest": "^4.1.11",
     "web-ext": "^10.5.0",
     "wxt": "^0.21.3"
   }

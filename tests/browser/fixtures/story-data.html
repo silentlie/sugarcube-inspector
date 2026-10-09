@@ -1,0 +1,20 @@
+<tw-storydata name="Inspector Smoke Story" startnode="1" creator="SugarCube Inspector tests"
+  creator-version="1" ifid="8A6E4307-C73B-4F1B-9322-7CF69B980FB1"
+  format="SugarCube" format-version="2.37.3" options="" hidden>
+  <style role="stylesheet" id="twine-user-stylesheet" type="text/twine-css"></style>
+  <script role="script" id="twine-user-script" type="text/twine-javascript"></script>
+  <tw-passagedata pid="1" name="Start" tags="intro">
+    &lt;&lt;set $score = 7&gt;&gt;
+    &lt;&lt;set $marker = "initial"&gt;&gt;
+    &lt;&lt;set _choice = "north"&gt;&gt;
+    Smoke story ready.
+    [[Continue-&gt;Next Passage]]
+  </tw-passagedata>
+  <tw-passagedata pid="2" name="Next Passage" tags="next">
+    &lt;&lt;set $score = 12&gt;&gt;
+    &lt;&lt;set $marker = "updated"&gt;&gt;
+    &lt;&lt;set _choice = "south"&gt;&gt;
+    Passage changed.
+    [[Return-&gt;Start]]
+  </tw-passagedata>
+</tw-storydata>
