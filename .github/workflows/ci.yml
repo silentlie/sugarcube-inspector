@@ -56,3 +56,23 @@ jobs:
           path: test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  benchmark-watch-equality:
+    if: github.event_name == 'pull_request' && github.head_ref == 'feat/selective-variable-watch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Install benchmark-only libraries
+        run: npm install --no-save --package-lock=false --ignore-scripts fast-equals@6.1.1 fast-deep-equal@3.1.3 dequal@2.0.3
+      - name: Run correctness-gated equality benchmark
+        run: |
+          node scripts/bench-watch-equality.cjs /tmp/watch-comparators.json
+          cat /tmp/watch-comparators.json
