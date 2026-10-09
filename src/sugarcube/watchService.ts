@@ -8,6 +8,9 @@ interface Entry {
   value?: unknown;
   /** The first missing segment, including its path. */
   missingPath?: PathSegment[];
+  /** Existing parent that cannot be traversed (null, primitive, wrong collection). */
+  blockedExists?: boolean;
+  blocked?: unknown;
 }
 
 type Stores = SugarCubeSnapshot["variables"];
@@ -36,7 +39,22 @@ function child(value: unknown, segment: PathSegment): Entry {
 function resolveValue(root: unknown, path: readonly PathSegment[]): Entry {
   let entry: Entry = { exists: true, value: root };
   for (let index = 0; index < path.length; index++) {
-    entry = child(entry.value, path[index]!);
+    const part = path[index]!;
+    const parent = entry.value;
+    const traversable = (part.type === "property" || part.type === "index")
+      ? parent !== null && typeof parent === "object"
+      : (part.type === "mapKey" || part.type === "mapValue")
+        ? parent instanceof Map
+        : parent instanceof Set;
+    if (!traversable) {
+      return {
+        exists: false,
+        missingPath: path.slice(0, index),
+        blockedExists: true,
+        blocked: parent,
+      };
+    }
+    entry = child(parent, part);
     if (!entry.exists) return { exists: false, missingPath: path.slice(0, index + 1) };
   }
   return entry;
@@ -79,7 +97,10 @@ function sameEntry(
 ): boolean {
   if (previous.exists !== current.exists) return false;
   if (!current.exists) {
-    return JSON.stringify(previous.missingPath) === JSON.stringify(current.missingPath);
+    if (JSON.stringify(previous.missingPath) !== JSON.stringify(current.missingPath) ||
+        Boolean(previous.blockedExists) !== Boolean(current.blockedExists)) return false;
+    return !current.blockedExists ||
+      sameValue(previous.blocked, current.blocked, key, circularPaths);
   }
   return sameValue(previous.value, current.value, key, circularPaths);
 }
@@ -128,12 +149,26 @@ export class WatchService {
       if (sameEntry(previous, current, key, this.circularPaths)) continue;
 
       if (!current.exists) {
-        next.set(key, { exists: false, missingPath: current.missingPath });
-        changes.push({
-          op: "delete",
-          scope: target.scope,
-          path: current.missingPath ?? target.path,
+        // A previously absent/blocked parent may now be present, even when
+        // the leaf remains missing. Replace that parent to repair the tree.
+        const restorePrevious = !previous.exists && previous.missingPath &&
+          previous.missingPath.length < (current.missingPath?.length ?? target.path.length);
+        const patchPath = restorePrevious ? previous.missingPath : current.missingPath ?? target.path;
+        const parent = resolve(stores, { scope: target.scope, path: patchPath });
+        const copy = parent.exists ? structuredClone(parent.value) : undefined;
+        next.set(key, {
+          exists: false,
+          missingPath: current.missingPath,
+          blockedExists: current.blockedExists,
+          blocked: current.blockedExists
+            ? (restorePrevious || !parent.exists
+                ? structuredClone(current.blocked)
+                : copy)
+            : undefined,
         });
+        changes.push(parent.exists
+          ? { op: "set", scope: target.scope, path: patchPath, value: copy }
+          : { op: "delete", scope: target.scope, path: patchPath });
         continue;
       }
 

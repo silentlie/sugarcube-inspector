@@ -112,6 +112,37 @@ describe("two-layer selective watch service", () => {
     expect((applyWatchPatches(removed, restored.changes).story as Record<string, unknown>).player).toEqual(stores.story.player);
   });
 
+  it("replaces a parent that becomes null, undefined, or a primitive", () => {
+    const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } = {
+      story: { player: { health: 100, mana: 25 } }, temporary: {},
+    };
+    const { service, generation, snapshot } = setup(stores.story);
+    stores.story.player = null;
+    const nullValue = service.poll(request(generation, [health]), stores);
+    expect(nullValue.changes).toEqual([{ op: "set", scope: "story", path: player.path, value: null }]);
+    expect(nullValue.missingTargets).toEqual([health]);
+    let displayed = applyWatchPatches(snapshot.variables, nullValue.changes);
+    expect((displayed.story as Record<string, unknown>).player).toBeNull();
+
+    stores.story.player = 123;
+    const primitive = service.poll(request(generation, [health]), stores);
+    expect(primitive.changes).toEqual([{ op: "set", scope: "story", path: player.path, value: 123 }]);
+    displayed = applyWatchPatches(displayed, primitive.changes);
+
+    stores.story.player = {};
+    const emptyParent = service.poll(request(generation, [health]), stores);
+    expect(emptyParent.changes).toEqual([{ op: "set", scope: "story", path: player.path, value: {} }]);
+    displayed = applyWatchPatches(displayed, emptyParent.changes);
+    expect((displayed.story as Record<string, unknown>).player).toEqual({});
+
+    stores.story.player = { health: 99, mana: 40 };
+    const restored = service.poll(request(generation, [health]), stores);
+    expect(restored.changes).toEqual([{
+      op: "set", scope: "story", path: health.path, value: 99,
+    }]);
+    expect(restored.missingTargets).toEqual([]);
+  });
+
   it("notices when the earliest missing ancestor changes", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } = {
       story: { player: {} }, temporary: {},
