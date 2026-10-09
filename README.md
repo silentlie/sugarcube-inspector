@@ -12,6 +12,8 @@ RPC bridge between the page's SugarCube runtime and the inspector.
 - Expandable trees for story variables (`$`) and temporary variables (`_`).
 - Automatic snapshot refresh after SugarCube passage changes, plus a manual
   **Refresh** button.
+- Live polling of visible variable rows and favorited paths, with batched,
+  incremental updates and a warning for slow watch requests.
 - A drawer that opens on hover, supports resizing by dragging its edge, and has
   keyboard controls.
 - Snapshot validation, request timeouts, and a **Retry** button for snapshot
@@ -56,6 +58,14 @@ Expand the variable trees to inspect values. Passage changes refresh them
 automatically; use **Refresh** to capture changes made without passage
 navigation. If a snapshot request fails, the drawer shows the error and a
 **Retry** button.
+
+Visible variables are automatically watched for changes between passage events.
+Use the star beside any variable to keep watching it when it is out of view or
+in an inactive scope tab. Watches poll every 750 ms and show a dismissible
+warning if a request takes longer than 250 ms. The MAIN-world bridge clones
+only watched subtrees for comparison and normally sends only changed paths.
+Complex values such as Maps and Sets are replaced in full when changed.
+Favorites currently last for the lifetime of the inspector.
 
 Select the extension's toolbar icon to open the side panel. Its **Refresh**
 button checks the currently active tab for a local SugarCube story and updates
