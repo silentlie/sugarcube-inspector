@@ -153,7 +153,7 @@ export class WatchService {
         // the leaf remains missing. Replace that parent to repair the tree.
         const restorePrevious = !previous.exists && previous.missingPath &&
           previous.missingPath.length < (current.missingPath?.length ?? target.path.length);
-        const patchPath = restorePrevious ? previous.missingPath : current.missingPath ?? target.path;
+        const patchPath = restorePrevious ? previous.missingPath! : current.missingPath ?? target.path;
         const parent = resolve(stores, { scope: target.scope, path: patchPath });
         const copy = parent.exists ? structuredClone(parent.value) : undefined;
         next.set(key, {
