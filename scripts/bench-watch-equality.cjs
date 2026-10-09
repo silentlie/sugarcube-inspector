@@ -30,6 +30,7 @@ const {
   equalWatchedValuesArrayFirstMapRefs,
   equalWatchedValuesLazyRefs,
   equalWatchedValuesArrayFirstLazyRefs,
+  equalWatchedValuesArrayReverse,
 } = require("../src/sugarcube/watchEqual.ts");
 const {
   deepEqual: fastEquals,
@@ -116,6 +117,7 @@ const detectors = {
   "array-first Map": equalWatchedValuesArrayFirstMapRefs,
   "keys-first lazy refs": equalWatchedValuesLazyRefs,
   "array-first lazy refs": equalWatchedValuesArrayFirstLazyRefs,
+  "array-reverse WeakMap": equalWatchedValuesArrayReverse,
 };
 
 function fixture(kind, size) {
