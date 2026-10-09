@@ -71,7 +71,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install benchmark-only comparator libraries
-        run: npm install --no-save --package-lock=false --ignore-scripts fast-equals@6.1.1 fast-deep-equal@3.1.3 dequal@2.0.3 esbuild@0.25.12
+        run: npm install --no-save --package-lock=false --ignore-scripts fast-equals@6.1.1 fast-deep-equal@3.1.3 dequal@2.0.3 esbuild@0.28.2
       - name: Install browser
         run: npx playwright install --with-deps chromium --no-shell
       - name: Benchmark Chromium MAIN and isolated world RPC
