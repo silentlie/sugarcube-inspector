@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import VariableTile from "./VariableTile";
 import type { PathSegment, VariableScope } from "./types";
 import { getChildren, isCircular, isExpandable } from "./valueUtils";
@@ -26,7 +26,7 @@ export default function VariableNode({
 }: VariableNodeProps) {
   const watch = useOptionalWatch();
   const rowRef = useRef<HTMLDivElement>(null);
-  const target: WatchTarget = { scope, path: [...path] };
+  const [target] = useState<WatchTarget>(() => ({ scope, path: [...path] }));
   const id = watchKey(target);
 
   const setVisible = watch?.setVisible;
@@ -34,7 +34,7 @@ export default function VariableNode({
     const element = rowRef.current;
     if (!setVisible || !element) return;
 
-    const watched: WatchTarget = { scope, path: [...path] };
+    const watched = target;
     if (typeof IntersectionObserver === "undefined") {
       setVisible(watched, true);
       return () => setVisible(watched, false);
@@ -48,7 +48,7 @@ export default function VariableNode({
       observer.disconnect();
       setVisible(watched, false);
     };
-  }, [id, path, scope, setVisible]);
+  }, [target, setVisible]);
 
   const circular = isCircular(value, ancestors);
   const expandable = !circular && isExpandable(value);
