@@ -150,8 +150,11 @@ function compare(
   if (ArrayBuffer.isView(left)) {
     return ArrayBuffer.isView(right) &&
       left.constructor === right.constructor &&
+      left.byteOffset === right.byteOffset &&
       left.byteLength === right.byteLength &&
-      equalBytes(left.buffer, left.byteOffset, right.buffer, right.byteOffset, left.byteLength);
+      // structuredClone transfers the entire backing buffer, not just the view.
+      // Comparing it also tracks aliasing between multiple views of one buffer.
+      compare(left.buffer, right.buffer, leftToRight, rightToLeft);
   }
   if (left instanceof Error) {
     return right instanceof Error &&
