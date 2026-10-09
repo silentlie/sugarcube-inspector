@@ -16,8 +16,6 @@ import {
 } from "../sugarcube/types";
 import { withTimeout } from "../utils/withTimeout";
 
-const RPC_TIMEOUT_MS = 3000;
-
 type InspectorState =
   | {
       status: "loading";
