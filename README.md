@@ -169,6 +169,26 @@ Readiness and snapshot requests have a three-second timeout. The inspector
 validates snapshots with Zod and ignores superseded results or results received
 after unmounting.
 
+
+## Watch equality microbenchmark
+
+Compare the project deep-equality checker, `fast-equals`, `fast-deep-equal/es6`,
+`dequal`, and a custom fail-fast comparator. Install optional benchmark-only
+dependencies without changing the project lockfile:
+
+```sh
+npm install --no-save --package-lock=false --ignore-scripts fast-equals@6.1.1 fast-deep-equal@3.1.3 dequal@2.0.3
+npm run bench:watch:equality -- watch-equality-results.json
+```
+
+The runner verifies each comparator on independently cloned data and excludes
+unsupported or incorrect results per scenario. It measures the time to detect
+a change and the time to detect, copy changed values and simulate response
+structured-cloning. It is a Node.js microbenchmark, **not** a real
+Chromium MAIN-world/isolated-world RPC latency test. Object-keyed Maps,
+object Sets, and cycles are tested; the custom comparator assumes matching
+Map/Set iteration order and is not a general-purpose drop-in replacement.
+
 ## Project structure
 
 | Path                               | Responsibility                                                                               |
