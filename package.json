@@ -22,7 +22,9 @@
     "postinstall": "wxt prepare",
     "bench:watch": "node scripts/bench-watch.cjs",
     "bench:watch:roundtrip": "node scripts/bench-watch-roundtrip.cjs",
-    "bench:watch:equality": "node scripts/bench-watch-equality.cjs"
+    "bench:watch:equality": "node scripts/bench-watch-equality.cjs",
+    "bench:watch:variants": "node scripts/bench-watch-variants.cjs",
+    "bench:watch:chromium": "node scripts/bench-watch-chromium.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
