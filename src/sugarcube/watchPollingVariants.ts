@@ -1,6 +1,6 @@
-import { equalWatchedValues, equalWatchedValuesArrayFirst, equalWatchedValuesArrayFirstMapRefs, equalWatchedValuesMapRefs, equalWatchedValuesLazyRefs, equalWatchedValuesArrayFirstLazyRefs } from "./watchEqual";
+import { equalWatchedValues, equalWatchedValuesArrayFirst, equalWatchedValuesArrayFirstMapRefs, equalWatchedValuesMapRefs, equalWatchedValuesLazyRefs, equalWatchedValuesArrayFirstLazyRefs, equalWatchedValuesArrayReverse } from "./watchEqual";
 
-export type EqualityVariant = "keys-weak" | "arrays-weak" | "keys-map" | "arrays-map" | "keys-lazy" | "arrays-lazy";
+export type EqualityVariant = "keys-weak" | "arrays-weak" | "keys-map" | "arrays-map" | "keys-lazy" | "arrays-lazy" | "arrays-reverse";
 export type PollingVariant = "compare-first" | "clone-first" | "always-clone";
 
 export interface WatchPollMeasurement {
@@ -18,6 +18,7 @@ const comparators = {
   "arrays-map": equalWatchedValuesArrayFirstMapRefs,
   "keys-lazy": equalWatchedValuesLazyRefs,
   "arrays-lazy": equalWatchedValuesArrayFirstLazyRefs,
+  "arrays-reverse": equalWatchedValuesArrayReverse,
 } satisfies Record<EqualityVariant, (left: unknown, right: unknown) => boolean>;
 
 /** Experimental only: no production RPC changes or watch-manager state changes. */
