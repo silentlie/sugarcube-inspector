@@ -48,7 +48,10 @@ export function WatchProvider({
   );
   const visibleRef = useRef(new Map<string, WatchTarget>());
   const favoritesRef = useRef(favorites);
-  favoritesRef.current = favorites;
+
+  useEffect(() => {
+    favoritesRef.current = favorites;
+  }, [favorites]);
 
   const [slowRequestMs, setSlowRequestMs] = useState<number | null>(null);
 
