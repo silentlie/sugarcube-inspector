@@ -93,18 +93,21 @@ function compare(
     const leftKeys = Object.keys(left);
     const rightKeys = Object.keys(right);
 
-    // Dense, ordinary arrays: index loop rather than property recursion.
-    // Verify own indices to avoid mistaking holes plus custom keys for dense.
-    if (leftKeys.length === left.length && rightKeys.length === right.length) {
-      let dense = true;
+    // Object.keys reports array indices first, sorted numerically, then custom
+    // enumerable keys. If exactly length keys exist and the final key is
+    // length - 1, every index must be present and there can be no extra keys.
+    // This avoids an Object.hasOwn call for every element.
+    const lastIndex = String(left.length - 1);
+    const dense = leftKeys.length === left.length &&
+      rightKeys.length === right.length &&
+      (left.length === 0 ||
+        (leftKeys[left.length - 1] === lastIndex &&
+         rightKeys[right.length - 1] === lastIndex));
+    if (dense) {
       for (let i = 0; i < left.length; i++) {
-        if (!hasOwn.call(left, i) || !hasOwn.call(right, i)) {
-          dense = false;
-          break;
-        }
         if (!compare(left[i], right[i], leftToRight, rightToLeft)) return false;
       }
-      if (dense) return true;
+      return true;
     }
 
     return compareProperties(left, right, leftToRight, rightToLeft, leftKeys, rightKeys);
