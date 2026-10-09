@@ -51,7 +51,7 @@ function bytesEqual(a: ArrayBuffer | ArrayBufferView, b: ArrayBuffer | ArrayBuff
   return left.length === right.length && left.every((byte, i) => byte === right[i]);
 }
 
-function deepEqual(
+export function deepEqual(
   a: unknown,
   b: unknown,
   visited = new WeakMap<object, WeakSet<object>>(),
