@@ -6,7 +6,6 @@
 const { performance } = require("node:perf_hooks");
 const { serialize } = require("node:v8");
 const fs = require("node:fs");
-const path = require("node:path");
 const ts = require("typescript");
 
 // Load the actual repository TypeScript source without building WXT.
