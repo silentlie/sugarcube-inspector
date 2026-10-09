@@ -1,6 +1,7 @@
 import type { PathSegment, WatchPatch } from "./watch";
+import type { SugarCubeSnapshot } from "./types";
 
-type Stores = { story: Record<string, unknown>; temporary: Record<string, unknown> };
+type Stores = SugarCubeSnapshot["variables"];
 
 function read(value: unknown, part: PathSegment): unknown {
   if (value == null) return undefined;
@@ -23,7 +24,8 @@ function update(
 ): unknown {
   if (path.length === 0) return patch.op === "set" ? patch.value : undefined;
 
-  const [part, ...rest] = path;
+  const part = path[0]!;
+  const rest = path.slice(1);
   const previous = read(source, part);
   const replacement = rest.length > 0 ? update(previous, rest, patch) :
     patch.op === "set" ? patch.value : undefined;
