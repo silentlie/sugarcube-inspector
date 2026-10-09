@@ -142,6 +142,8 @@ if (!isMainThread) {
       ["compare-first", "arrays-weak"],
       ["compare-first", "keys-map"],
       ["compare-first", "arrays-map"],
+      ["compare-first", "keys-lazy"],
+      ["compare-first", "arrays-lazy"],
       ["clone-first", "keys-weak"],
       ["always-clone", "keys-weak"],
     ];
