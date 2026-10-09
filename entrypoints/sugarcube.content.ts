@@ -1,5 +1,6 @@
 import { sugarcubeRPC } from "@/src/sugarcube/rpc";
 import { createSugarCubeSnapshot } from "@/src/sugarcube/snapshot";
+import { WatchService } from "@/src/sugarcube/watchService";
 import type {} from "twine-sugarcube";
 
 export default defineContentScript({
@@ -15,6 +16,15 @@ export default defineContentScript({
     if (typeof SugarCube === "undefined") {
       throw new Error("[SugarCube Inspector] SugarCube is unavailable.");
     }
+
+    const watchService = new WatchService();
+
+    sugarcubeRPC.onMessage("getWatchChanges", (request) =>
+      watchService.poll(request, {
+        story: SugarCube.State.variables,
+        temporary: SugarCube.State.temporary,
+      }),
+    );
 
     sugarcubeRPC.onMessage("getSnapshot", () => {
       return structuredClone(createSugarCubeSnapshot(SugarCube));
