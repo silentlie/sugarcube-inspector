@@ -58,7 +58,7 @@ export default function InspectorContent() {
       )}
 
       {state.status === "ready" && (
-        <WatchProvider snapshot={state.snapshot}>
+        <WatchProvider snapshot={state.snapshot} onResync={refresh}>
           <Variables snapshot={state.snapshot} />
         </WatchProvider>
       )}

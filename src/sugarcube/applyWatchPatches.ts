@@ -27,6 +27,10 @@ function update(
   const part = path[0]!;
   const rest = path.slice(1);
   const previous = read(source, part);
+  // Deletes must not manufacture a missing ancestor object.
+  if (patch.op === "delete" && rest.length > 0 && previous === undefined) {
+    return source;
+  }
   const replacement = rest.length > 0 ? update(previous, rest, patch) :
     patch.op === "set" ? patch.value : undefined;
 

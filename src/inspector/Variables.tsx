@@ -2,6 +2,7 @@ import { useId, useRef, useState, type KeyboardEvent } from "react";
 import VariableTree from "./variable-tree/VariableTree";
 import { useOptionalWatch } from "./watch/WatchProvider";
 import type { SugarCubeSnapshot } from "../sugarcube/types";
+import type { WatchTarget } from "../sugarcube/watch";
 
 type Tab = "story" | "temporary";
 
@@ -9,6 +10,7 @@ export default function Variables({ snapshot }: { snapshot: SugarCubeSnapshot })
   const [activeTab, setActiveTab] = useState<Tab>("story");
   const watch = useOptionalWatch();
   const variables = watch?.variables ?? snapshot.variables;
+  const missing = watch?.missingTargets ?? [];
   const id = useId();
 
   const storyTabRef = useRef<HTMLButtonElement>(null);
@@ -93,6 +95,7 @@ export default function Variables({ snapshot }: { snapshot: SugarCubeSnapshot })
         className="pt-3"
       >
         <VariableTree scope="story" value={variables.story} />
+        <MissingWatches targets={missing.filter((target) => target.scope === "story")} />
       </section>
 
       <section
@@ -103,7 +106,30 @@ export default function Variables({ snapshot }: { snapshot: SugarCubeSnapshot })
         className="pt-3"
       >
         <VariableTree scope="temporary" value={variables.temporary} />
+        <MissingWatches targets={missing.filter((target) => target.scope === "temporary")} />
       </section>
     </div>
+  );
+}
+
+function MissingWatches({ targets }: { targets: readonly WatchTarget[] }) {
+  if (targets.length === 0) return null;
+  return (
+    <section aria-label="Missing watched variables" className="mt-3 border-t border-zinc-800 pt-2">
+      <p className="mb-1 text-zinc-500">Missing watched variables (read-only)</p>
+      {targets.map((target) => {
+        const name = (target.scope === "story" ? "$" : "_") +
+          target.path.map((part, index) =>
+            part.type === "property" ? (index === 0 ? part.key : "." + part.key) :
+            part.type === "index" ? "[" + part.index + "]" :
+            "[" + part.type + " " + part.index + "]",
+          ).join("");
+        return <div key={JSON.stringify([target.scope, target.path])}
+          className="flex gap-2 px-2 py-1 font-mono text-zinc-500">
+          <span className="min-w-0 truncate">{name}</span>
+          <span className="ml-auto">Missing</span>
+        </div>;
+      })}
+    </section>
   );
 }
