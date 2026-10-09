@@ -77,8 +77,11 @@ function sameEntry(
   key: string,
   circularPaths: Set<string>,
 ): boolean {
-  return previous.exists === current.exists &&
-    (!current.exists || sameValue(previous.value, current.value, key, circularPaths));
+  if (previous.exists !== current.exists) return false;
+  if (!current.exists) {
+    return JSON.stringify(previous.missingPath) === JSON.stringify(current.missingPath);
+  }
+  return sameValue(previous.value, current.value, key, circularPaths);
 }
 
 /**

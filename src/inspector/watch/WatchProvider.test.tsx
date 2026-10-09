@@ -23,6 +23,8 @@ function RegisterWatch() {
   return null;
 }
 
+const snapshot = () => ({ ...createSnapshotFixture(), watchGeneration: 1 });
+
 beforeEach(() => {
   vi.useFakeTimers();
   rpc.sendMessage.mockReset();
@@ -36,56 +38,74 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("shows a dismissible warning when a targeted watch request exceeds 250ms", async () => {
-  rpc.sendMessage.mockImplementation((_type, data) =>
-    new Promise((resolve) => {
-      window.setTimeout(() => {
-        const request = data as { session: string; revision: number };
-        resolve({
-          session: request.session,
-          baseRevision: request.revision,
-          revision: request.revision,
-          patches: [],
-        });
-      }, 310);
-    }),
-  );
-
-  render(
-    <WatchProvider snapshot={createSnapshotFixture()}>
-      <RegisterWatch />
-    </WatchProvider>,
-  );
-
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(1_100);
-  });
-
-  expect(rpc.sendMessage).toHaveBeenCalledWith("getWatchChanges", expect.objectContaining({
-    targets: [{ scope: "story", path: [{ type: "property", key: "score" }] }],
+it("warns immediately on one MAIN-world poll over 50ms", async () => {
+  rpc.sendMessage.mockImplementation(async (_type, data) => ({
+    generation: (data as { generation: number }).generation,
+    changes: [], missingTargets: [], mainDurationMs: 58,
   }));
-  expect(screen.getByRole("status").textContent).toContain("Watch request took");
-  expect(screen.getByRole("status").textContent).toContain("250 ms");
+  render(<WatchProvider snapshot={snapshot()}><RegisterWatch /></WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(screen.getByRole("status").textContent).toContain("58 ms");
+  expect(screen.getByRole("status").textContent).toContain("stuttering");
+  await act(async () => { screen.getByRole("button", { name: "Dismiss watch warning" }).click(); });
+  expect(screen.queryByRole("status")).toBeNull();
+  await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+  expect(screen.queryByRole("status")).toBeNull();
 });
 
-it("does not warn about a quick watch request", async () => {
-  rpc.sendMessage.mockImplementation(async (_type, data) => {
-    const request = data as { session: string; revision: number };
-    return {
-      session: request.session,
-      baseRevision: request.revision,
-      revision: request.revision,
-      patches: [],
-    };
-  });
+it("recommends reducing watches after sustained p95 over 10ms", async () => {
+  rpc.sendMessage.mockImplementation(async (_type, data) => ({
+    generation: (data as { generation: number }).generation,
+    changes: [], missingTargets: [], mainDurationMs: 12,
+  }));
+  render(<WatchProvider snapshot={snapshot()}><RegisterWatch /></WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(5_050); });
+  expect(screen.getByRole("status").textContent).toContain("12 ms");
+  expect(screen.getByRole("status").textContent).toContain("responsiveness");
+});
 
-  render(
-    <WatchProvider snapshot={createSnapshotFixture()}>
-      <RegisterWatch />
-    </WatchProvider>,
+it("ignores long RPC round trips when MAIN processing is fast", async () => {
+  rpc.sendMessage.mockImplementation((_type, data) =>
+    new Promise((resolve) => window.setTimeout(() => resolve({
+      generation: (data as { generation: number }).generation,
+      changes: [], missingTargets: [], mainDurationMs: 1,
+    }), 310)),
   );
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(800);
-  });
+  render(<WatchProvider snapshot={snapshot()}><RegisterWatch /></WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(1_100); });
   expect(screen.queryByRole("status")).toBeNull();
+});
+
+it("requests a fresh snapshot on generation mismatch", async () => {
+  const onResync = vi.fn();
+  rpc.sendMessage.mockResolvedValue({
+    generation: 99, changes: [], missingTargets: [], mainDurationMs: 1,
+  });
+  render(<WatchProvider snapshot={snapshot()} onResync={onResync}>
+    <RegisterWatch />
+  </WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(600); });
+  expect(onResync).toHaveBeenCalledTimes(1);
+  expect(rpc.sendMessage).toHaveBeenCalledTimes(1);
+});
+
+it("retains missing watched paths after their UI rows unmount", async () => {
+  rpc.sendMessage.mockImplementation(async (_type, data) => ({
+    generation: (data as { generation: number }).generation,
+    changes: [], mainDurationMs: 1,
+    missingTargets: (data as { targets: unknown[] }).targets,
+  }));
+  function DisplayMissing() {
+    const watch = useOptionalWatch();
+    return <p>{watch?.missingTargets.length ?? 0} missing</p>;
+  }
+  const view = render(<WatchProvider snapshot={snapshot()}>
+    <RegisterWatch />
+    <DisplayMissing />
+  </WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(screen.getByText("1 missing")).toBeTruthy();
+  view.rerender(<WatchProvider snapshot={snapshot()}><DisplayMissing /></WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(screen.getByText("1 missing")).toBeTruthy();
 });
