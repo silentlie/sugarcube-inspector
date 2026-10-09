@@ -1,6 +1,9 @@
+import { useEffect, useRef } from "react";
 import VariableTile from "./VariableTile";
 import type { PathSegment, VariableScope } from "./types";
 import { getChildren, isCircular, isExpandable } from "./valueUtils";
+import { useOptionalWatch } from "../watch/WatchProvider";
+import { watchKey, type WatchTarget } from "../../sugarcube/watch";
 
 interface VariableNodeProps {
   name: string;
@@ -21,11 +24,35 @@ export default function VariableNode({
   onToggle,
   ancestors = [],
 }: VariableNodeProps) {
-  const id = JSON.stringify([scope, path]);
+  const watch = useOptionalWatch();
+  const rowRef = useRef<HTMLDivElement>(null);
+  const target: WatchTarget = { scope, path: [...path] };
+  const id = watchKey(target);
+
+  const setVisible = watch?.setVisible;
+  useEffect(() => {
+    const element = rowRef.current;
+    if (!setVisible || !element) return;
+
+    const watched: WatchTarget = { scope, path: [...path] };
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(watched, true);
+      return () => setVisible(watched, false);
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setVisible(watched, entry?.isIntersecting ?? false);
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      setVisible(watched, false);
+    };
+  }, [id, path, scope, setVisible]);
+
   const circular = isCircular(value, ancestors);
   const expandable = !circular && isExpandable(value);
   const expanded = expandable && expandedPaths.has(id);
-
   const nextAncestors =
     value !== null && typeof value === "object"
       ? [...ancestors, value]
@@ -33,14 +60,18 @@ export default function VariableNode({
 
   return (
     <div>
-      <VariableTile
-        name={name}
-        value={value}
-        circular={circular}
-        expandable={expandable}
-        expanded={expanded}
-        onToggle={() => onToggle(id)}
-      />
+      <div ref={rowRef}>
+        <VariableTile
+          name={name}
+          value={value}
+          circular={circular}
+          expandable={expandable}
+          expanded={expanded}
+          onToggle={() => onToggle(id)}
+          favorite={watch?.favorites.has(id) ?? false}
+          onToggleFavorite={watch ? () => watch.toggleFavorite(target) : undefined}
+        />
+      </div>
 
       {expanded && (
         <div className="ml-3 border-l border-zinc-700 pl-2">
