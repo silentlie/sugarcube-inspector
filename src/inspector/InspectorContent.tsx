@@ -59,7 +59,7 @@ export default function InspectorContent() {
 
       {state.status === "ready" && (
         <WatchProvider snapshot={state.snapshot}>
-          <Variables />
+          <Variables snapshot={state.snapshot} />
         </WatchProvider>
       )}
     </div>
