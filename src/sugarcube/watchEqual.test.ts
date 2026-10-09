@@ -30,16 +30,18 @@ describe("optimized watch equality", () => {
     clone[249]!.active = false;
     expect(equal(dense, clone)).toBe(false);
 
-    const a: unknown[] = [1, , 3];
+    const a: unknown[] = new Array<unknown>(3);
+    a[0] = 1;
+    a[2] = 3;
     const b: unknown[] = [1, undefined, 3];
     expect(equal(a, structuredClone(a))).toBe(true);
     expect(equal(a, b)).toBe(false);
     expect(equal([1, 2], [1, 2, 3])).toBe(false);
 
-    const withKey = Object.assign([1, , 3], { label: "X" });
+    const withKey = Object.assign(a.slice(), { label: "X" });
     const withKeyCopy = structuredClone(withKey);
     expect(equal(withKey, withKeyCopy)).toBe(true);
-    const changed = Object.assign([1, , 3], { label: "Y" });
+    const changed = Object.assign(a.slice(), { label: "Y" });
     expect(equal(withKey, changed)).toBe(false);
   });
 
