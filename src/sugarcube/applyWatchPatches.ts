@@ -59,7 +59,9 @@ function update(
       part.type === "index" ? [] : {};
 
   const key = part.type === "property" ? part.key : part.index;
-  if (rest.length === 0 && patch.op === "delete") {
+  if (Array.isArray(copy) && key === "length") {
+    if (patch.op === "set" && typeof replacement === "number") copy.length = replacement;
+  } else if (rest.length === 0 && patch.op === "delete") {
     Reflect.deleteProperty(copy, key);
   } else {
     // defineProperty also handles special keys such as "__proto__" safely.
