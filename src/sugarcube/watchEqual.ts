@@ -8,7 +8,38 @@
 const hasOwn = Object.prototype.hasOwnProperty;
 const objectTag = Object.prototype.toString;
 
-type References = WeakMap<object, object> | Map<object, object>;
+interface References {
+  has(key: object): boolean;
+  get(key: object): object | undefined;
+  set(key: object, value: object): unknown;
+}
+
+/** Defer allocation of reference tables for one-object and shallow comparisons. */
+class LazyReferences implements References {
+  private firstKey: object | undefined;
+  private firstValue: object | undefined;
+  private rest: WeakMap<object, object> | undefined;
+
+  has(key: object): boolean {
+    return this.rest?.has(key) ?? this.firstKey === key;
+  }
+
+  get(key: object): object | undefined {
+    return this.rest?.get(key) ?? (this.firstKey === key ? this.firstValue : undefined);
+  }
+
+  set(key: object, value: object): void {
+    if (this.firstKey === undefined) {
+      this.firstKey = key;
+      this.firstValue = value;
+      return;
+    }
+    if (this.rest === undefined) {
+      this.rest = new WeakMap([[this.firstKey, this.firstValue!]]);
+    }
+    this.rest.set(key, value);
+  }
+}
 
 type ArrayStrategy = "keys-first" | "values-first";
 
@@ -29,6 +60,23 @@ export function equalWatchedValuesMapRefs(previous: unknown, current: unknown): 
 /** Combine array-first traversal with strong Map-based pair tracking. */
 export function equalWatchedValuesArrayFirstMapRefs(previous: unknown, current: unknown): boolean {
   return compare(previous, current, new Map(), new Map(), "values-first");
+}
+
+/** Lazily promote first object pair to WeakMaps when traversing deeper. */
+export function equalWatchedValuesLazyRefs(previous: unknown, current: unknown): boolean {
+  if (typeof previous !== "object" || previous === null ||
+      typeof current !== "object" || current === null) {
+    return Object.is(previous, current);
+  }
+  return compare(previous, current, new LazyReferences(), new LazyReferences(), "keys-first");
+}
+
+export function equalWatchedValuesArrayFirstLazyRefs(previous: unknown, current: unknown): boolean {
+  if (typeof previous !== "object" || previous === null ||
+      typeof current !== "object" || current === null) {
+    return Object.is(previous, current);
+  }
+  return compare(previous, current, new LazyReferences(), new LazyReferences(), "values-first");
 }
 
 function equalBytes(
