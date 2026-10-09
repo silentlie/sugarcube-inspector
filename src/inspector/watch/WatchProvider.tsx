@@ -120,7 +120,6 @@ export function WatchProvider({
       }
     }
 
-    void poll();
     const timer = window.setInterval(() => void poll(), WATCH_INTERVAL_MS);
     return () => {
       active = false;
