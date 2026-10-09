@@ -182,7 +182,10 @@ npm run bench:watch:equality -- watch-equality-results.json
 ```
 
 The runner verifies each comparator on independently cloned data and excludes
-unsupported or incorrect results per scenario. It measures the time to detect
+unsupported or incorrect results per scenario. It includes the experimental
+`equalWatchedValues` checker in `src/sugarcube/watchEqual.ts`, which is not
+used by the production WatchService. Results are summarized in
+[watch equality benchmarks](docs/watch-equality-benchmark.md). It measures the time to detect
 a change and the time to detect, copy changed values and simulate response
 structured-cloning. It is a Node.js microbenchmark, **not** a real
 Chromium MAIN-world/isolated-world RPC latency test. Object-keyed Maps,
