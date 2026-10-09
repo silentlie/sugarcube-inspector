@@ -42,11 +42,11 @@ describe("two-layer selective watch service", () => {
       value: { health: 75, stats: { strength: 10 } },
     }]);
     expect(response.mainDurationMs).toBeGreaterThanOrEqual(0);
-    expect(snapshot.variables.story.player).toEqual({ health: 100, stats: { strength: 10 } });
+    expect((snapshot.variables.story as Record<string, unknown>).player).toEqual({ health: 100, stats: { strength: 10 } });
 
     // The cache must retain a clone, not the mutable live object.
     const updated = applyWatchPatches(snapshot.variables, response.changes);
-    expect((updated.story.player as { health: number }).health).toBe(75);
+    expect(((updated.story as Record<string, unknown>).player as { health: number }).health).toBe(75);
     expect(service.poll(request(generation), stores).changes).toEqual([]);
     stores.story.player.stats.strength = 12;
     expect(service.poll(request(generation), stores).changes).toEqual([{
@@ -109,7 +109,7 @@ describe("two-layer selective watch service", () => {
       op: "set", scope: "story", path: player.path, value: { health: 75, mana: 50 },
     }]);
     expect(restored.missingTargets).toEqual([]);
-    expect(applyWatchPatches(removed, restored.changes).story.player).toEqual(stores.story.player);
+    expect((applyWatchPatches(removed, restored.changes).story as Record<string, unknown>).player).toEqual(stores.story.player);
   });
 
   it("notices when the earliest missing ancestor changes", () => {
