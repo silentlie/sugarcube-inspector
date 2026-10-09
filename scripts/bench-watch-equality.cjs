@@ -23,7 +23,12 @@ require.extensions[".ts"] = (module, filename) => {
 };
 
 const { deepEqual: projectEqual } = require("../src/sugarcube/watchService.ts");
-const { equalWatchedValues: optimizedEqual } = require("../src/sugarcube/watchEqual.ts");
+const {
+  equalWatchedValues: optimizedEqual,
+  equalWatchedValuesArrayFirst,
+  equalWatchedValuesMapRefs,
+  equalWatchedValuesArrayFirstMapRefs,
+} = require("../src/sugarcube/watchEqual.ts");
 const {
   deepEqual: fastEquals,
   circularDeepEqual: fastEqualsCircular,
@@ -104,6 +109,9 @@ const detectors = {
   "dequal": dequal,
   "custom fail-fast (previous)": failFastEqual,
   "custom fail-fast (optimized)": optimizedEqual,
+  "array-first WeakMap": equalWatchedValuesArrayFirst,
+  "keys-first Map": equalWatchedValuesMapRefs,
+  "array-first Map": equalWatchedValuesArrayFirstMapRefs,
 };
 
 function fixture(kind, size) {
