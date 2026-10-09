@@ -4,6 +4,8 @@ import {
   equalWatchedValuesArrayFirst,
   equalWatchedValuesMapRefs,
   equalWatchedValuesArrayFirstMapRefs,
+  equalWatchedValuesLazyRefs,
+  equalWatchedValuesArrayFirstLazyRefs,
 } from "./watchEqual";
 
 describe("optimized watch equality", () => {
@@ -146,6 +148,8 @@ describe.each([
   ["array-first, WeakMap refs", equalWatchedValuesArrayFirst],
   ["keys-first, Map refs", equalWatchedValuesMapRefs],
   ["array-first, Map refs", equalWatchedValuesArrayFirstMapRefs],
+  ["lazy refs", equalWatchedValuesLazyRefs],
+  ["array-first, lazy refs", equalWatchedValuesArrayFirstLazyRefs],
 ])("%s", (_name, compare) => {
   it("detects early and late mutations in dense arrays", () => {
     const values = Array.from({ length: 1000 }, (_, i) => ({ score: i }));
