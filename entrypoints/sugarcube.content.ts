@@ -19,8 +19,8 @@ export default defineContentScript({
 
     const watchService = new WatchService();
 
-    sugarcubeRPC.onMessage("getWatchChanges", (request) =>
-      watchService.poll(request, {
+    sugarcubeRPC.onMessage("getWatchChanges", ({ data }) =>
+      watchService.poll(data, {
         story: SugarCube.State.variables,
         temporary: SugarCube.State.temporary,
       }),
