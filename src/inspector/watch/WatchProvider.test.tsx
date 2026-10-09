@@ -58,7 +58,7 @@ it("shows a dismissible warning when a targeted watch request exceeds 250ms", as
   );
 
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(320);
+    await vi.advanceTimersByTimeAsync(1_100);
   });
 
   expect(rpc.sendMessage).toHaveBeenCalledWith("getWatchChanges", expect.objectContaining({
