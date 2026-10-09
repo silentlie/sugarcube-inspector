@@ -317,7 +317,7 @@ test("updates visible variables through polling without a passage change", async
 
   await expect(storyVariables.getByTitle("7", { exact: true })).toBeVisible();
   await page.evaluate(() => {
-    SugarCube.State.variables.score = 42;
+    Object.assign(SugarCube.State.variables, { score: 42 });
   });
 
   // No passageChanged event or manual snapshot refresh is dispatched.
