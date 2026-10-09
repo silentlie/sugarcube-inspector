@@ -49,7 +49,7 @@ describe("selective watch service", () => {
       story: { player: { health: 100, stats: { strength: 10 } } },
       temporary: {},
     }, changed.patches);
-    expect(inspector.story.player).toEqual(stores.story.player);
+    expect((inspector.story as Record<string, unknown>).player).toEqual(stores.story.player);
   });
 
   it("handles array insertions, removals, and missing paths", () => {
@@ -74,7 +74,7 @@ describe("selective watch service", () => {
     player.inventory.length = 0;
     const shorter = service.poll(request(next.revision), stores);
     const after = applyWatchPatches({ story: { player: { inventory: ["sword", "key"] } }, temporary: {} }, shorter.patches);
-    expect((after.story.player as { inventory: unknown[] }).inventory).toEqual([]);
+    expect(((after.story as Record<string, unknown>).player as { inventory: unknown[] }).inventory).toEqual([]);
 
     delete stores.story.player;
     const missing = service.poll(request(shorter.revision), stores);
