@@ -1,8 +1,4 @@
-import {
-  CHANNEL,
-  InspectorMessageSchema,
-  type InspectorMessage,
-} from "@/src/sugarcube/protocol";
+import { sugarcubeRPC } from "@/src/sugarcube/rpc";
 import { createSugarCubeSnapshot } from "@/src/sugarcube/snapshot";
 import type {} from "twine-sugarcube";
 
@@ -12,48 +8,30 @@ export default defineContentScript({
   runAt: "document_idle",
 
   main() {
-    function sendSnapshot() {
-      if (typeof SugarCube === "undefined") return;
-
-      try {
-        window.postMessage(
-          {
-            channel: CHANNEL,
-            type: "snapshot",
-            data: createSugarCubeSnapshot(SugarCube),
-          } satisfies InspectorMessage,
-          "*",
-        );
-      } catch (error) {
-        console.error("[SugarCube Inspector]", error);
-      }
+    if (typeof $ !== "function") {
+      throw new Error("[SugarCube Inspector] jQuery is unavailable.");
     }
 
-    function handleMessage(event: MessageEvent<unknown>) {
-      if (event.source !== window) return;
-
-      const result = InspectorMessageSchema.safeParse(event.data);
-
-      if (!result.success || result.data.type !== "request") {
-        return;
-      }
-
-      sendSnapshot();
+    if (typeof SugarCube === "undefined") {
+      throw new Error("[SugarCube Inspector] SugarCube is unavailable.");
     }
 
-    // Handle manual refresh requests.
-    window.addEventListener("message", handleMessage);
+    sugarcubeRPC.onMessage("getSnapshot", () => {
+      return structuredClone(createSugarCubeSnapshot(SugarCube));
+    });
 
-    // Update automatically after passage navigation.
-    $(document).on(":passageend.sugarcubeInspector", sendSnapshot);
+    $(document).on(":passageend.sugarcubeInspector", () => {
+      void sugarcubeRPC
+        .sendMessage("passageChanged", undefined)
+        .catch((error: unknown) => {
+          console.error(
+            "[SugarCube Inspector] Passage notification failed:",
+            error,
+          );
+        });
+    });
 
-    // Announce that the main-world bridge is ready.
-    window.postMessage(
-      {
-        channel: CHANNEL,
-        type: "ready",
-      } satisfies InspectorMessage,
-      "*",
-    );
+    // Register only after successful initialisation.
+    sugarcubeRPC.onMessage("bridgeReady", () => true);
   },
 });
