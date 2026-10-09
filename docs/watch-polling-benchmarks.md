@@ -39,18 +39,20 @@ Median round-trip time in **milliseconds**. The comparator for the
 | Scenario | Compare before clone | Clone before compare | Always clone |
 | --- | ---: | ---: | ---: |
 | Flat 10K, unchanged | **1.6** | 3.5 | 6.0 |
-| Flat 10K, changing each poll | 7.2 | 7.2 | **6.0** |
+| Flat 10K, changing each poll | 7.2 | 7.4 | **6.0** |
 | Nested 10K, unchanged | **0.5** | 0.8 | 1.1 |
 | Nested 10K, changing each poll | 1.2 | 1.2 | **1.1** |
-| Array 10K, unchanged | **1.7** | 4.2 | 8.6 |
-| Array 10K, changing each poll | 10.1 | 10.1 | **9.7** |
+| Array 10K, unchanged | **1.7** | 4.1 | 8.6 |
+| Array 10K, changing each poll | 10.1 | **9.6** | 9.7 |
 | Map 2K, unchanged | **0.4** | 0.9 | 1.7 |
-| Map 2K, changing each poll | 2.6 | 2.6 | **1.7** |
+| Map 2K, changing each poll | 2.6 | 1.8 | **1.7** |
 
 Values are illustrative of this run, not guaranteed production latencies.
 MAIN-thread work and RPC round-trip costs are separately reported in JSON.
 The compare-first win for unchanged values comes from avoiding cloning and
-transferring them. With a change on every poll, comparison is usually overhead.
+transferring them. With a change on every poll, comparison is usually overhead. Individual
+small differences (such as 9.6 vs 9.7 ms) should not be treated as
+significant in a single run.
 
 ### Array traversal experiment
 
@@ -82,11 +84,11 @@ Unsupported / incorrect results are excluded.
 
 | Unchanged value | Optimized custom | fast-equals/deepEqual | fast-equals/circular | dequal |
 | --- | ---: | ---: | ---: | ---: |
-| Flat object, 10K | **1.707** | 1.745 | 1.718 | see JSON |
-| Nested objects, 10K | **0.443** | 0.446 | 0.455 | see JSON |
-| 10K array objects | 2.066 | **0.698** | 1.812 | see JSON |
-| Primitive-key Map, 2K | **0.246** | 7.364 | 7.602 | see JSON |
-| Typed array, 200K bytes | **0.0256** | 0.0975 | 0.0977 | see JSON |
+| Flat object, 10K | **1.707** | 1.745 | 1.718 | 1.876 |
+| Nested objects, 10K | **0.443** | 0.446 | 0.455 | 0.668 |
+| 10K array objects | 2.066 | **0.698** | 1.812 | 0.864 |
+| Primitive-key Map, 2K | 0.246 | 7.364 | 7.602 | **0.132** |
+| Typed array, 200K bytes | **0.0256** | 0.0975 | 0.0977 | 0.100 |
 | Cyclic graph, 1K | **0.130** | unsupported | 0.168 | unsupported |
 
 The custom comparator performs well on typed arrays, Maps and cyclic
