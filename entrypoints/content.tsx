@@ -3,6 +3,7 @@ import InspectorContent from "@/src/inspector/InspectorContent";
 import { InspectorProvider } from "@/src/inspector/InspectorContext";
 import "@/src/styles/tailwind.css";
 import { sugarcubeRPC } from "@/src/sugarcube/rpc";
+import { withTimeout } from "@/src/utils/withTimeout";
 
 import ReactDOM from "react-dom/client";
 
@@ -52,24 +53,11 @@ export default defineContentScript({
 });
 
 async function verifyBridge(): Promise<void> {
-  let timeoutId: number | undefined;
+  const ready = await withTimeout(
+    sugarcubeRPC.sendMessage("bridgeReady", undefined),
+  );
 
-  try {
-    const ready = await Promise.race([
-      sugarcubeRPC.sendMessage("bridgeReady", undefined),
-      new Promise<never>((_, reject) => {
-        timeoutId = window.setTimeout(() => {
-          reject(new Error("SugarCube RPC bridge did not respond"));
-        }, 3000);
-      }),
-    ]);
-
-    if (ready !== true) {
-      throw new Error("Invalid SugarCube RPC readiness response");
-    }
-  } finally {
-    if (timeoutId !== undefined) {
-      window.clearTimeout(timeoutId);
-    }
+  if (ready !== true) {
+    throw new Error("Invalid SugarCube RPC readiness response.");
   }
 }

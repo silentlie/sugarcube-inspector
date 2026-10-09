@@ -1,9 +1,11 @@
 import { ObjectInspector } from "react-inspector";
-import { useInspector } from "./InspectorContext";
+import type { SugarCubeSnapshot } from "../sugarcube/types";
 
-export default function Variables() {
-  const { snapshot } = useInspector();
+interface VariablesProps {
+  snapshot: SugarCubeSnapshot;
+}
 
+export default function Variables({ snapshot }: VariablesProps) {
   if (!snapshot) {
     return (
       <p className="text-sm text-zinc-400">Waiting for SugarCube data...</p>

@@ -14,6 +14,7 @@ import {
   SugarCubeSnapshotSchema,
   type SugarCubeSnapshot,
 } from "../sugarcube/types";
+import { withTimeout } from "../utils/withTimeout";
 
 const RPC_TIMEOUT_MS = 3000;
 
@@ -35,7 +36,6 @@ type InspectorState =
 
 interface InspectorContextValue {
   state: InspectorState;
-  snapshot: SugarCubeSnapshot | null;
   refresh: () => void;
 }
 
@@ -47,28 +47,6 @@ const InspectorContext = createContext<InspectorContextValue | null>(null);
 
 function toError(value: unknown): Error {
   return value instanceof Error ? value : new Error(String(value));
-}
-
-async function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-): Promise<T> {
-  let timeoutId: number | undefined;
-
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timeoutId = window.setTimeout(() => {
-          reject(new Error("SugarCube RPC request timed out."));
-        }, timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId !== undefined) {
-      window.clearTimeout(timeoutId);
-    }
-  }
 }
 
 export function InspectorProvider({ children }: InspectorProviderProps) {
@@ -100,7 +78,6 @@ export function InspectorProvider({ children }: InspectorProviderProps) {
       try {
         const result = await withTimeout(
           sugarcubeRPC.sendMessage("getSnapshot", undefined),
-          RPC_TIMEOUT_MS,
         );
 
         const snapshot = SugarCubeSnapshotSchema.parse(result);
@@ -152,7 +129,6 @@ export function InspectorProvider({ children }: InspectorProviderProps) {
   const value = useMemo(
     () => ({
       state,
-      snapshot: state.snapshot,
       refresh,
     }),
     [state, refresh],

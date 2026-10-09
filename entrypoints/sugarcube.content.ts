@@ -16,11 +16,6 @@ export default defineContentScript({
       throw new Error("[SugarCube Inspector] SugarCube is unavailable.");
     }
 
-    console.debug("[SugarCube Inspector] MAIN starting", {
-      sugarcube: typeof SugarCube,
-      jquery: typeof $,
-    });
-
     sugarcubeRPC.onMessage("getSnapshot", () => {
       return structuredClone(createSugarCubeSnapshot(SugarCube));
     });

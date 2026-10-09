@@ -1,30 +1,42 @@
 import { useInspector } from "./InspectorContext";
+import InspectorError from "./InspectorError";
 import Variables from "./Variables";
 
 export default function InspectorContent() {
-  const { snapshot, refresh } = useInspector();
+  const { state, refresh } = useInspector();
 
   return (
     <div>
       <h1 className="text-lg font-semibold">SugarCube Inspector</h1>
 
-      <p className="mt-1 text-sm text-zinc-400">
-        {snapshot?.story.name ?? "Loading..."}
-      </p>
-
       <hr className="my-4 border-zinc-800" />
 
-      <button
-        type="button"
-        onClick={refresh}
-        className="rounded bg-zinc-800 px-3 py-1 text-sm"
-      >
-        Refresh
-      </button>
+      {state.status === "loading" && (
+        <p className="text-sm text-zinc-400">Loading SugarCube data...</p>
+      )}
 
-      <div className="mt-4">
-        <Variables />
-      </div>
+      {state.status === "error" && (
+        <InspectorError error={state.error} onRetry={refresh} />
+      )}
+
+      {state.status === "ready" && (
+        <>
+          <p className="mb-4 text-sm text-zinc-400">
+            {state.snapshot.story.name}
+          </p>
+
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={state.refreshing}
+            className="mb-4 rounded bg-zinc-800 px-3 py-1 text-sm"
+          >
+            {state.refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+
+          <Variables snapshot={state.snapshot} />
+        </>
+      )}
     </div>
   );
 }
