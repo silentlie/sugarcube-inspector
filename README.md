@@ -170,27 +170,30 @@ validates snapshots with Zod and ignores superseded results or results received
 after unmounting.
 
 
-## Watch equality microbenchmark
+## Watch performance experiments
 
-Compare the project deep-equality checker, `fast-equals`, `fast-deep-equal/es6`,
-`dequal`, and a custom fail-fast comparator. Install optional benchmark-only
-dependencies without changing the project lockfile:
+Experimental code compares specialized deep-equality traversal and reference
+tracking, plus three polling strategies: compare-before-clone, clone-before-compare,
+and always-clone. None of these experiments changes the production WatchService.
+See [watch polling benchmarks](docs/watch-polling-benchmarks.md) for results,
+including measurements of real Chromium MAIN-to-isolated-world
+`@webext-core/messaging/page` transport.
+
+Install benchmark-only dependencies without changing the project lockfile:
 
 ```sh
-npm install --no-save --package-lock=false --ignore-scripts fast-equals@6.1.1 fast-deep-equal@3.1.3 dequal@2.0.3
-npm run bench:watch:equality -- watch-equality-results.json
+npm ci
+npm install --no-save --package-lock=false --ignore-scripts fast-equals@6.1.1 fast-deep-equal@3.1.3 dequal@2.0.3 esbuild@0.28.2
+npx playwright install chromium
+npm run bench:watch:equality -- equality.json
+npm run bench:watch:variants -- worker.json
+npm run bench:watch:chromium -- chromium.json
 ```
 
-The runner verifies each comparator on independently cloned data and excludes
-unsupported or incorrect results per scenario. It includes the experimental
-`equalWatchedValues` checker in `src/sugarcube/watchEqual.ts`, which is not
-used by the production WatchService. Results are summarized in
-[watch equality benchmarks](docs/watch-equality-benchmark.md). It measures the time to detect
-a change and the time to detect, copy changed values and simulate response
-structured-cloning. It is a Node.js microbenchmark, **not** a real
-Chromium MAIN-world/isolated-world RPC latency test. Object-keyed Maps,
-object Sets, and cycles are tested; the custom comparator assumes matching
-Map/Set iteration order and is not a general-purpose drop-in replacement.
+The equality and worker-thread measurements run in Node.js; the Chromium script
+bundles the project's actual custom-event RPC into two Chrome execution worlds
+with synthetic watched values. Results, assumptions and correctness limitations
+are recorded in [the benchmark notes](docs/watch-polling-benchmarks.md).
 
 ## Project structure
 
