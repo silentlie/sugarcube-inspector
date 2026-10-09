@@ -20,7 +20,8 @@
     "format:check": "prettier --check .",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare",
-    "bench:watch": "node scripts/bench-watch.cjs"
+    "bench:watch": "node scripts/bench-watch.cjs",
+    "bench:watch:roundtrip": "node scripts/bench-watch-roundtrip.cjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
