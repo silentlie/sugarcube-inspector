@@ -41,7 +41,7 @@ class LazyReferences implements References {
   }
 }
 
-type ArrayStrategy = "keys-first" | "values-first";
+type ArrayStrategy = "keys-first" | "values-first" | "values-reverse";
 
 export function equalWatchedValues(previous: unknown, current: unknown): boolean {
   return compare(previous, current, new WeakMap(), new WeakMap(), "keys-first");
@@ -60,6 +60,11 @@ export function equalWatchedValuesMapRefs(previous: unknown, current: unknown): 
 /** Combine array-first traversal with strong Map-based pair tracking. */
 export function equalWatchedValuesArrayFirstMapRefs(previous: unknown, current: unknown): boolean {
   return compare(previous, current, new Map(), new Map(), "values-first");
+}
+
+/** Traverse from the last array index first, for common tail mutations. */
+export function equalWatchedValuesArrayReverse(previous: unknown, current: unknown): boolean {
+  return compare(previous, current, new WeakMap(), new WeakMap(), "values-reverse");
 }
 
 /** Lazily promote first object pair to WeakMaps when traversing deeper. */
@@ -161,6 +166,10 @@ function compare(
     // after comparing indices. It makes first-element changes very cheap.
     if (strategy === "values-first") {
       for (let i = 0; i < left.length; i++) {
+        if (!compare(left[i], right[i], leftToRight, rightToLeft, strategy)) return false;
+      }
+    } else if (strategy === "values-reverse") {
+      for (let i = left.length - 1; i >= 0; i--) {
         if (!compare(left[i], right[i], leftToRight, rightToLeft, strategy)) return false;
       }
     }
