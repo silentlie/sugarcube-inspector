@@ -56,3 +56,34 @@ jobs:
           path: test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  benchmark-watch-variants:
+    if: github.event_name == 'pull_request' && github.head_ref == 'feat/selective-variable-watch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Validate comparison variants
+        run: npm test -- src/sugarcube/watchEqual.test.ts src/sugarcube/watchPollingVariants.test.ts
+      - name: Benchmark worker-thread round trips
+        run: npm run bench:watch:variants -- /tmp/watch-variants-worker.json
+      - name: Install browser
+        run: npx playwright install --with-deps chromium --no-shell
+      - name: Benchmark Chromium MAIN and isolated world RPC
+        run: npm run bench:watch:chromium -- /tmp/watch-variants-chromium.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: watch-variant-benchmark-results
+          path: |
+            /tmp/watch-variants-worker.json
+            /tmp/watch-variants-chromium.json
+          if-no-files-found: warn
+          retention-days: 7
