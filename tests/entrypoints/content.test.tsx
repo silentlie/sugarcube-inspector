@@ -34,7 +34,8 @@ describe("inspector startup", () => {
     mocks.createShadowRootUi.mockReset();
     mocks.createShadowRootUi.mockResolvedValue({ mount: mocks.mount });
     mocks.createRoot.mockReturnValue(mocks.root);
-    document.body.innerHTML = '<tw-storydata format="SugarCube"></tw-storydata>';
+    document.body.innerHTML =
+      '<tw-storydata format="SugarCube"></tw-storydata>';
     context = new ContentScriptContext("inspector-startup-test");
   });
 
@@ -47,23 +48,32 @@ describe("inspector startup", () => {
 
   it.each([
     { name: "an ordinary page", html: "<main>No story</main>" },
-    { name: "another story format", html: '<tw-storydata format="Harlowe"></tw-storydata>' },
-  ])("skips $name without requesting readiness or creating UI", async ({ html }) => {
-    document.body.innerHTML = html;
+    {
+      name: "another story format",
+      html: '<tw-storydata format="Harlowe"></tw-storydata>',
+    },
+  ])(
+    "skips $name without requesting readiness or creating UI",
+    async ({ html }) => {
+      document.body.innerHTML = html;
 
-    await contentScript.main(context);
+      await contentScript.main(context);
 
-    expect(mocks.sendMessage).not.toHaveBeenCalled();
-    expect(mocks.createShadowRootUi).not.toHaveBeenCalled();
-    expect(mocks.mount).not.toHaveBeenCalled();
-  });
+      expect(mocks.sendMessage).not.toHaveBeenCalled();
+      expect(mocks.createShadowRootUi).not.toHaveBeenCalled();
+      expect(mocks.mount).not.toHaveBeenCalled();
+    },
+  );
 
   it("waits for a true readiness response before creating and mounting UI", async () => {
     const readiness = Promise.withResolvers<unknown>();
     mocks.sendMessage.mockReturnValueOnce(readiness.promise);
     const startup = contentScript.main(context);
 
-    expect(mocks.sendMessage).toHaveBeenCalledExactlyOnceWith("bridgeReady", undefined);
+    expect(mocks.sendMessage).toHaveBeenCalledExactlyOnceWith(
+      "bridgeReady",
+      undefined,
+    );
     expect(mocks.createShadowRootUi).not.toHaveBeenCalled();
     expect(mocks.mount).not.toHaveBeenCalled();
 
@@ -108,7 +118,9 @@ describe("inspector startup", () => {
     const readiness = Promise.withResolvers<unknown>();
     mocks.sendMessage.mockReturnValueOnce(readiness.promise);
     const startup = contentScript.main(context);
-    const rejection = expect(startup).rejects.toThrow("Operation timed out after 3000ms");
+    const rejection = expect(startup).rejects.toThrow(
+      "Operation timed out after 3000ms",
+    );
 
     await vi.advanceTimersByTimeAsync(2_999);
     expect(mocks.createShadowRootUi).not.toHaveBeenCalled();
@@ -127,7 +139,8 @@ describe("inspector startup", () => {
   it("creates the React root on mount and unmounts it when UI is removed", async () => {
     mocks.sendMessage.mockResolvedValueOnce(true);
     await contentScript.main(context);
-    const options = mocks.createShadowRootUi.mock.calls[0]![1] as ShadowRootContentScriptUiOptions<Root>;
+    const options = mocks.createShadowRootUi.mock
+      .calls[0]![1] as ShadowRootContentScriptUiOptions<Root>;
     const host = document.createElement("div");
     const shadow = host.attachShadow({ mode: "open" });
     const container = document.createElement("div");

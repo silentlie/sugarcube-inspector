@@ -63,15 +63,15 @@ the displayed metadata.
 
 ## Development commands
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start WXT development mode for Chrome. |
-| `npm run build` | Build the production Chrome MV3 extension. |
-| `npm run zip` | Package the Chrome extension as a ZIP under `.output`. |
-| `npm run compile` | Check TypeScript with TypeScript 7, including the test suites. |
-| `npm test` | Run unit, startup, and RPC integration tests. |
-| `npm run test:watch` | Run Vitest in watch mode. |
-| `npm run test:browser` | Build the extension and run Chromium smoke tests. |
+| Command                | Purpose                                                        |
+| ---------------------- | -------------------------------------------------------------- |
+| `npm run dev`          | Start WXT development mode for Chrome.                         |
+| `npm run build`        | Build the production Chrome MV3 extension.                     |
+| `npm run zip`          | Package the Chrome extension as a ZIP under `.output`.         |
+| `npm run compile`      | Check TypeScript with TypeScript 7, including the test suites. |
+| `npm test`             | Run unit, startup, and RPC integration tests.                  |
+| `npm run test:watch`   | Run Vitest in watch mode.                                      |
+| `npm run test:browser` | Build the extension and run Chromium smoke tests.              |
 
 The normal `tsc` command and CI use TypeScript 7. The `typescript` dependency
 aliases the TypeScript 6 compatibility package for tools that need its compiler
@@ -161,17 +161,17 @@ after unmounting.
 
 ## Project structure
 
-| Path | Responsibility |
-| --- | --- |
-| `entrypoints/content.tsx` | Verify bridge readiness and mount the drawer. |
-| `entrypoints/sugarcube.content.ts` | Serve snapshots and emit passage-change notifications from the page. |
-| `entrypoints/background.ts` | Configure toolbar clicks to open the side panel. |
-| `entrypoints/sidepanel/` | Detect the active local story and display its metadata. |
-| `src/inspector/` | Drawer, variable trees, request state, and error UI. |
-| `src/sugarcube/` | RPC contract, snapshot construction, and validation schema. |
-| `src/utils/` | Request timeout helper. |
-| `tests/` | Startup, transport integration, and browser tests; unit tests also live beside source files. |
-| `docs/` | Deferred feature designs. |
+| Path                               | Responsibility                                                                               |
+| ---------------------------------- | -------------------------------------------------------------------------------------------- |
+| `entrypoints/content.tsx`          | Verify bridge readiness and mount the drawer.                                                |
+| `entrypoints/sugarcube.content.ts` | Serve snapshots and emit passage-change notifications from the page.                         |
+| `entrypoints/background.ts`        | Configure toolbar clicks to open the side panel.                                             |
+| `entrypoints/sidepanel/`           | Detect the active local story and display its metadata.                                      |
+| `src/inspector/`                   | Drawer, variable trees, request state, and error UI.                                         |
+| `src/sugarcube/`                   | RPC contract, snapshot construction, and validation schema.                                  |
+| `src/utils/`                       | Request timeout helper.                                                                      |
+| `tests/`                           | Startup, transport integration, and browser tests; unit tests also live beside source files. |
+| `docs/`                            | Deferred feature designs.                                                                    |
 
 ## Current scope and limitations
 

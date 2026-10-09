@@ -28,10 +28,7 @@ export default function InspectorContent() {
             disabled
             title="Pin inspector (coming soon)"
             aria-label="Pin inspector (coming soon)"
-            className="
-              rounded p-2 text-zinc-500
-              disabled:cursor-not-allowed
-            "
+            className="rounded p-2 text-zinc-500 disabled:cursor-not-allowed"
           >
             <Pin className="size-4" />
           </button>
@@ -42,12 +39,7 @@ export default function InspectorContent() {
             disabled={state.status !== "ready" || refreshing}
             title="Refresh snapshot"
             aria-label="Refresh snapshot"
-            className="
-              rounded p-2 text-zinc-400
-              hover:bg-zinc-800 hover:text-zinc-100
-              disabled:cursor-not-allowed
-              disabled:opacity-50
-            "
+            className="rounded p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw
               className={`size-4 ${refreshing ? "animate-spin" : ""}`}

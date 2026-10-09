@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ContentScriptContext } from "wxt/utils/content-script-context";
 import bridge from "../../entrypoints/sugarcube.content";
 import { sugarcubeRPC, type SugarCubeRPC } from "../../src/sugarcube/rpc";
-import { SugarCubeSnapshotSchema, type SugarCubeSnapshot } from "../../src/sugarcube/types";
+import {
+  SugarCubeSnapshotSchema,
+  type SugarCubeSnapshot,
+} from "../../src/sugarcube/types";
 import { withTimeout } from "../../src/utils/withTimeout";
 import { createSnapshotFixture, createSugarCubeFixture } from "../fixtures";
 
@@ -30,7 +33,9 @@ describe("real SugarCube RPC transport", () => {
     cube = createSugarCubeFixture();
     vi.stubGlobal("SugarCube", cube);
     vi.stubGlobal("$", () => ({
-      on: (_event: string, listener: () => void) => { passageEnd = listener; },
+      on: (_event: string, listener: () => void) => {
+        passageEnd = listener;
+      },
     }));
     context = new ContentScriptContext("rpc-integration-test");
     client = createClient();
@@ -50,7 +55,9 @@ describe("real SugarCube RPC transport", () => {
   it("exchanges readiness and a validated snapshot with the production bridge", async () => {
     bridge.main(context);
 
-    await expect(withTimeout(client.sendMessage("bridgeReady", undefined))).resolves.toBe(true);
+    await expect(
+      withTimeout(client.sendMessage("bridgeReady", undefined)),
+    ).resolves.toBe(true);
     const snapshot = SugarCubeSnapshotSchema.parse(
       await withTimeout(client.sendMessage("getSnapshot", undefined)),
     );
@@ -76,7 +83,9 @@ describe("real SugarCube RPC transport", () => {
     cube.State.temporary.choice = "south";
 
     passageEnd();
-    const snapshot = SugarCubeSnapshotSchema.parse(await withTimeout(updated.promise));
+    const snapshot = SugarCubeSnapshotSchema.parse(
+      await withTimeout(updated.promise),
+    );
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(snapshot.passage.name).toBe("Next Passage");
@@ -93,7 +102,9 @@ describe("real SugarCube RPC transport", () => {
     variables.stats = new Map([["score", 7]]);
     bridge.main(context);
 
-    const snapshot = await withTimeout(client.sendMessage("getSnapshot", undefined));
+    const snapshot = await withTimeout(
+      client.sendMessage("getSnapshot", undefined),
+    );
     const cloned = snapshot.variables.story;
 
     expect(cloned).not.toBe(variables);
@@ -103,11 +114,16 @@ describe("real SugarCube RPC transport", () => {
   });
 
   it("propagates a snapshot handler failure through the real transport", async () => {
-    vi.spyOn(cube.Story, "get").mockImplementation(() => { throw new Error("Passage unavailable"); });
+    vi.spyOn(cube.Story, "get").mockImplementation(() => {
+      throw new Error("Passage unavailable");
+    });
     bridge.main(context);
 
-    await expect(withTimeout(client.sendMessage("getSnapshot", undefined))).rejects.toMatchObject({
-      name: "Error", message: "Passage unavailable",
+    await expect(
+      withTimeout(client.sendMessage("getSnapshot", undefined)),
+    ).rejects.toMatchObject({
+      name: "Error",
+      message: "Passage unavailable",
     });
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -116,7 +132,9 @@ describe("real SugarCube RPC transport", () => {
     cube.State.variables.callback = () => {};
     bridge.main(context);
 
-    await expect(withTimeout(client.sendMessage("getSnapshot", undefined))).rejects.toMatchObject({
+    await expect(
+      withTimeout(client.sendMessage("getSnapshot", undefined)),
+    ).rejects.toMatchObject({
       name: "DataCloneError",
     });
     expect(vi.getTimerCount()).toBe(0);
@@ -145,20 +163,32 @@ describe("real SugarCube RPC transport", () => {
   it("does not accept readiness responses from a different namespace", async () => {
     bridge.main(context);
     const otherClient = createClient("another-extension:rpc");
-    const result = withTimeout(otherClient.sendMessage("bridgeReady", undefined), 25);
-    const rejection = expect(result).rejects.toThrow("Operation timed out after 25ms");
+    const result = withTimeout(
+      otherClient.sendMessage("bridgeReady", undefined),
+      25,
+    );
+    const rejection = expect(result).rejects.toThrow(
+      "Operation timed out after 25ms",
+    );
 
     await vi.advanceTimersByTimeAsync(25);
 
     await rejection;
-    await expect(client.sendMessage("bridgeReady", undefined)).resolves.toBe(true);
+    await expect(client.sendMessage("bridgeReady", undefined)).resolves.toBe(
+      true,
+    );
   });
 
   it("times out readiness when bridge initialization failed", async () => {
     vi.stubGlobal("SugarCube", undefined);
     expect(() => bridge.main(context)).toThrow("SugarCube is unavailable");
-    const result = withTimeout(client.sendMessage("bridgeReady", undefined), 25);
-    const rejection = expect(result).rejects.toThrow("Operation timed out after 25ms");
+    const result = withTimeout(
+      client.sendMessage("bridgeReady", undefined),
+      25,
+    );
+    const rejection = expect(result).rejects.toThrow(
+      "Operation timed out after 25ms",
+    );
 
     await vi.advanceTimersByTimeAsync(25);
 
@@ -177,7 +207,9 @@ describe("real SugarCube RPC transport", () => {
     client.removeAllListeners();
     sugarcubeRPC.removeAllListeners();
 
-    const registrations = add.mock.calls.filter(([name]) => name.startsWith("@webext-core/messaging/"));
+    const registrations = add.mock.calls.filter(([name]) =>
+      name.startsWith("@webext-core/messaging/"),
+    );
     expect(registrations.length).toBeGreaterThanOrEqual(4);
     for (const [name, listener] of registrations) {
       expect(remove).toHaveBeenCalledWith(name, listener);
@@ -187,14 +219,21 @@ describe("real SugarCube RPC transport", () => {
   it("removes an unanswered response listener when the messenger is torn down", async () => {
     const add = vi.spyOn(window, "addEventListener");
     const remove = vi.spyOn(window, "removeEventListener");
-    const result = withTimeout(client.sendMessage("bridgeReady", undefined), 25);
-    const rejection = expect(result).rejects.toThrow("Operation timed out after 25ms");
+    const result = withTimeout(
+      client.sendMessage("bridgeReady", undefined),
+      25,
+    );
+    const rejection = expect(result).rejects.toThrow(
+      "Operation timed out after 25ms",
+    );
     await vi.advanceTimersByTimeAsync(25);
     await rejection;
 
     client.removeAllListeners();
 
-    const registrations = add.mock.calls.filter(([name]) => name.startsWith("@webext-core/messaging/"));
+    const registrations = add.mock.calls.filter(([name]) =>
+      name.startsWith("@webext-core/messaging/"),
+    );
     expect(registrations).toHaveLength(1);
     for (const [name, listener] of registrations) {
       expect(remove).toHaveBeenCalledWith(name, listener);

@@ -61,12 +61,7 @@ export default function VariableTile({
         aria-label={`${expanded ? "Collapse" : "Expand"} ${name}`}
         aria-expanded={expanded}
         onClick={onToggle}
-        className={`
-          ${className}
-          cursor-pointer
-          focus-visible:outline-2
-          focus-visible:outline-zinc-400
-        `}
+        className={` ${className} cursor-pointer focus-visible:outline-2 focus-visible:outline-zinc-400`}
       >
         {content}
       </button>

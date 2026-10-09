@@ -20,7 +20,9 @@ describe("page bridge initialization", () => {
   const jquery = vi.fn(() => ({ on }));
 
   function handler(type: string) {
-    const registration = rpc.onMessage.mock.calls.find(([name]) => name === type);
+    const registration = rpc.onMessage.mock.calls.find(
+      ([name]) => name === type,
+    );
     expect(registration).toBeDefined();
     return registration![1];
   }
@@ -53,7 +55,9 @@ describe("page bridge initialization", () => {
     (value) => {
       vi.stubGlobal("$", value);
 
-      expect(() => bridge.main(context)).toThrow("[SugarCube Inspector] jQuery is unavailable.");
+      expect(() => bridge.main(context)).toThrow(
+        "[SugarCube Inspector] jQuery is unavailable.",
+      );
 
       expect(rpc.onMessage).not.toHaveBeenCalled();
       expect(on).not.toHaveBeenCalled();
@@ -63,7 +67,9 @@ describe("page bridge initialization", () => {
   it("does not register any handlers when SugarCube is unavailable", () => {
     vi.stubGlobal("SugarCube", undefined);
 
-    expect(() => bridge.main(context)).toThrow("[SugarCube Inspector] SugarCube is unavailable.");
+    expect(() => bridge.main(context)).toThrow(
+      "[SugarCube Inspector] SugarCube is unavailable.",
+    );
 
     expect(rpc.onMessage).not.toHaveBeenCalled();
     expect(jquery).not.toHaveBeenCalled();
@@ -71,24 +77,39 @@ describe("page bridge initialization", () => {
 
   it("registers readiness only after the snapshot and passage handlers", () => {
     on.mockImplementationOnce(() => {
-      expect(rpc.onMessage).toHaveBeenCalledExactlyOnceWith("getSnapshot", expect.any(Function));
+      expect(rpc.onMessage).toHaveBeenCalledExactlyOnceWith(
+        "getSnapshot",
+        expect.any(Function),
+      );
     });
 
     bridge.main(context);
 
     expect(jquery).toHaveBeenCalledExactlyOnceWith(document);
-    expect(on).toHaveBeenCalledExactlyOnceWith(":passageend.sugarcubeInspector", expect.any(Function));
-    expect(rpc.onMessage).toHaveBeenNthCalledWith(2, "bridgeReady", expect.any(Function));
+    expect(on).toHaveBeenCalledExactlyOnceWith(
+      ":passageend.sugarcubeInspector",
+      expect.any(Function),
+    );
+    expect(rpc.onMessage).toHaveBeenNthCalledWith(
+      2,
+      "bridgeReady",
+      expect.any(Function),
+    );
     expect(handler("bridgeReady")()).toBe(true);
   });
 
   it("never advertises readiness if passage subscription fails", () => {
     const cause = new Error("Passage subscription failed");
-    on.mockImplementationOnce(() => { throw cause; });
+    on.mockImplementationOnce(() => {
+      throw cause;
+    });
 
     expect(() => bridge.main(context)).toThrow(cause);
 
-    expect(rpc.onMessage).not.toHaveBeenCalledWith("bridgeReady", expect.any(Function));
+    expect(rpc.onMessage).not.toHaveBeenCalledWith(
+      "bridgeReady",
+      expect.any(Function),
+    );
   });
 
   it("returns a valid snapshot cloned from the current SugarCube state", () => {
@@ -124,7 +145,10 @@ describe("page bridge initialization", () => {
     on.mock.calls[0]![1]();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(rpc.sendMessage).toHaveBeenCalledExactlyOnceWith("passageChanged", undefined);
+    expect(rpc.sendMessage).toHaveBeenCalledExactlyOnceWith(
+      "passageChanged",
+      undefined,
+    );
     expect(console.error).not.toHaveBeenCalled();
   });
 
@@ -137,7 +161,8 @@ describe("page bridge initialization", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(console.error).toHaveBeenCalledExactlyOnceWith(
-      "[SugarCube Inspector] Passage notification failed:", cause,
+      "[SugarCube Inspector] Passage notification failed:",
+      cause,
     );
   });
 });

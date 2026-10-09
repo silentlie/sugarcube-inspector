@@ -41,26 +41,29 @@ describe("withTimeout", () => {
   it.each([
     { name: "default", timeoutMs: undefined, deadline: 3_000 },
     { name: "custom", timeoutMs: 75, deadline: 75 },
-  ])("rejects at the $name deadline, never before it", async ({ timeoutMs, deadline }) => {
-    const operation = Promise.withResolvers<never>();
-    const result = withTimeout(operation.promise, timeoutMs);
-    const settled = vi.fn();
-    void result.then(settled, settled);
-    const rejection = expect(result).rejects.toThrow(
-      `Operation timed out after ${deadline}ms`,
-    );
+  ])(
+    "rejects at the $name deadline, never before it",
+    async ({ timeoutMs, deadline }) => {
+      const operation = Promise.withResolvers<never>();
+      const result = withTimeout(operation.promise, timeoutMs);
+      const settled = vi.fn();
+      void result.then(settled, settled);
+      const rejection = expect(result).rejects.toThrow(
+        `Operation timed out after ${deadline}ms`,
+      );
 
-    await vi.advanceTimersByTimeAsync(deadline - 1);
+      await vi.advanceTimersByTimeAsync(deadline - 1);
 
-    expect(settled).not.toHaveBeenCalled();
-    expect(vi.getTimerCount()).toBe(1);
+      expect(settled).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(1);
 
-    await vi.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(1);
 
-    await rejection;
-    expect(settled).toHaveBeenCalledTimes(1);
-    expect(vi.getTimerCount()).toBe(0);
-  });
+      await rejection;
+      expect(settled).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
 
   it("honors a zero timeout instead of using the default deadline", async () => {
     const result = withTimeout(new Promise<never>(() => {}), 0);

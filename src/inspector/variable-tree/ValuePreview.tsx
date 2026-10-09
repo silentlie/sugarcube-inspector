@@ -95,10 +95,7 @@ export default function ValuePreview({ value }: ValuePreviewProps) {
   return (
     <span
       title={formatted}
-      className={`
-        block truncate font-mono
-        ${getValueColor(value)}
-      `}
+      className={`block truncate font-mono ${getValueColor(value)} `}
     >
       {formatted}
     </span>

@@ -74,17 +74,11 @@ export default function Variables({ snapshot }: VariablesProps) {
               aria-controls={`${id}-${value}-panel`}
               tabIndex={selected ? 0 : -1}
               onClick={() => setActiveTab(value)}
-              className={`
-                border-b-2 px-4 py-2
-                font-medium transition-colors
-                focus-visible:outline-2
-                focus-visible:outline-zinc-400
-                ${
-                  selected
-                    ? "border-sky-400 text-zinc-100"
-                    : "border-transparent text-zinc-500 hover:text-zinc-300"
-                }
-              `}
+              className={`border-b-2 px-4 py-2 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-zinc-400 ${
+                selected
+                  ? "border-sky-400 text-zinc-100"
+                  : "border-transparent text-zinc-500 hover:text-zinc-300"
+              } `}
             >
               {label}
             </button>

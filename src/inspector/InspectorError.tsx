@@ -11,7 +11,7 @@ export default function InspectorError({
     <div className="space-y-3">
       <h2 className="text-sm font-semibold text-red-400">Inspector Error</h2>
 
-      <pre className="whitespace-pre-wrap wrap-break-word text-xs text-red-300">
+      <pre className="text-xs wrap-break-word whitespace-pre-wrap text-red-300">
         {error.message}
       </pre>
 

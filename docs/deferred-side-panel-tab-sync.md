@@ -25,13 +25,13 @@ This is a future usability improvement, **not a confirmed defect in the inspecto
 
 ### State ownership
 
-| Data | Intended scope |
-| --- | --- |
+| Data                                                               | Intended scope                                 |
+| ------------------------------------------------------------------ | ---------------------------------------------- |
 | Global preferences (enable/disable, notifications, default layout) | Extension-wide, persisted in extension storage |
-| Side-panel selection/status and pending request | Per side-panel instance / window |
-| Active tab ID and active game metadata | Per window, tied to the selected tab |
-| Inspector open/closed and game runtime/variables | Per tab |
-| Bridge verification results | Per target tab, not global |
+| Side-panel selection/status and pending request                    | Per side-panel instance / window               |
+| Active tab ID and active game metadata                             | Per window, tied to the selected tab           |
+| Inspector open/closed and game runtime/variables                   | Per tab                                        |
+| Bridge verification results                                        | Per target tab, not global                     |
 
 ## Suggested implementation (when resumed)
 
@@ -50,7 +50,7 @@ const [tab] = await browser.tabs.query({
 });
 ```
 
-**Why store `windowId`?** Chrome's `tabs.onActivated` event includes `{ tabId, windowId }` and extension listeners can hear tab changes from *other* windows too. Separate React state per panel does **not** filter browser-wide extension events.
+**Why store `windowId`?** Chrome's `tabs.onActivated` event includes `{ tabId, windowId }` and extension listeners can hear tab changes from _other_ windows too. Separate React state per panel does **not** filter browser-wide extension events.
 
 ### Subscribe to relevant browser events
 
