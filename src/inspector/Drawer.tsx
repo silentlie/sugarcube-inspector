@@ -176,7 +176,13 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
 
       <div
         style={{ marginLeft: HANDLE_WIDTH }}
-        className="h-full overflow-y-auto p-5"
+        className="
+    h-full overflow-y-auto p-5
+    scrollbar-thin
+    scrollbar-thumb-zinc-700
+    scrollbar-track-transparent
+    hover:scrollbar-thumb-zinc-600
+  "
       >
         {children}
       </div>

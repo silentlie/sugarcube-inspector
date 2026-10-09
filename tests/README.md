@@ -7,6 +7,18 @@ runtime is a small fixture in these tests.
 
 Run `npm run compile` to check TypeScript, including both test suites.
 
+## Inspector UI coverage
+
+Component tests exercise the loading, ready, refreshing, and error screens,
+disabled controls, and recovery through Retry. Scope-tab tests check selection,
+panel associations, keyboard focus and wrapping, unique IDs, and independent
+tree expansion state across tab switches and fresh snapshots.
+
+Variable-tree tests cover nested arrays and objects, Maps and Sets, empty
+containers, circular and shared references, literal property paths, and retained
+expansion after snapshot updates. Value helpers also cover sparse array indices,
+named properties, type labels, special numeric values, and preview tooltips.
+
 ## Browser smoke tests
 
 Install the browser once:
@@ -30,9 +42,11 @@ Subsequent runs use the verified cache without a network request.
 Each browser test uses a temporary profile and closes its browser context in
 `finally`. The tests check the initial snapshot, automatic story and temporary
 variable updates after a real passage change, and five consecutive reloads with
-one inspector and a working manual refresh. Generated stories and browser
-results are ignored by Git. Failed runs retain Playwright traces under
-`test-results`.
+one inspector and a working manual refresh. They also exercise keyboard scope
+navigation, independent tree expansion across refreshes and passage changes,
+and recovery through Retry after the real bridge rejects uncloneable data.
+Generated stories and browser results are ignored by Git. Failed runs retain
+Playwright traces under `test-results`.
 
 The browser tests use native page and extension script contexts. They cover the
 supported local-file story flow. Startup tests also establish that failed or

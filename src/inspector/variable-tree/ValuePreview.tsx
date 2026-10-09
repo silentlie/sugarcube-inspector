@@ -25,25 +25,23 @@ export function formatValue(value: unknown): string {
       return String(value);
 
     case "function":
-      return `[Function: ${value.name || "anonymous"}]`;
+      return value.name || "anonymous";
   }
 
   if (Array.isArray(value)) {
-    return `Array(${value.length})`;
+    return `${value.length} items`;
   }
 
   if (value instanceof Map) {
-    return `Map(${value.size})`;
+    return `${value.size} entries`;
   }
 
   if (value instanceof Set) {
-    return `Set(${value.size})`;
+    return `${value.size} values`;
   }
 
   if (value instanceof Date) {
-    return Number.isNaN(value.getTime())
-      ? "Invalid Date"
-      : `Date(${value.toISOString()})`;
+    return Number.isNaN(value.getTime()) ? "Invalid Date" : value.toISOString();
   }
 
   if (value instanceof RegExp) {
@@ -51,21 +49,22 @@ export function formatValue(value: unknown): string {
   }
 
   if (value instanceof Error) {
-    return `${value.name}: ${value.message}`;
+    return value.message;
   }
 
   if (value instanceof ArrayBuffer) {
-    return `ArrayBuffer(${value.byteLength})`;
+    return `${value.byteLength} bytes`;
   }
 
   if (ArrayBuffer.isView(value)) {
-    return `${value.constructor.name}(${value.byteLength} bytes)`;
+    return `${value.byteLength} bytes`;
   }
 
-  if (value instanceof WeakMap) return "WeakMap";
-  if (value instanceof WeakSet) return "WeakSet";
+  if (value instanceof WeakMap || value instanceof WeakSet) {
+    return "Contents unavailable";
+  }
 
-  return `Object(${Object.keys(value).length})`;
+  return `${Object.keys(value).length} properties`;
 }
 
 function getValueColor(value: unknown): string {
