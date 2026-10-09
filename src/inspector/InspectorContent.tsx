@@ -2,6 +2,7 @@ import { Pin, RefreshCw } from "lucide-react";
 import { useInspector } from "./InspectorContext";
 import InspectorError from "./InspectorError";
 import Variables from "./Variables";
+import { WatchProvider } from "./watch/WatchProvider";
 
 export default function InspectorContent() {
   const { state, refresh } = useInspector();
@@ -56,7 +57,11 @@ export default function InspectorContent() {
         <InspectorError error={state.error} onRetry={refresh} />
       )}
 
-      {state.status === "ready" && <Variables snapshot={state.snapshot} />}
+      {state.status === "ready" && (
+        <WatchProvider snapshot={state.snapshot}>
+          <Variables />
+        </WatchProvider>
+      )}
     </div>
   );
 }
