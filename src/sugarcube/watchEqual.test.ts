@@ -79,6 +79,22 @@ describe("optimized watch equality", () => {
 
     expect(equal(new Uint16Array([1, 2]), new Uint8Array([1, 0, 2, 0]))).toBe(false);
     expect(equal(new ArrayBuffer(8), new ArrayBuffer(9))).toBe(false);
+
+    const backing = Uint8Array.from([1, 2, 3, 4, 5, 6]);
+    const subview = new Uint8Array(backing.buffer, 1, 2);
+    const previous = structuredClone(subview);
+    backing[5] = 99;
+    // A full structured clone of subview includes bytes outside its range.
+    expect(equal(subview, previous)).toBe(false);
+
+    const sharedBuffer = new ArrayBuffer(8);
+    const pair = { a: new Uint8Array(sharedBuffer), b: new Uint8Array(sharedBuffer) };
+    const separate = {
+      a: new Uint8Array(new ArrayBuffer(8)),
+      b: new Uint8Array(new ArrayBuffer(8)),
+    };
+    expect(equal(pair, structuredClone(pair))).toBe(true);
+    expect(equal(pair, separate)).toBe(false);
   });
 
   it("handles Date, RegExp, Error and boxed primitive values", () => {
