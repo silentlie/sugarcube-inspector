@@ -1,12 +1,13 @@
 import type { PathSegment, VariableScope, WatchPatch, WatchRequest, WatchResponse, WatchTarget } from "./watch";
 import { minimizeWatchTargets, watchKey } from "./watch";
+import type { SugarCubeSnapshot } from "./types";
 
 interface Entry {
   exists: boolean;
   value?: unknown;
 }
 
-type Stores = Record<VariableScope, Record<string, unknown>>;
+type Stores = SugarCubeSnapshot["variables"];
 
 function child(value: unknown, segment: PathSegment): Entry {
   if (value == null) return { exists: false };
