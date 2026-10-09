@@ -77,10 +77,8 @@ describe("page bridge initialization", () => {
 
   it("registers readiness only after the snapshot and passage handlers", () => {
     on.mockImplementationOnce(() => {
-      expect(rpc.onMessage).toHaveBeenCalledExactlyOnceWith(
-        "getSnapshot",
-        expect.any(Function),
-      );
+      expect(rpc.onMessage).toHaveBeenNthCalledWith(1, "getWatchChanges", expect.any(Function));
+      expect(rpc.onMessage).toHaveBeenNthCalledWith(2, "getSnapshot", expect.any(Function));
     });
 
     bridge.main(context);
@@ -91,7 +89,7 @@ describe("page bridge initialization", () => {
       expect.any(Function),
     );
     expect(rpc.onMessage).toHaveBeenNthCalledWith(
-      2,
+      3,
       "bridgeReady",
       expect.any(Function),
     );

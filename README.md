@@ -12,6 +12,8 @@ RPC bridge between the page's SugarCube runtime and the inspector.
 - Expandable trees for story variables (`$`) and temporary variables (`_`).
 - Automatic snapshot refresh after SugarCube passage changes, plus a manual
   **Refresh** button.
+- Live polling of visible variable rows and favorited paths, with batched,
+  incremental updates and a warning for slow watch requests.
 - A drawer that opens on hover, supports resizing by dragging its edge, and has
   keyboard controls.
 - Snapshot validation, request timeouts, and a **Retry** button for snapshot
@@ -56,6 +58,14 @@ Expand the variable trees to inspect values. Passage changes refresh them
 automatically; use **Refresh** to capture changes made without passage
 navigation. If a snapshot request fails, the drawer shows the error and a
 **Retry** button.
+
+Visible variables are automatically watched for changes between passage events.
+Use the star beside any variable to keep watching it when it is out of view or
+in an inactive scope tab. Watches poll every 750 ms and show a dismissible
+warning if a request takes longer than 250 ms. The MAIN-world bridge clones
+only watched subtrees for comparison and normally sends only changed paths.
+Complex values such as Maps and Sets are replaced in full when changed.
+Favorites currently last for the lifetime of the inspector.
 
 Select the extension's toolbar icon to open the side panel. Its **Refresh**
 button checks the currently active tab for a local SugarCube story and updates
@@ -158,6 +168,32 @@ The bridge registers its readiness handler after successful initialization.
 Readiness and snapshot requests have a three-second timeout. The inspector
 validates snapshots with Zod and ignores superseded results or results received
 after unmounting.
+
+
+## Watch performance experiments
+
+Experimental code compares specialized deep-equality traversal and reference
+tracking, plus three polling strategies: compare-before-clone, clone-before-compare,
+and always-clone. None of these experiments changes the production WatchService.
+See [watch polling benchmarks](docs/watch-polling-benchmarks.md) for results,
+including measurements of real Chromium MAIN-to-isolated-world
+`@webext-core/messaging/page` transport.
+
+Install benchmark-only dependencies without changing the project lockfile:
+
+```sh
+npm ci
+npm install --no-save --package-lock=false --ignore-scripts fast-equals@6.1.1 fast-deep-equal@3.1.3 dequal@2.0.3 esbuild@0.28.2
+npx playwright install chromium
+npm run bench:watch:equality -- equality.json
+npm run bench:watch:variants -- worker.json
+npm run bench:watch:chromium -- chromium.json
+```
+
+The equality and worker-thread measurements run in Node.js; the Chromium script
+bundles the project's actual custom-event RPC into two Chrome execution worlds
+with synthetic watched values. Results, assumptions and correctness limitations
+are recorded in [the benchmark notes](docs/watch-polling-benchmarks.md).
 
 ## Project structure
 
