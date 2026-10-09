@@ -68,10 +68,18 @@ the displayed metadata.
 | `npm run dev` | Start WXT development mode for Chrome. |
 | `npm run build` | Build the production Chrome MV3 extension. |
 | `npm run zip` | Package the Chrome extension as a ZIP under `.output`. |
-| `npm run compile` | Check TypeScript, including the test suites. |
+| `npm run compile` | Check TypeScript with TypeScript 7, including the test suites. |
 | `npm test` | Run unit, startup, and RPC integration tests. |
 | `npm run test:watch` | Run Vitest in watch mode. |
 | `npm run test:browser` | Build the extension and run Chromium smoke tests. |
+
+The normal `tsc` command and CI use TypeScript 7. The `typescript` dependency
+aliases the TypeScript 6 compatibility package for tools that need its compiler
+API, including `typescript-eslint`; `@typescript/native` supplies TypeScript 7's
+`tsc`. This follows
+[Microsoft's side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0).
+Use `npx tsc --version` and `npx tsc6 --version` to check each compiler, or
+`npx tsc6 --noEmit` to check the project explicitly with TypeScript 6.
 
 The package also provides `npm run dev:firefox`, `npm run build:firefox`, and
 `npm run zip:firefox`. Runtime support and automated browser coverage currently
