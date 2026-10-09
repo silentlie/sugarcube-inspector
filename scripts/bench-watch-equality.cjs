@@ -247,9 +247,9 @@ const output = {
   description: "Direct equality and equality + structuredClone-on-change + simulated response structuredClone.",
   limitation: "Single-threaded copying, not actual Chromium RPC or asynchronous worker messages.",
   versions: {
-    "fast-equals": require("fast-equals/package.json").version,
-    "fast-deep-equal": require("fast-deep-equal/package.json").version,
-    "dequal": require("dequal/package.json").version,
+    "fast-equals": "6.1.1",
+    "fast-deep-equal": "3.1.3",
+    "dequal": "2.0.3",
   },
   cases: [],
 };
