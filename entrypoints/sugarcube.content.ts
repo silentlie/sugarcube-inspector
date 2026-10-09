@@ -5,7 +5,7 @@ import type {} from "twine-sugarcube";
 export default defineContentScript({
   matches: ["file:///*"],
   world: "MAIN",
-  runAt: "document_idle",
+  runAt: "document_end",
 
   main() {
     if (typeof $ !== "function") {
@@ -15,6 +15,11 @@ export default defineContentScript({
     if (typeof SugarCube === "undefined") {
       throw new Error("[SugarCube Inspector] SugarCube is unavailable.");
     }
+
+    console.debug("[SugarCube Inspector] MAIN starting", {
+      sugarcube: typeof SugarCube,
+      jquery: typeof $,
+    });
 
     sugarcubeRPC.onMessage("getSnapshot", () => {
       return structuredClone(createSugarCubeSnapshot(SugarCube));

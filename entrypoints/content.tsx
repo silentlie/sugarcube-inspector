@@ -11,6 +11,7 @@ const DRAWER_WIDTH = 380;
 export default defineContentScript({
   matches: ["file:///*"],
   cssInjectionMode: "ui",
+  runAt: "document_idle",
 
   async main(ctx) {
     const storyData = document.querySelector(

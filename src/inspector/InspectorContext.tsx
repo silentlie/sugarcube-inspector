@@ -15,11 +15,7 @@ import {
   type SugarCubeSnapshot,
 } from "../sugarcube/types";
 
-const BRIDGE_READY_ATTRIBUTE = "data-sugarcube-inspector-ready";
-const BRIDGE_READY_EVENT = "sugarcube-inspector:bridge-ready";
-const PASSAGE_CHANGED_EVENT = "sugarcube-inspector:passage-changed";
-
-const TIMEOUT_MS = 3000;
+const RPC_TIMEOUT_MS = 3000;
 
 type InspectorState =
   | {
@@ -34,11 +30,6 @@ type InspectorState =
   | {
       status: "error";
       snapshot: SugarCubeSnapshot | null;
-      error: Error;
-    }
-  | {
-      status: "unavailable";
-      snapshot: null;
       error: Error;
     };
 
@@ -109,10 +100,9 @@ export function InspectorProvider({ children }: InspectorProviderProps) {
       try {
         const result = await withTimeout(
           sugarcubeRPC.sendMessage("getSnapshot", undefined),
-          TIMEOUT_MS,
+          RPC_TIMEOUT_MS,
         );
 
-        // Contract violations intentionally throw.
         const snapshot = SugarCubeSnapshotSchema.parse(result);
 
         if (!mountedRef.current || requestId !== requestIdRef.current) {
@@ -145,49 +135,17 @@ export function InspectorProvider({ children }: InspectorProviderProps) {
   useEffect(() => {
     mountedRef.current = true;
 
-    function handlePassageChanged() {
+    // Subscribe before requesting the initial snapshot.
+    const unsubscribe = sugarcubeRPC.onMessage("passageChanged", () => {
       refresh();
-    }
+    });
 
-    function handleBridgeReady() {
-      if (!document.documentElement.hasAttribute(BRIDGE_READY_ATTRIBUTE)) {
-        return;
-      }
-
-      window.clearTimeout(bridgeTimeoutId);
-      window.removeEventListener(BRIDGE_READY_EVENT, handleBridgeReady);
-
-      refresh();
-    }
-
-    const bridgeTimeoutId = window.setTimeout(() => {
-      const error = new Error("SugarCube RPC bridge failed to initialise.");
-
-      console.error("[SugarCube Inspector]", error);
-
-      setState({
-        status: "unavailable",
-        snapshot: null,
-        error,
-      });
-    }, TIMEOUT_MS);
-
-    window.addEventListener(BRIDGE_READY_EVENT, handleBridgeReady);
-
-    window.addEventListener(PASSAGE_CHANGED_EVENT, handlePassageChanged);
-
-    // Handles a bridge that registered before React mounted.
-    handleBridgeReady();
+    refresh();
 
     return () => {
       mountedRef.current = false;
       ++requestIdRef.current;
-
-      window.clearTimeout(bridgeTimeoutId);
-
-      window.removeEventListener(BRIDGE_READY_EVENT, handleBridgeReady);
-
-      window.removeEventListener(PASSAGE_CHANGED_EVENT, handlePassageChanged);
+      unsubscribe();
     };
   }, [refresh]);
 
