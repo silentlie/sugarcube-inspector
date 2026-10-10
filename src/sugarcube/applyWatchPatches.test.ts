@@ -138,8 +138,8 @@ describe("in-place watch patches", () => {
       change([prop("player"), prop("health")], 20),
     ]);
     expect(returned).toBe(initial);
-    expect(initial.story.player).toBe(player);
-    expect(initial.story.alias).toBe(player);
+    expect((initial.story as Record<string, unknown>).player).toBe(player);
+    expect((initial.story as Record<string, unknown>).alias).toBe(player);
     expect(player.self).toBe(player);
     expect(player.health).toBe(20);
 
