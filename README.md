@@ -69,10 +69,11 @@ as a whole and cloned only when changed. Expanding a visible container
 triggers an immediate poll. Empty objects, arrays, Maps, and Sets can expand.
 
 The active scope root is structurally watched through visible top-level rows,
-or registered directly when it has no children. A nonempty root with no visible
-top-level rows is not watched. Immediate child structures of visible rows'
-parents are checked to discover additions and removals without cloning
-unchanged child values.
+or registered directly whenever it has no immediate primitive-valued properties
+(including when it contains only collapsed objects or arrays). If it does have
+immediate primitive properties but no eligible top-level rows are visible, the
+root is not monitored. Immediate child structures of visible rows' parents are
+checked to discover additions and removals without cloning unchanged values.
 Favorites remain value-watched when hidden; missing favorites retain read-only
 placeholders. MAIN maintains a single evolving synchronized snapshot of what
 the inspector knows. After each poll, the same patches are applied in place to the MAIN and
