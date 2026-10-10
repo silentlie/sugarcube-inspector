@@ -1,3 +1,5 @@
+import { isArray, isArrayBuffer, isDate, isError, isMap, isRegExp, isSet, isWeakMap, isWeakSet } from "@sindresorhus/is";
+import { isNonFunctionObject } from "../utils/isNonFunctionObject";
 import { circularDeepEqual, deepEqual } from "fast-equals";
 import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./watch";
 import { minimizeWatchPaths } from "./watch";
@@ -17,8 +19,7 @@ function sameValue(
   circularPaths: Set<string>,
 ): boolean {
   if (Object.is(previous, current)) return true;
-  if (previous === null || current === null ||
-      typeof previous !== "object" || typeof current !== "object") {
+  if (!isNonFunctionObject(previous) || !isNonFunctionObject(current)) {
     return false;
   }
   if (circularPaths.has(key)) return circularDeepEqual(previous, current);
@@ -52,15 +53,15 @@ type Structure =
   | { kind: "map" | "set"; keys: unknown[] };
 
 function structureOf(value: unknown): Structure | null {
-  if (!value || typeof value !== "object") return null;
-  if (Array.isArray(value)) {
+  if (!isNonFunctionObject(value)) return null;
+  if (isArray(value)) {
     return { kind: "array", keys: Object.keys(value), length: value.length };
   }
-  if (value instanceof Map) return { kind: "map", keys: [...value.keys()] };
-  if (value instanceof Set) return { kind: "set", keys: [...value.values()] };
-  if (value instanceof Date || value instanceof RegExp || value instanceof Error ||
-      value instanceof ArrayBuffer || ArrayBuffer.isView(value) ||
-      value instanceof WeakMap || value instanceof WeakSet) return null;
+  if (isMap(value)) return { kind: "map", keys: [...value.keys()] };
+  if (isSet(value)) return { kind: "set", keys: [...value.values()] };
+  if (isDate(value) || isRegExp(value) || isError(value) ||
+      isArrayBuffer(value) || ArrayBuffer.isView(value) ||
+      isWeakMap(value) || isWeakSet(value)) return null;
   return { kind: "object", keys: Object.keys(value) };
 }
 
@@ -68,8 +69,8 @@ function structureOf(value: unknown): Structure | null {
 type CollectionMembers = { kind: "map" | "set"; entries: unknown[] };
 
 function collectionMembers(value: unknown): CollectionMembers | null {
-  if (value instanceof Map) return { kind: "map", entries: [...value.keys()] };
-  if (value instanceof Set) return { kind: "set", entries: [...value.values()] };
+  if (isMap(value)) return { kind: "map", entries: [...value.keys()] };
+  if (isSet(value)) return { kind: "set", entries: [...value.values()] };
   return null;
 }
 
