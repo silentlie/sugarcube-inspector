@@ -14,7 +14,7 @@ export default function Variables() {
   // Watch the active scope's root structure on every poll, even when empty,
   // offscreen, or composed entirely of collapsed containers.
   useEffect(() => {
-    const root: WatchTarget = { path: [activeTab] };
+    const root: WatchTarget = { path: [{ type: "property", key: activeTab }] };
     setVisible(root, true);
     return () => setVisible(root, false);
   }, [activeTab, setVisible]);
@@ -124,7 +124,7 @@ function MissingWatches({ scope }: { scope: Tab }) {
   const watch = useWatch();
   useAnyVariableVersion(watch.store);
   const targets = watch.watchedTargets.filter((target) =>
-    target.path[0] === scope && !watchPathExists(watch.variables, target),
+    target.path[0].key === scope && !watchPathExists(watch.variables, target),
   );
   if (targets.length === 0) return null;
   return (
@@ -132,7 +132,7 @@ function MissingWatches({ scope }: { scope: Tab }) {
       <p className="mb-1 text-zinc-500">Missing watched variables (read-only)</p>
       {targets.map((target) => {
         const [, ...segments] = target.path;
-        const name = (target.path[0] === "story" ? "$" : "_") +
+        const name = (target.path[0].key === "story" ? "$" : "_") +
           segments.map((part, index) =>
             part.type === "property" ? (index === 0 ? part.key : "." + part.key) :
             part.type === "index" ? "[" + part.index + "]" :

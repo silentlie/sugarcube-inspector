@@ -13,8 +13,11 @@ export type PathSegment =
   | { type: "mapValue"; index: number }
   | { type: "setValue"; index: number };
 
-/** The first segment identifies the SugarCube variable store. */
-export type VariablePath = [VariableScope, ...PathSegment[]];
+/** The first property selects SugarCube's story or temporary variable store. */
+export type VariablePath = [
+  { type: "property"; key: VariableScope },
+  ...PathSegment[],
+];
 
 export interface WatchTarget {
   path: VariablePath;
@@ -58,8 +61,8 @@ function isAncestor(ancestor: WatchTarget, child: WatchTarget): boolean {
 export function minimizeWatchTargets(targets: WatchTarget[]): WatchTarget[] {
   const normalized = targets.map((target) => {
     const collectionIndex = target.path.findIndex(
-      (part) => typeof part !== "string" &&
-        (part.type === "mapKey" || part.type === "mapValue" || part.type === "setValue"),
+      (part) => part.type === "mapKey" || part.type === "mapValue" ||
+        part.type === "setValue",
     );
     return collectionIndex < 0 ? target : {
       path: target.path.slice(0, collectionIndex) as VariablePath,
@@ -76,9 +79,8 @@ export function watchPathExists(
   stores: { story: unknown; temporary: unknown },
   target: WatchTarget,
 ): boolean {
-  const [scope, ...segments] = target.path;
-  let value: unknown = stores[scope];
-  for (const part of segments) {
+  let value: unknown = stores;
+  for (const part of target.path) {
     if (part.type === "property" || part.type === "index") {
       if (value === null || typeof value !== "object") return false;
       const key = part.type === "property" ? part.key : part.index;

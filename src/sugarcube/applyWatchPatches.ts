@@ -104,8 +104,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
  */
 export function applyWatchPatches(variables: Stores, patches: WatchPatch[]): Stores {
   for (const patch of patches) {
-    const [scope, ...segments] = patch.path;
-    variables[scope] = mutate(variables[scope], segments, patch) as Stores[typeof scope];
+    mutate(variables, patch.path, patch);
   }
   return variables;
 }

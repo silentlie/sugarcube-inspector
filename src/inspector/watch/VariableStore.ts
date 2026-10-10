@@ -23,8 +23,7 @@ function child(value: unknown, segment: PathSegment): unknown {
 }
 
 function resolve(variables: Variables, target: WatchTarget): unknown {
-  const [scope, ...segments] = target.path;
-  return segments.reduce<unknown>((value, part) => child(value, part), variables[scope]);
+  return target.path.reduce<unknown>((value, part) => child(value, part), variables);
 }
 
 function isPrefix(prefix: VariablePath, path: VariablePath): boolean {
@@ -104,11 +103,11 @@ export class VariableStore {
 
         // A shared object may also be visible under another path or scope.
         // Only traverse registered paths, never the whole SugarCube graph.
-        let value: unknown = this.variables[watched.path[0]];
-        for (let i = 1; i <= watched.path.length; i++) {
+        let value: unknown = this.variables;
+        for (let i = 0; i <= watched.path.length; i++) {
           // Whole-value replacement only changes the patched path. Notify
           // aliases when a nested patch actually mutates their shared parent.
-          if (parent.path.length > 1 &&
+          if (i > 1 && parent.path.length > 1 &&
               typeof parentValue === "object" && parentValue !== null &&
               value === parentValue) {
             changed.add(key);

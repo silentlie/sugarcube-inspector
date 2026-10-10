@@ -33,7 +33,7 @@ function VariableNode({
 }: VariableNodeProps) {
   const watch = useWatch();
   const rowRef = useRef<HTMLDivElement>(null);
-  const [target] = useState<WatchTarget>(() => ({ path: [scope, ...path] }));
+  const [target] = useState<WatchTarget>(() => ({ path: [{ type: "property", key: scope }, ...path] }));
   useVariableVersion(watch.store, target);
   const value = fromStore ? watch.store.getValue(target) : initialValue;
   const id = watchKey(target);

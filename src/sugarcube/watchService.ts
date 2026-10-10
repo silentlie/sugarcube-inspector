@@ -1,5 +1,5 @@
 import { circularDeepEqual, deepEqual } from "fast-equals";
-import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, WatchTarget, VariablePath, VariableScope } from "./watch";
+import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, WatchTarget, VariablePath } from "./watch";
 import { minimizeWatchTargets, watchKey } from "./watch";
 import { applyWatchPatches } from "./applyWatchPatches";
 import type { SugarCubeSnapshot } from "./types";
@@ -37,7 +37,7 @@ function child(value: unknown, segment: PathSegment): Entry {
     : { exists: false };
 }
 
-function resolveValue(root: unknown, scope: VariableScope, path: readonly PathSegment[]): Entry {
+function resolveValue(root: unknown, path: readonly PathSegment[]): Entry {
   let entry: Entry = { exists: true, value: root };
   for (let index = 0; index < path.length; index++) {
     const part = path[index]!;
@@ -50,20 +50,19 @@ function resolveValue(root: unknown, scope: VariableScope, path: readonly PathSe
     if (!traversable) {
       return {
         exists: false,
-        missingPath: [scope, ...path.slice(0, index)],
+        missingPath: path.slice(0, index) as VariablePath,
         blockedExists: true,
         blocked: parent,
       };
     }
     entry = child(parent, part);
-    if (!entry.exists) return { exists: false, missingPath: [scope, ...path.slice(0, index + 1)] };
+    if (!entry.exists) return { exists: false, missingPath: path.slice(0, index + 1) as VariablePath };
   }
   return entry;
 }
 
 function resolve(stores: Stores, target: WatchTarget): Entry {
-  const [scope, ...segments] = target.path;
-  return resolveValue(stores[scope], scope, segments);
+  return resolveValue(stores, target.path);
 }
 
 /**
@@ -283,7 +282,7 @@ export class WatchService {
       const restored = resolve(stores, { path: restorePath });
       if (!restored.exists) throw new Error("Watch path disappeared during polling.");
       const cloned = structuredClone(restored.value);
-      if (!resolveValue(cloned, target.path[0], target.path.slice(restorePath.length) as PathSegment[]).exists) {
+      if (!resolveValue(cloned, target.path.slice(restorePath.length)).exists) {
         throw new Error("Cloned watch path is missing.");
       }
       valueChanges.push({ op: "set", path: restorePath, value: cloned });
