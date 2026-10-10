@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isPathPrefix,
-  pathKey,
+  pathToKey,
   readPathChild,
   resolvePath,
 } from "./path";
@@ -140,7 +140,7 @@ describe("shared path operations", () => {
     const key = prop("0");
     expect(readPathChild(["sword"], key)).toEqual({ status: "found", value: "sword" });
     expect(readPathChild({ "0": "sword" }, key)).toEqual({ status: "found", value: "sword" });
-    expect(pathKey(story(prop("items"), key))).toBe(pathKey(story(prop("items"), prop("0"))));
+    expect(pathToKey(story(prop("items"), key))).toBe(pathToKey(story(prop("items"), prop("0"))));
   });
 
   it("keeps scope and segment types distinct when comparing paths", () => {
