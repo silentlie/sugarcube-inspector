@@ -8,6 +8,24 @@ const target = (...names: string[]): WatchTarget => ({
 });
 
 describe("path subscriptions", () => {
+  it("keeps the same variable path isolated across story and temporary scopes", () => {
+    const store = new VariableStore({
+      story: { score: 1 },
+      temporary: { score: 2 },
+    });
+    const storyListener = vi.fn();
+    const temporaryListener = vi.fn();
+    store.subscribe({ path: ["story", prop("score")] }, storyListener);
+    store.subscribe({ path: ["temporary", prop("score")] }, temporaryListener);
+
+    store.apply([{ op: "set", path: ["temporary", prop("score")], value: 3 }]);
+
+    expect(store.getValue({ path: ["story", prop("score")] })).toBe(1);
+    expect(store.getValue({ path: ["temporary", prop("score")] })).toBe(3);
+    expect(storyListener).not.toHaveBeenCalled();
+    expect(temporaryListener).toHaveBeenCalledTimes(1);
+  });
+
   it("notifies the changed leaf and aliases, but not an unrelated root or sibling", () => {
     const shared = { hp: 10, mp: 5 };
     const store = new VariableStore({

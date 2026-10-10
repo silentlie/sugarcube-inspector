@@ -8,7 +8,7 @@
 - **Visible** contains visible scalar/opaque leaves and expanded containers.
   Collapsed containers are omitted unless independently favorited. Each entry
   is a scope-prefixed watch target path; expansion state stays in React. The active scope
-  always registers its empty-path root for structure-only comparison
+  always registers its scope-only root for structure-only comparison
   on every active poll,
   regardless of which variable rows are visible.
 

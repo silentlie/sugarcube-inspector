@@ -172,6 +172,18 @@ describe("synchronized snapshot watch service", () => {
     expect(service.poll(request(generation), stores).changes).toEqual([]);
   });
 
+  it("keeps paths in different scopes independent when minimizing watches", () => {
+    const storyRoot: WatchTarget = { path: ["story"] };
+    const temporaryScore: WatchTarget = {
+      path: ["temporary", { type: "property", key: "score" }],
+    };
+    expect(minimizeWatchTargets([player, storyRoot, temporaryScore])).toEqual([
+      storyRoot, temporaryScore,
+    ]);
+    expect(watchPathExists({ story: {}, temporary: { score: 5 } }, temporaryScore)).toBe(true);
+    expect(watchPathExists({ story: { score: 5 }, temporary: {} }, temporaryScore)).toBe(false);
+  });
+
   it("watches whole Map/Set collections rather than unstable positional entries", () => {
     const targets: WatchTarget[] = [
       { path: ["story", { type: "property", key: "items" }, { type: "mapValue", index: 1 }] },

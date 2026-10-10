@@ -15,6 +15,19 @@ const snapshot = (story: Record<string, unknown>): Stores => ({
 });
 
 describe("in-place watch patches", () => {
+  it("uses the first path element to select the scope, including root replacement", () => {
+    const originalTemporary = { score: 2 };
+    const stores = { story: { score: 1 }, temporary: originalTemporary };
+    const result = applyWatchPatches(stores, [
+      { op: "set", path: ["temporary"], value: { score: 3 } },
+      { op: "set", path: ["story", prop("score")], value: 4 },
+    ]);
+    expect(result).toBe(stores);
+    expect(result.story).toEqual({ score: 4 });
+    expect(result.temporary).toEqual({ score: 3 });
+    expect(result.temporary).not.toBe(originalTemporary);
+  });
+
   it("preserves sparse-array holes, named and symbol properties, and nonenumerable metadata", () => {
     const array: unknown[] = [];
     array.length = 5;
