@@ -81,10 +81,19 @@ export function pathKey(path: readonly PathSegment[]): string {
   return JSON.stringify(path);
 }
 
+/** Compare only the fields that identify each tagged path segment. */
+function samePathSegment(left: PathSegment, right: PathSegment): boolean {
+  if (left.type === "property") {
+    return right.type === "property" && left.key === right.key;
+  }
+  return left.type === right.type && right.type !== "property" &&
+    left.index === right.index;
+}
+
 /** True if prefix is the same path or an ancestor of path. */
 export function isPathPrefix(prefix: readonly PathSegment[], path: readonly PathSegment[]): boolean {
   return prefix.length <= path.length &&
-    prefix.every((part, index) => JSON.stringify(part) === JSON.stringify(path[index]));
+    prefix.every((part, index) => samePathSegment(part, path[index]!));
 }
 
 /**

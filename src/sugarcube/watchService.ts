@@ -1,7 +1,7 @@
 import { circularDeepEqual, deepEqual } from "fast-equals";
 import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./watch";
 import { minimizeWatchPaths } from "./watch";
-import { pathKey, segmentForKey } from "./path";
+import { isPathPrefix, pathKey, segmentForKey } from "./path";
 import { applyWatchPatches } from "./applyWatchPatches";
 import { resolvePath, type PathResolution } from "./path";
 import type { SugarCubeSnapshot } from "./types";
@@ -90,11 +90,6 @@ function structurePaths(visible: readonly VariablePath[]): VariablePath[] {
     paths.set(pathKey(parent), parent);
   }
   return [...paths.values()];
-}
-
-function ancestorOrSelf(parent: WatchPatch, child: WatchPatch): boolean {
-  return parent.path.length <= child.path.length &&
-    parent.path.every((part, i) => JSON.stringify(part) === JSON.stringify(child.path[i]));
 }
 
 /**
@@ -232,7 +227,7 @@ export class WatchService {
     const staged = [...structuralChanges, ...valueChanges];
     const changes = staged.filter((patch, index) =>
       !staged.some((other, otherIndex) =>
-        index !== otherIndex && ancestorOrSelf(other, patch) &&
+        index !== otherIndex && isPathPrefix(other.path, patch.path) &&
         (other.path.length < patch.path.length || otherIndex < index),
       ),
     );

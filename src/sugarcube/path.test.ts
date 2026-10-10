@@ -140,6 +140,32 @@ describe("shared path operations", () => {
     expect(pathKey(child)).not.toBe(pathKey(property));
   });
 
+  it("compares the type and value of each path segment without serialization", () => {
+    const parent = story(prop("items"));
+    const segments: PathSegment[] = [
+      { type: "property", key: "0" },
+      { type: "index", index: 0 },
+      { type: "mapKey", index: 0 },
+      { type: "mapValue", index: 0 },
+      { type: "setValue", index: 0 },
+    ];
+
+    for (const segment of segments) {
+      const prefix = [...parent, segment];
+      expect(isPathPrefix(prefix, [...parent, { ...segment }])).toBe(true);
+      expect(isPathPrefix(prefix, [...parent, { ...segment }, prop("hp")])).toBe(true);
+
+      for (const other of segments) {
+        if (other.type !== segment.type) {
+          expect(isPathPrefix(prefix, [...parent, other])).toBe(false);
+        }
+      }
+    }
+    expect(isPathPrefix([...parent, { type: "index", index: 0 }],
+      [...parent, { type: "index", index: 1 }])).toBe(false);
+    expect(isPathPrefix([...parent, prop("hp")], [...parent, prop("mp")])).toBe(false);
+  });
+
   it("normalizes at the first Map/Set entry and leaves ordinary paths intact", () => {
     const collection = story(prop("maps"));
     const inside = story(
