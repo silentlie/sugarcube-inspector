@@ -23,7 +23,8 @@ function setup(story: Record<string, unknown>) {
   const service = new WatchService();
   const snapshot = structuredClone(baseline(story));
   const generation = service.capture(snapshot);
-  return { service, generation, snapshot };
+  // Inspector and MAIN each hold an independent synchronized graph.
+  return { service, generation, snapshot: structuredClone(snapshot) };
 }
 function request(generation: number, targets: WatchTarget[] = [player]): WatchRequest {
   return { generation, favorites: targets, visible: [] };
@@ -240,7 +241,7 @@ describe("synchronized snapshot watch service", () => {
     expect((displayed.story as { player: unknown }).player).toEqual({ health: 10 });
   });
 
-  it("updates synchronized aliases immutably and detects a sibling when watched later", () => {
+  it("updates synchronized aliases in place without redundant sibling patches", () => {
     const shared = { health: 10 };
     const stores = { story: { left: shared, right: shared }, temporary: {} };
     const left: WatchTarget = {
@@ -255,10 +256,11 @@ describe("synchronized snapshot watch service", () => {
     expect(first).toEqual([{ op: "set", scope: "story", path: left.path, value: { health: 20 } }]);
     const displayed = applyWatchPatches(snapshot.variables, first);
     expect((displayed.story as { left: { health: number } }).left.health).toBe(20);
-    expect((displayed.story as { right: { health: number } }).right.health).toBe(10);
+    expect((displayed.story as { right: { health: number } }).right.health).toBe(20);
+    expect((displayed.story as { left: unknown }).left).toBe((displayed.story as { right: unknown }).right);
 
     const second = service.poll(request(generation, [right]), stores).changes;
-    expect(second).toEqual([{ op: "set", scope: "story", path: right.path, value: { health: 20 } }]);
+    expect(second).toEqual([]);
     expect(service.poll(request(generation, [right]), stores).changes).toEqual([]);
   });
 

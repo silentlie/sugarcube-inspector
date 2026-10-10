@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useEffect } from "react";
 import { createSnapshotFixture } from "../../../tests/fixtures";
 import { WatchProvider, useWatch } from "./WatchProvider";
+import { useVariableVersion } from "./VariableStore";
 import Variables from "../Variables";
 
 const rpc = vi.hoisted(() => ({
@@ -106,6 +107,7 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
   // top-level row while it exists, then unregister it when the row unmounts.
   function VisibleScore() {
     const watch = useWatch();
+    useVariableVersion(watch.store, { scope: "story", path: [] });
     return Object.hasOwn(watch.variables.story, "score") ? <RegisterWatch /> : null;
   }
   render(<WatchProvider snapshot={initial}>
@@ -261,4 +263,38 @@ it("throws if useWatch is called outside WatchProvider", () => {
   expect(() => renderHook(() => useWatch())).toThrow(
     "useWatch must be used within WatchProvider",
   );
+});
+
+it("rerenders a subscribed leaf without updating unrelated leaf versions or replacing the root", async () => {
+  const initial = snapshot();
+  const seen: Record<string, number[]> = { score: [], choice: [] };
+  const root = initial.variables.story;
+
+  function Probe({ keyName }: { keyName: "score" | "choice" }) {
+    const watch = useWatch();
+    const target = {
+      scope: keyName === "score" ? "story" as const : "temporary" as const,
+      path: [{ type: "property" as const, key: keyName }],
+    };
+    const version = useVariableVersion(watch.store, target);
+    seen[keyName]!.push(version);
+    return <div data-testid={keyName}>{String(watch.store.getValue(target))}</div>;
+  }
+
+  rpc.sendMessage.mockImplementation(async (_type, data) => ({
+    generation: (data as { generation: number }).generation,
+    changes: [{ op: "set", scope: "story", path: [{ type: "property", key: "score" }], value: 15 }],
+    mainDurationMs: 1,
+  }));
+  render(<WatchProvider snapshot={initial}>
+    <RegisterWatch />
+    <Probe keyName="score" />
+    <Probe keyName="choice" />
+  </WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(screen.getByTestId("score").textContent).toBe("15");
+  expect(screen.getByTestId("choice").textContent).toBe("undefined");
+  expect(initial.variables.story).toBe(root);
+  expect(seen.score).toEqual([0, 1]);
+  expect(seen.choice).toEqual([0]);
 });

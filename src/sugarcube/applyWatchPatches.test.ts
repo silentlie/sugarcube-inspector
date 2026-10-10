@@ -14,7 +14,7 @@ const snapshot = (story: Record<string, unknown>): Stores => ({
   story, temporary: {},
 });
 
-describe("immutable watch patches", () => {
+describe("in-place watch patches", () => {
   it("preserves sparse-array holes, named and symbol properties, and nonenumerable metadata", () => {
     const array: unknown[] = [];
     array.length = 5;
@@ -37,7 +37,7 @@ describe("immutable watch patches", () => {
     const next = (updated.story as Record<string, unknown>).inventory as
       Array<unknown> & { category: string; hidden: number; [marker]: string };
 
-    expect(next).not.toBe(array);
+    expect(next).toBe(array);
     expect(next.length).toBe(5);
     expect(Object.hasOwn(next, 0)).toBe(false);
     expect(Object.hasOwn(next, 2)).toBe(false);
@@ -46,7 +46,7 @@ describe("immutable watch patches", () => {
     expect(next.hidden).toBe(42);
     expect(next[marker]).toBe("flag");
     expect(Object.getOwnPropertyDescriptor(next, "hidden")?.enumerable).toBe(false);
-    expect(array[3]).toBe("map");
+    expect(array[3]).toBe("compass");
   });
 
   it("preserves holes and extra properties on index deletion and length changes", () => {
@@ -62,7 +62,7 @@ describe("immutable watch patches", () => {
     expect(Object.hasOwn(next, 0)).toBe(false);
     expect(next.length).toBe(2);
     expect((next as unknown as { category: string }).category).toBe("loot");
-    expect(arr[0]).toBe("map");
+    expect(Object.hasOwn(arr, 0)).toBe(false);
 
     const extended = applyWatchPatches(withoutIndex, [
       change([prop("inventory"), prop("length")], 4),
@@ -88,7 +88,7 @@ describe("immutable watch patches", () => {
     expect(Object.hasOwn(next, "__proto__")).toBe(true);
     expect(Object.getOwnPropertyDescriptor(next, "__proto__")?.value).toBe("literal");
     expect(next.health).toBe(20);
-    expect(player.health).toBe(10);
+    expect(player.health).toBe(20);
 
     const replaced = applyWatchPatches(changed, [
       change([prop("player"), prop("__proto__")], { note: "updated" }),
@@ -128,6 +128,28 @@ describe("immutable watch patches", () => {
     expect(result.constructor).toBe("literal-constructor");
     expect(result.prototype).toBe("literal-prototype");
     expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+  });
+
+  it("mutates aliases and cycles without replacing their identities", () => {
+    const player: Record<string, unknown> = { health: 10 };
+    player.self = player;
+    const initial = snapshot({ player, alias: player });
+    const returned = applyWatchPatches(initial, [
+      change([prop("player"), prop("health")], 20),
+    ]);
+    expect(returned).toBe(initial);
+    expect(initial.story.player).toBe(player);
+    expect(initial.story.alias).toBe(player);
+    expect(player.self).toBe(player);
+    expect(player.health).toBe(20);
+
+    const newCycle: Record<string, unknown> = { health: 30, mp: 5 };
+    newCycle.self = newCycle;
+    applyWatchPatches(initial, [change([prop("player")], structuredClone(newCycle))]);
+    expect(initial.story.player).toBe(player);
+    expect(initial.story.alias).toBe(player);
+    expect(player.self).toBe(player);
+    expect(player).toMatchObject({ health: 30, mp: 5 });
   });
 
   it("throws instead of silently ignoring deletion of a nonconfigurable property", () => {
