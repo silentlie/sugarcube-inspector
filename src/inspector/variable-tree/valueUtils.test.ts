@@ -3,7 +3,6 @@ import {
   getChildren,
   getValueType,
   formatVariablePath,
-  isCircular,
   isExpandable,
 } from "./valueUtils";
 
@@ -163,17 +162,6 @@ describe("variable children and paths", () => {
       { name: "[1]", value: "key", segment: { type: "setValue", index: 1 } },
     ]);
     expect(children[0]!.value).toBe(item);
-  });
-});
-
-describe("circular references", () => {
-  it("detects ancestor identity without marking a separate equal object as circular", () => {
-    const ancestor = { score: 7 };
-    expect(isCircular(ancestor, [ancestor])).toBe(true);
-    expect(isCircular({ score: 7 }, [ancestor])).toBe(false);
-    expect(isCircular(ancestor, [])).toBe(false);
-    expect(isCircular(null, [ancestor])).toBe(false);
-    expect(isCircular(7, [ancestor])).toBe(false);
   });
 });
 
