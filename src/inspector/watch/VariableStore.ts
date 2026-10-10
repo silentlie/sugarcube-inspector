@@ -10,9 +10,9 @@ type Subscription = { target: WatchTarget; listeners: Set<Listener> };
 function child(value: unknown, segment: PathSegment): unknown {
   if (value == null) return undefined;
   if (segment.type === "property" || segment.type === "index") {
-    return (value as Record<string | number, unknown>)[
-      segment.type === "property" ? segment.key : segment.index
-    ];
+    const key = segment.type === "property" ? segment.key : segment.index;
+    return typeof value === "object" && Object.hasOwn(value, key)
+      ? (value as Record<string | number, unknown>)[key] : undefined;
   }
   if (segment.type === "mapKey" || segment.type === "mapValue") {
     if (!(value instanceof Map)) return undefined;

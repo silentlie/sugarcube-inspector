@@ -152,6 +152,16 @@ describe("in-place watch patches", () => {
     expect(player).toMatchObject({ health: 30, mp: 5 });
   });
 
+  it("writes a new __proto__ property without modifying Object.prototype", () => {
+    const player = { health: 10 } as Record<string, unknown>;
+    const initial = snapshot({ player });
+    const before = Object.keys(Object.prototype);
+    applyWatchPatches(initial, [change([prop("player"), prop("__proto__")], { bonus: 3 })]);
+    expect(Object.getPrototypeOf(player)).toBe(Object.prototype);
+    expect(Object.getOwnPropertyDescriptor(player, "__proto__")?.value).toEqual({ bonus: 3 });
+    expect(Object.keys(Object.prototype)).toEqual(before);
+  });
+
   it("throws instead of silently ignoring deletion of a nonconfigurable property", () => {
     const player = {};
     Object.defineProperty(player, "locked", {

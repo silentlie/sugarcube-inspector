@@ -6,9 +6,9 @@ type Stores = SugarCubeSnapshot["variables"];
 function read(value: unknown, part: PathSegment): unknown {
   if (value == null) return undefined;
   if (part.type === "property" || part.type === "index") {
-    return (value as Record<string | number, unknown>)[
-      part.type === "property" ? part.key : part.index
-    ];
+    const key = part.type === "property" ? part.key : part.index;
+    return typeof value === "object" && Object.hasOwn(value, key)
+      ? (value as Record<string | number, unknown>)[key] : undefined;
   }
   if (part.type === "mapKey" || part.type === "mapValue") {
     if (!(value instanceof Map)) return undefined;
