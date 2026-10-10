@@ -143,8 +143,8 @@ export class WatchService {
       if (current.kind === "map" || current.kind === "set") {
         const oldKeys = previous.keys;
         const newKeys = current.keys;
-        if (oldKeys.length !== newKeys.length ||
-            oldKeys.some((old, i) => !sameValue(old, newKeys[i], key, this.circularPaths))) {
+        if (liveEntry.exists && (oldKeys.length !== newKeys.length ||
+            oldKeys.some((old, i) => !sameValue(old, newKeys[i], key, this.circularPaths)))) {
           add(liveEntry.value);
         }
         continue;
