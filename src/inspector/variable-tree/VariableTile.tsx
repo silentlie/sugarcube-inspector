@@ -70,7 +70,10 @@ export default function VariableTile({
           type="button"
           aria-label={(favorite ? "Unfavorite " : "Favorite ") + name}
           title={favorite ? "Remove favorite" : "Favorite variable"}
-          onClick={onToggleFavorite}
+          onClick={(event) => {
+            // A second click in a double-click should not undo the first.
+            if (event.detail < 2) onToggleFavorite();
+          }}
           className={"shrink-0 rounded p-1 focus-visible:outline-2 focus-visible:outline-zinc-400 " +
             (favorite
               ? "text-amber-400"

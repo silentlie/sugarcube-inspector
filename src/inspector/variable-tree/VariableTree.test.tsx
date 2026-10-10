@@ -51,6 +51,20 @@ describe("variable tree", () => {
     expect(screen.queryByTitle('"map"')).toBeNull();
   });
 
+  it("ignores the second click of a double-click when favoriting a variable", () => {
+    render(<VariableTree scope="story" value={{ score: 7 }} />);
+
+    const button = screen.getByRole("button", { name: "Favorite score" });
+    fireEvent.click(button, { detail: 1 });
+    expect(button.getAttribute("aria-label")).toBe("Unfavorite score");
+
+    fireEvent.click(button, { detail: 2 });
+    expect(button.getAttribute("aria-label")).toBe("Unfavorite score");
+
+    fireEvent.click(button, { detail: 1 }); // A new click sequence.
+    expect(button.getAttribute("aria-label")).toBe("Favorite score");
+  });
+
   it("expands and collapses nested arrays while retaining the child expansion state", () => {
     render(
       <VariableTree
