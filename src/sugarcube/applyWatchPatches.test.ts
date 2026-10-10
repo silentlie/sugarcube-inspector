@@ -9,7 +9,6 @@ const change = (segments: PathSegment[], value: unknown): WatchPatch => ({
   op: "set", path: [{ type: "property", key: "story" }, ...segments], value,
 });
 const prop = (key: string) => ({ type: "property" as const, key });
-const index = (at: number) => ({ type: "index" as const, index: at });
 const snapshot = (story: Record<string, unknown>): Stores => ({
   story, temporary: {},
 });
@@ -45,7 +44,7 @@ describe("in-place watch patches", () => {
 
     const initial = snapshot({ inventory: array });
     const updated = applyWatchPatches(initial, [
-      change([prop("inventory"), index(3)], "compass"),
+      change([prop("inventory"), prop("3")], "compass"),
     ]);
     const next = (updated.story as Record<string, unknown>).inventory as
       Array<unknown> & { category: string; hidden: number; [marker]: string };
@@ -69,7 +68,7 @@ describe("in-place watch patches", () => {
     });
     const initial = snapshot({ inventory: arr });
     const withoutIndex = applyWatchPatches(initial, [{
-      op: "delete", path: [{ type: "property", key: "story" }, prop("inventory"), index(0)],
+      op: "delete", path: [{ type: "property", key: "story" }, prop("inventory"), prop("0")],
     }]);
     const next = (withoutIndex.story as Record<string, unknown>).inventory as string[];
     expect(Object.hasOwn(next, 0)).toBe(false);
@@ -84,6 +83,19 @@ describe("in-place watch patches", () => {
     expect(result.length).toBe(4);
     expect(Object.hasOwn(result, 3)).toBe(false);
     expect((result as unknown as { category: string }).category).toBe("loot");
+  });
+
+  it("does not invent an object when an array ancestor is missing", () => {
+    const initial = snapshot({});
+    const nested = change([prop("inventory"), prop("0")], "sword");
+    expect(() => applyWatchPatches(initial, [nested])).toThrow(
+      "Cannot apply a watch patch through a missing or non-object ancestor.",
+    );
+    expect(initial.story).toEqual({});
+
+    applyWatchPatches(initial, [change([prop("inventory")], ["sword"])]);
+    expect(Array.isArray((initial.story as Record<string, unknown>).inventory)).toBe(true);
+    expect((initial.story as Record<string, unknown>).inventory).toEqual(["sword"]);
   });
 
   it("preserves an own __proto__ key as data rather than changing the prototype", () => {

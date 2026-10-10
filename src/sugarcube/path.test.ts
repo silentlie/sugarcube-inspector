@@ -5,7 +5,6 @@ import {
   pathKey,
   readPathChild,
   resolvePath,
-  segmentForKey,
 } from "./path";
 import type { PathSegment, VariablePath } from "./watch";
 
@@ -44,8 +43,8 @@ describe("shared path operations", () => {
   it("preserves sparse-array holes and defined undefined entries", () => {
     const items = new Array<unknown>(2);
     items[1] = undefined;
-    expect(readPathChild(items, { type: "index", index: 0 })).toEqual({ status: "missing" });
-    expect(readPathChild(items, { type: "index", index: 1 })).toEqual({
+    expect(readPathChild(items, { type: "property", key: "0" })).toEqual({ status: "missing" });
+    expect(readPathChild(items, { type: "property", key: "1" })).toEqual({
       status: "found", value: undefined,
     });
   });
@@ -113,38 +112,32 @@ describe("shared path operations", () => {
     object["0"] = undefined;
 
     expect(readPathChild(object, prop("computed"))).toEqual({ status: "found", value: 42 });
-    expect(readPathChild(object, { type: "index", index: 0 })).toEqual({
+    expect(readPathChild(object, { type: "property", key: "0" })).toEqual({
       status: "found", value: undefined,
     });
     expect(readPathChild(object, prop("inherited"))).toEqual({ status: "missing" });
   });
 
-  it("generates canonical array indices and preserves named properties", () => {
-    expect(segmentForKey("0", true)).toEqual({ type: "index", index: 0 });
-    expect(segmentForKey("4294967294", true)).toEqual({ type: "index", index: 4294967294 });
-    for (const key of ["01", "-1", "4294967295", "1.5", "foo"]) {
-      expect(segmentForKey(key, true)).toEqual({ type: "property", key });
-    }
-    expect(segmentForKey("0", false)).toEqual({ type: "property", key: "0" });
+  it("uses one property path for numeric keys on arrays and objects", () => {
+    const key = prop("0");
+    expect(readPathChild(["sword"], key)).toEqual({ status: "found", value: "sword" });
+    expect(readPathChild({ "0": "sword" }, key)).toEqual({ status: "found", value: "sword" });
+    expect(pathKey(story(prop("items"), key))).toBe(pathKey(story(prop("items"), prop("0"))));
   });
 
   it("keeps scope and segment types distinct when comparing paths", () => {
     const scope = story(prop("items"));
-    const child = story(prop("items"), { type: "index", index: 0 });
-    const property = story(prop("items"), prop("0"));
+    const child = story(prop("items"), { type: "property", key: "0" });
     const temporary: VariablePath = [{ type: "property", key: "temporary" }, prop("items")];
     expect(isPathPrefix(scope, child)).toBe(true);
     expect(isPathPrefix(child, scope)).toBe(false);
-    expect(isPathPrefix(child, property)).toBe(false);
     expect(isPathPrefix(temporary, child)).toBe(false);
-    expect(pathKey(child)).not.toBe(pathKey(property));
   });
 
   it("compares the type and value of each path segment without serialization", () => {
     const parent = story(prop("items"));
     const segments: PathSegment[] = [
       { type: "property", key: "0" },
-      { type: "index", index: 0 },
       { type: "mapKey", index: 0 },
       { type: "mapValue", index: 0 },
       { type: "setValue", index: 0 },
@@ -161,8 +154,7 @@ describe("shared path operations", () => {
         }
       }
     }
-    expect(isPathPrefix([...parent, { type: "index", index: 0 }],
-      [...parent, { type: "index", index: 1 }])).toBe(false);
+    expect(isPathPrefix([...parent, prop("0")], [...parent, prop("1")])).toBe(false);
     expect(isPathPrefix([...parent, prop("hp")], [...parent, prop("mp")])).toBe(false);
   });
 

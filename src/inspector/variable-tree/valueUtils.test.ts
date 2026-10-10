@@ -15,8 +15,8 @@ describe("circular-reference path labels", () => {
     expect(formatVariablePath("story", [
       { type: "property", key: "player" },
       { type: "property", key: "a.b" },
-      { type: "index", index: 2 },
-    ])).toBe('$player["a.b"][2]');
+      { type: "property", key: "2" },
+    ])).toBe('$player["a.b"]["2"]');
   });
 });
 
@@ -100,7 +100,7 @@ describe("variable children and paths", () => {
     expect(children[1]!.value).toBe(nested);
   });
 
-  it("distinguishes sparse array indices from named and out-of-range properties", () => {
+  it("displays array indices distinctly while using property segments for all entries", () => {
     const value = ["map"];
     value[3] = "key";
     Object.assign(value, {
@@ -110,8 +110,8 @@ describe("variable children and paths", () => {
     });
 
     expect(getChildren(value)).toEqual([
-      { name: "[0]", value: "map", segment: { type: "index", index: 0 } },
-      { name: "[3]", value: "key", segment: { type: "index", index: 3 } },
+      { name: "[0]", value: "map", segment: { type: "property", key: "0" } },
+      { name: "[3]", value: "key", segment: { type: "property", key: "3" } },
       { name: "01", value: "named", segment: { type: "property", key: "01" } },
       {
         name: "-1",

@@ -457,6 +457,28 @@ describe("visible structural watch", () => {
     expect((displayed.story as Record<string, unknown>).items).toEqual([]);
   });
 
+  it("restores a missing array ancestor as an array rather than an object", () => {
+    const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } = {
+      story: { items: [{ hp: 10 }] }, temporary: {},
+    };
+    const items: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "items" }];
+    const hp: VariablePath = [...items, { type: "property", key: "0" }, { type: "property", key: "hp" }];
+    const { service, generation, snapshot } = setup(stores.story);
+
+    delete stores.story.items;
+    const removed = service.poll(request(generation, [hp]), stores).changes;
+    expect(removed).toEqual([{ op: "delete", path: items }]);
+    applyWatchPatches(snapshot.variables, removed);
+
+    stores.story.items = [{ hp: 20 }];
+    const restored = service.poll(request(generation, [hp]), stores).changes;
+    expect(restored).toEqual([{ op: "set", path: items, value: [{ hp: 20 }] }]);
+    applyWatchPatches(snapshot.variables, restored);
+    const result = (snapshot.variables.story as Record<string, unknown>).items;
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([{ hp: 20 }]);
+  });
+
   it("replaces a Map when keys are inserted rather than tracking unstable indices", () => {
     const stores = { story: { items: new Map<string, number>() }, temporary: {} };
     const item: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "items" }];
@@ -524,7 +546,7 @@ describe("watchPathExists", () => {
     expect(watchPathExists(stores, key([{ type: "property", key: "items" }, { type: "mapValue", index: 0 }]))).toBe(true);
     expect(watchPathExists(stores, key([{ type: "property", key: "items" }, { type: "mapKey", index: 1 }]))).toBe(false);
     expect(watchPathExists(stores, key([{ type: "property", key: "flags" }, { type: "setValue", index: 0 }]))).toBe(true);
-    expect(watchPathExists(stores, key([{ type: "property", key: "list" }, { type: "index", index: 0 }]))).toBe(true);
-    expect(watchPathExists(stores, key([{ type: "property", key: "list" }, { type: "index", index: 1 }]))).toBe(false);
+    expect(watchPathExists(stores, key([{ type: "property", key: "list" }, { type: "property", key: "0" }]))).toBe(true);
+    expect(watchPathExists(stores, key([{ type: "property", key: "list" }, { type: "property", key: "1" }]))).toBe(false);
   });
 });
