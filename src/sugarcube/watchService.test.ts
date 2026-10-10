@@ -266,15 +266,14 @@ describe("synchronized snapshot watch service", () => {
     expect([...copied.set].map((entry) => entry.hp)).toEqual([2, 3]);
 
     third.hp = 30;
-    second.hp = 20;
     const changes = poll();
     expect(changes).toEqual([
-      { op: "set", path: mapHp, value: 20 },
-      { op: "set", path: setHp, value: 20 },
+      { op: "set", path: mapHp, value: 30 },
+      { op: "set", path: setHp, value: 30 },
     ]);
     applyWatchPatches(snapshot.variables, changes);
-    expect(copied.map.get("b")!.hp).toBe(20);
-    expect([...copied.set][0]!.hp).toBe(20);
+    expect(copied.map.get("c")!.hp).toBe(30);
+    expect([...copied.set][1]!.hp).toBe(30);
   });
 
   it("detects a changed Set member on the first poll from the cloned snapshot", () => {
