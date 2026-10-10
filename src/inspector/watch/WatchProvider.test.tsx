@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useEffect } from "react";
 import { createSnapshotFixture } from "../../../tests/fixtures";
 import { WatchProvider, useWatch } from "./WatchProvider";
+import Variables from "../Variables";
 
 const rpc = vi.hoisted(() => ({
   sendMessage: vi.fn<(type: string, request: unknown) => Promise<unknown>>(),
@@ -40,7 +41,7 @@ afterEach(() => {
 it("warns immediately on one MAIN-world poll over 50ms", async () => {
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
-    changes: [], missingTargets: [], mainDurationMs: 58,
+    changes: [], mainDurationMs: 58,
   }));
   render(<WatchProvider snapshot={snapshot()}><RegisterWatch /></WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
@@ -55,7 +56,7 @@ it("warns immediately on one MAIN-world poll over 50ms", async () => {
 it("recommends reducing watches after sustained p95 over 10ms", async () => {
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
-    changes: [], missingTargets: [], mainDurationMs: 12,
+    changes: [], mainDurationMs: 12,
   }));
   render(<WatchProvider snapshot={snapshot()}><RegisterWatch /></WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(5_050); });
@@ -67,7 +68,7 @@ it("ignores long RPC round trips when MAIN processing is fast", async () => {
   rpc.sendMessage.mockImplementation((_type, data) =>
     new Promise((resolve) => window.setTimeout(() => resolve({
       generation: (data as { generation: number }).generation,
-      changes: [], missingTargets: [], mainDurationMs: 1,
+      changes: [], mainDurationMs: 1,
     }), 310)),
   );
   render(<WatchProvider snapshot={snapshot()}><RegisterWatch /></WatchProvider>);
@@ -78,7 +79,7 @@ it("ignores long RPC round trips when MAIN processing is fast", async () => {
 it("requests a fresh snapshot on generation mismatch", async () => {
   const onResync = vi.fn();
   rpc.sendMessage.mockResolvedValue({
-    generation: 99, changes: [], missingTargets: [], mainDurationMs: 1,
+    generation: 99, changes: [], mainDurationMs: 1,
   });
   render(<WatchProvider snapshot={snapshot()} onResync={onResync}>
     <RegisterWatch />
@@ -88,25 +89,43 @@ it("requests a fresh snapshot on generation mismatch", async () => {
   expect(rpc.sendMessage).toHaveBeenCalledTimes(1);
 });
 
-it("retains missing watched paths after their UI rows unmount", async () => {
-  rpc.sendMessage.mockImplementation(async (_type, data) => ({
-    generation: (data as { generation: number }).generation,
-    changes: [], mainDurationMs: 1,
-    missingTargets: (data as { targets: unknown[] }).targets,
-  }));
-  function DisplayMissing() {
+it("retains deleted watches in one registry, without missingTargets in the RPC", async () => {
+  const score = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
+  const requested: unknown[][] = [];
+  let calls = 0;
+  rpc.sendMessage.mockImplementation(async (_type, data) => {
+    const request = data as { generation: number; targets: unknown[] };
+    requested.push(request.targets);
+    calls++;
+    const changes = calls === 1
+      ? [{ op: "delete", scope: "story", path: score.path }]
+      : calls === 3
+        ? [{ op: "set", scope: "story", path: score.path, value: 99 }]
+        : [];
+    return { generation: request.generation, changes, mainDurationMs: 1 };
+  });
+
+  function ConditionalWatch() {
     const watch = useWatch();
-    return <p>{watch.missingTargets.length} missing</p>;
+    const exists = Object.hasOwn(watch.variables.story, "score");
+    return exists ? <RegisterWatch /> : null;
   }
-  const view = render(<WatchProvider snapshot={snapshot()}>
-    <RegisterWatch />
-    <DisplayMissing />
+
+  render(<WatchProvider snapshot={snapshot()}>
+    <ConditionalWatch />
+    <Variables />
   </WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(screen.getByText("1 missing")).toBeTruthy();
-  view.rerender(<WatchProvider snapshot={snapshot()}><DisplayMissing /></WatchProvider>);
+  expect(screen.getByText("Missing watched variables (read-only)")).toBeTruthy();
+  expect(screen.getByText("$score")).toBeTruthy();
+
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(screen.getByText("1 missing")).toBeTruthy();
+  expect(requested[1]).toContainEqual(score); // Still watched after its row unmounts.
+
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(screen.queryByText("$score")).toBeNull();
+  expect(screen.getByTitle("99")).toBeTruthy();
+  expect(requested[2]).toContainEqual(score);
 });
 
 it("throws if useWatch is called outside WatchProvider", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WatchService } from "./watchService";
 import { applyWatchPatches } from "./applyWatchPatches";
-import { minimizeWatchTargets, type WatchRequest, type WatchTarget } from "./watch";
+import { minimizeWatchTargets, watchPathExists, type WatchRequest, type WatchTarget } from "./watch";
 import type { SugarCubeSnapshot } from "./types";
 
 const player: WatchTarget = {
@@ -200,5 +200,32 @@ describe("two-layer selective watch service", () => {
       { op: "set", scope: "story", path: targets[0]!.path, value: 3 },
       { op: "set", scope: "story", path: targets[1]!.path, value: 4 },
     ]);
+  });
+});
+
+describe("watchPathExists", () => {
+  it("distinguishes missing values from explicitly undefined values", () => {
+    const stores = { story: { player: { health: undefined } }, temporary: {} };
+    expect(watchPathExists(stores, health)).toBe(true);
+    delete (stores.story.player as Record<string, unknown>).health;
+    expect(watchPathExists(stores, health)).toBe(false);
+    stores.story.player.health = undefined;
+    expect(watchPathExists(stores, health)).toBe(true);
+    (stores.story as Record<string, unknown>).player = null;
+    expect(watchPathExists(stores, health)).toBe(false);
+  });
+
+  it("handles typed paths through array and Map/Set entries", () => {
+    const stores = { story: {
+      items: new Map([["a", 1]]),
+      flags: new Set(["seen"]),
+      list: [undefined],
+    }, temporary: {} };
+    const key = (path: WatchTarget["path"]): WatchTarget => ({ scope: "story", path });
+    expect(watchPathExists(stores, key([{ type: "property", key: "items" }, { type: "mapValue", index: 0 }]))).toBe(true);
+    expect(watchPathExists(stores, key([{ type: "property", key: "items" }, { type: "mapKey", index: 1 }]))).toBe(false);
+    expect(watchPathExists(stores, key([{ type: "property", key: "flags" }, { type: "setValue", index: 0 }]))).toBe(true);
+    expect(watchPathExists(stores, key([{ type: "property", key: "list" }, { type: "index", index: 0 }]))).toBe(true);
+    expect(watchPathExists(stores, key([{ type: "property", key: "list" }, { type: "index", index: 1 }]))).toBe(false);
   });
 });
