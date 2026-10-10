@@ -129,7 +129,8 @@ it("keeps the root structural watch while visible primitive rows appear and disa
       visible: Array<{ path: unknown[] }>;
     };
     return request.visible.some((target) =>
-      target.path[0] === "story" && target.path.length === 1,
+      target.path.length === 1 &&
+      JSON.stringify(target.path[0]) === JSON.stringify({ type: "property", key: "story" }),
     );
   };
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
@@ -158,7 +159,7 @@ it("watches only the active scope root while switching variable tabs", async () 
       visible: Array<{ path: unknown[] }>;
     };
     return request.visible.filter((target) => target.path.length === 1)
-      .map((target) => target.path[0]);
+      .map((target) => (target.path[0] as { type: "property"; key: string }).key);
   };
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(activeRoots(0)).toEqual(["story"]);
