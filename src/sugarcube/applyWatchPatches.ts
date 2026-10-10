@@ -154,7 +154,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
   const key = part.type === "property" ? part.key : part.index;
   const record = root as Record<string | number, unknown>;
   if (rest.length === 0 && patch.op === "delete") {
-    if (!Reflect.deleteProperty(root, key)) {
+    if (!Reflect.deleteProperty(record, key)) {
       throw new TypeError(`Cannot delete non-configurable property: ${String(key)}`);
     }
   } else if (rest.length === 0 && key === "length" && Array.isArray(root)) {
