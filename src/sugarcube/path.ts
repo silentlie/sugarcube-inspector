@@ -1,3 +1,5 @@
+import { isMap, isSet } from "@sindresorhus/is";
+import { isNonFunctionObject } from "../utils/isNonFunctionObject";
 import type { PathSegment } from "./watch";
 
 /** Existing undefined values are found; missing and blocked paths are distinct. */
@@ -16,20 +18,20 @@ export type ChildResult =
 export function readPathChild(value: unknown, part: PathSegment): ChildResult {
   switch (part.type) {
     case "property": {
-      if (value === null || typeof value !== "object") return { status: "blocked" };
+      if (!isNonFunctionObject(value)) return { status: "blocked" };
       if (!Object.hasOwn(value, part.key)) return { status: "missing" };
       return { status: "found", value: Reflect.get(value, part.key) };
     }
     case "mapKey":
     case "mapValue": {
-      if (!(value instanceof Map)) return { status: "blocked" };
+      if (!isMap(value)) return { status: "blocked" };
       const entries = [...value.entries()];
       if (!(part.index in entries)) return { status: "missing" };
       const entry = entries[part.index]!;
       return { status: "found", value: entry[part.type === "mapKey" ? 0 : 1] };
     }
     case "setValue": {
-      if (!(value instanceof Set)) return { status: "blocked" };
+      if (!isSet(value)) return { status: "blocked" };
       const values = [...value.values()];
       if (!(part.index in values)) return { status: "missing" };
       return { status: "found", value: values[part.index] };
