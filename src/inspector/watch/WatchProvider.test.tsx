@@ -86,6 +86,32 @@ it("derives root structural watching from visible top-level rows without registe
   });
 });
 
+it.each([
+  { label: "the root is empty", story: {}, registered: true },
+  { label: "all immediate values are containers", story: { mc: { hp: 100 }, inventory: [] }, registered: true },
+  { label: "only opaque objects exist", story: { date: new Date(0) }, registered: true },
+  { label: "a number exists", story: { mc: {}, score: 0 }, registered: false },
+  { label: "a null exists", story: { mc: {}, target: null }, registered: false },
+  { label: "an undefined property exists", story: { mc: {}, target: undefined }, registered: false },
+])("registers an explicit structural root when $label", async ({ story, registered }) => {
+  rpc.sendMessage.mockImplementation(async (_type, data) => ({
+    generation: (data as { generation: number }).generation,
+    changes: [], mainDurationMs: 1,
+  }));
+  const initial = snapshot();
+  initial.variables.story = story;
+  render(<WatchProvider snapshot={initial}><Variables /></WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+
+  const request = rpc.sendMessage.mock.calls[0]![1] as {
+    visible: Array<{ target: { scope: string; path: unknown[] } }>;
+  };
+  const hasExplicitRoot = request.visible.some(({ target }) =>
+    target.scope === "story" && target.path.length === 0,
+  );
+  expect(hasExplicitRoot).toBe(registered);
+});
+
 it("continues monitoring an empty root, without retaining missing unfavorited paths", async () => {
   const score = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
   const requests: Array<{ visible: unknown[]; favorites: unknown[] }> = [];
