@@ -85,7 +85,9 @@ export class VariableStore {
       const hadKey = lastPart && (lastPart.type === "property" || lastPart.type === "index")
         && parentValue != null && typeof parentValue === "object"
         && Object.hasOwn(parentValue, lastPart.type === "property" ? lastPart.key : lastPart.index);
-      const structureChanged = patch.path.length === 0 ||
+      const arrayLengthChanged = lastPart?.type === "property" &&
+        lastPart.key === "length" && Array.isArray(parentValue);
+      const structureChanged = arrayLengthChanged || patch.path.length === 0 ||
         (lastPart && (lastPart.type === "mapKey" || lastPart.type === "mapValue" || lastPart.type === "setValue")) ||
         (patch.op === "delete" ? Boolean(hadKey) : !hadKey);
 
