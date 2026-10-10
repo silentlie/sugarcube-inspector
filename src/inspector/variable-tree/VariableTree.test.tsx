@@ -41,7 +41,8 @@ describe("variable tree", () => {
     expect(screen.getByTitle("false")).toBeDefined();
     expect(screen.getByTitle("0 properties")).toBeDefined();
     expect(screen.queryByText("$")).toBeNull();
-    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /^Expand / })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Favorite score" })).toBeDefined();
     expect(
       screen
         .getByRole("button", { name: "Expand inventory" })
@@ -161,7 +162,7 @@ describe("variable tree", () => {
 
     expect(
       screen
-        .getAllByRole("button")
+        .getAllByRole("button", { name: /^(Expand|Collapse) / })
         .map((button) => button.getAttribute("aria-label")),
     ).toEqual(["Collapse inventory", "Expand [0]", "Expand [1]"]);
     fireEvent.click(screen.getByRole("button", { name: "Expand [1]" }));
