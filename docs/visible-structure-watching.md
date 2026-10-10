@@ -69,12 +69,13 @@ top-level keys, even though unchanged nested values are not deep-cloned.
 The cadence is scheduled 250 ms after a poll completes (not overlapping
 requests); the service pauses while the document is hidden.
 
-Structural discovery and tree rendering cover **own enumerable string-keyed
-properties** (`Object.keys` / `Object.entries`). Nonenumerable and
-symbol-keyed additions are not discovered as new rows by this structural
-polling mechanism. Ordinary SugarCube story/temporary variable names are
-represented by string keys. A fresh full snapshot still provides a new
-baseline if unwatched state needs to be recaptured.
+For ordinary object and array properties, structural discovery and tree
+rendering cover **own enumerable string-keyed properties** (`Object.keys` /
+`Object.entries`). Nonenumerable and symbol-keyed additions are not
+discovered as new object/array rows through that mechanism. Map/Set
+collections use their entry/membership iteration instead. Ordinary SugarCube
+story/temporary variable names are represented by string keys. A fresh full
+snapshot provides a new baseline if unwatched state needs to be recaptured.
 
 ## Circular references and path replacement
 
