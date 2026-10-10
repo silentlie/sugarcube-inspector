@@ -1,11 +1,13 @@
 # SugarCube watch equality benchmark
 
-This experiment compares the current custom comparator, the optimized
-`equalWatchedValues` implementation in
+This historical experiment compares the script's original custom
+fail-fast comparator, the optimized `equalWatchedValues` implementation in
 [`src/sugarcube/watchEqual.ts`](../src/sugarcube/watchEqual.ts),
-and three external deep-equality libraries.
+and external deep-equality libraries.
 
-The optimized comparator is **not wired into the production WatchService**.
+**Production uses `fast-equals/deepEqual`, with a circular-data fallback,
+not either custom comparator.** Results below belong to the cited benchmark
+run and are not measurements of the current live watch RPC.
 
 ## Reproduce
 
@@ -60,5 +62,7 @@ object-containing Set correctness checks.
 These benchmarks simulate response copying with `structuredClone`;
 they **do not measure Chromium MAIN-to-isolated-world RPC latency or
 game-frame contention**. Times can fluctuate with runner load and V8
-optimizations. Repeated local runs and a browser benchmark would be
-needed before switching production behavior.
+optimizations. The separate
+[Chromium transport benchmark](watch-polling-benchmarks.md) addresses
+synthetic cross-world RPC, but still does not measure real game frame pacing.
+Neither result alone justifies changing the production comparator.
