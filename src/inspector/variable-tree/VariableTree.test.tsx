@@ -1,10 +1,21 @@
 // @vitest-environment happy-dom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render as renderRTL, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { createSnapshotFixture } from "../../../tests/fixtures";
+import { WatchProvider } from "../watch/WatchProvider";
 import { afterEach, describe, expect, it } from "vitest";
 import VariableTree from "./VariableTree";
 
 afterEach(cleanup);
+
+function render(ui: ReactElement) {
+  return renderRTL(ui, {
+    wrapper: ({ children }) => (
+      <WatchProvider snapshot={createSnapshotFixture()}>{children}</WatchProvider>
+    ),
+  });
+}
 
 describe("variable tree", () => {
   it.each(["story", "temporary"] as const)(

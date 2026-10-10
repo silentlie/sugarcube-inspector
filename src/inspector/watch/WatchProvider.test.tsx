@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useEffect } from "react";
 import { createSnapshotFixture } from "../../../tests/fixtures";
-import { WatchProvider, useOptionalWatch } from "./WatchProvider";
+import { WatchProvider, useWatch } from "./WatchProvider";
 
 const rpc = vi.hoisted(() => ({
   sendMessage: vi.fn<(type: string, request: unknown) => Promise<unknown>>(),
@@ -12,10 +12,9 @@ const rpc = vi.hoisted(() => ({
 vi.mock("../../sugarcube/rpc", () => ({ sugarcubeRPC: rpc }));
 
 function RegisterWatch() {
-  const watch = useOptionalWatch();
-  const setVisible = watch?.setVisible;
+  const watch = useWatch();
+  const setVisible = watch.setVisible;
   useEffect(() => {
-    if (!setVisible) return;
     const target = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
     setVisible(target, true);
     return () => setVisible(target, false);
@@ -96,8 +95,8 @@ it("retains missing watched paths after their UI rows unmount", async () => {
     missingTargets: (data as { targets: unknown[] }).targets,
   }));
   function DisplayMissing() {
-    const watch = useOptionalWatch();
-    return <p>{watch?.missingTargets.length ?? 0} missing</p>;
+    const watch = useWatch();
+    return <p>{watch.missingTargets.length} missing</p>;
   }
   const view = render(<WatchProvider snapshot={snapshot()}>
     <RegisterWatch />
@@ -108,4 +107,10 @@ it("retains missing watched paths after their UI rows unmount", async () => {
   view.rerender(<WatchProvider snapshot={snapshot()}><DisplayMissing /></WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(screen.getByText("1 missing")).toBeTruthy();
+});
+
+it("throws if useWatch is called outside WatchProvider", () => {
+  expect(() => renderHook(() => useWatch())).toThrow(
+    "useWatch must be used within WatchProvider",
+  );
 });

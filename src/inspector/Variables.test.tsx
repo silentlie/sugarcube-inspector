@@ -9,9 +9,19 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { createSnapshotFixture } from "../../tests/fixtures";
+import type { SugarCubeSnapshot } from "../sugarcube/types";
+import { WatchProvider } from "./watch/WatchProvider";
 import Variables from "./Variables";
 
 afterEach(cleanup);
+
+function renderVariables(snapshot: SugarCubeSnapshot = createSnapshotFixture()) {
+  return render(
+    <WatchProvider snapshot={snapshot}>
+      <Variables />
+    </WatchProvider>,
+  );
+}
 
 function getTabs() {
   return {
@@ -22,7 +32,7 @@ function getTabs() {
 
 describe("variable scope tabs", () => {
   it("selects story variables by default and associates each tab with its panel", () => {
-    render(<Variables snapshot={createSnapshotFixture()} />);
+    renderVariables();
     const tabs = getTabs();
 
     expect(
@@ -46,7 +56,7 @@ describe("variable scope tabs", () => {
   });
 
   it("switches the visible panel and roving tab stop when a tab is clicked", () => {
-    render(<Variables snapshot={createSnapshotFixture()} />);
+    renderVariables();
     const tabs = getTabs();
 
     fireEvent.click(tabs.temporary);
@@ -70,7 +80,7 @@ describe("variable scope tabs", () => {
   it.each(["ArrowLeft", "ArrowRight"])(
     "wraps selection and focus with %s",
     (key) => {
-      render(<Variables snapshot={createSnapshotFixture()} />);
+      renderVariables();
       const tabs = getTabs();
       tabs.story.focus();
 
@@ -91,7 +101,7 @@ describe("variable scope tabs", () => {
   );
 
   it("selects and focuses the last and first tabs with End and Home", () => {
-    render(<Variables snapshot={createSnapshotFixture()} />);
+    renderVariables();
     const tabs = getTabs();
     tabs.story.focus();
 
@@ -105,7 +115,7 @@ describe("variable scope tabs", () => {
   });
 
   it("leaves selection and focus unchanged for unrelated keys", () => {
-    render(<Variables snapshot={createSnapshotFixture()} />);
+    renderVariables();
     const tabs = getTabs();
     tabs.story.focus();
 
@@ -121,7 +131,7 @@ describe("variable scope tabs", () => {
   it("preserves selection and separate expansion state through scope changes and fresh snapshots", () => {
     const snapshot = createSnapshotFixture();
     snapshot.variables.temporary.inventory = ["compass"];
-    const { rerender } = render(<Variables snapshot={snapshot} />);
+    const { rerender } = renderVariables(snapshot);
     const tabs = getTabs();
     const storyPanel = screen.getByRole("tabpanel", {
       name: "Story Variables",
@@ -143,7 +153,7 @@ describe("variable scope tabs", () => {
     const updated = createSnapshotFixture("Next Passage");
     Object.assign(updated.variables.story, { inventory: ["torch"] });
     updated.variables.temporary.inventory = ["rope"];
-    rerender(<Variables snapshot={updated} />);
+    rerender(<WatchProvider snapshot={updated}><Variables /></WatchProvider>);
 
     expect(tabs.temporary.getAttribute("aria-selected")).toBe("true");
     expect(within(temporaryPanel).getByTitle('"rope"')).toBeDefined();
@@ -164,8 +174,8 @@ describe("variable scope tabs", () => {
   });
 
   it("keeps tab and panel associations unique between inspector instances", () => {
-    const first = render(<Variables snapshot={createSnapshotFixture()} />);
-    const second = render(<Variables snapshot={createSnapshotFixture()} />);
+    const first = renderVariables();
+    const second = renderVariables();
     const ids: string[] = [];
 
     for (const container of [first.container, second.container]) {
