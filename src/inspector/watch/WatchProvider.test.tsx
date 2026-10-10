@@ -101,6 +101,86 @@ it("retains deleted watches in one registry, without missingTargets in the RPC",
   expect(requested[2]).toContainEqual(score);
 });
 
+it("sets favorite state idempotently and retains visible unfavorited watches", () => {
+  const target = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
+  let watch!: ReturnType<typeof useWatch>;
+  function Controls() {
+    watch = useWatch();
+    return null;
+  }
+  render(<WatchProvider snapshot={snapshot()}><Controls /></WatchProvider>);
+
+  act(() => watch.setVisible(target, true));
+  act(() => {
+    watch.toggleFavorite(target, true);
+    watch.toggleFavorite(target, true);
+  });
+  expect(watch.favorites.size).toBe(1);
+  expect(watch.watchedTargets).toContainEqual(target);
+
+  act(() => {
+    watch.toggleFavorite(target, false);
+    watch.toggleFavorite(target, false);
+  });
+  expect(watch.favorites.size).toBe(0);
+  expect(watch.watchedTargets).toContainEqual(target); // Visible, though not favorite.
+
+  act(() => watch.setVisible(target, false));
+  expect(watch.watchedTargets).toHaveLength(0);
+});
+
+it("drops an offscreen favorite when explicitly unfavorited", () => {
+  const target = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
+  let watch!: ReturnType<typeof useWatch>;
+  function Controls() {
+    watch = useWatch();
+    return null;
+  }
+  render(<WatchProvider snapshot={snapshot()}><Controls /></WatchProvider>);
+
+  act(() => {
+    watch.toggleFavorite(target, true);
+    watch.setVisible(target, false);
+  });
+  expect(watch.watchedTargets).toContainEqual(target);
+
+  act(() => watch.toggleFavorite(target, false));
+  expect(watch.watchedTargets).toHaveLength(0);
+});
+
+it("retains unmounted missing watches and releases them after offscreen restoration", async () => {
+  const target = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
+  let watch!: ReturnType<typeof useWatch>;
+  function Controls() {
+    watch = useWatch();
+    return null;
+  }
+  let calls = 0;
+  rpc.sendMessage.mockImplementation(async (_type, data) => {
+    calls++;
+    const request = data as { generation: number };
+    const changes = calls === 1
+      ? [{ op: "delete", scope: "story", path: target.path }]
+      : calls === 3
+        ? [{ op: "set", scope: "story", path: target.path, value: 99 }]
+        : [];
+    return { generation: request.generation, changes, mainDurationMs: 1 };
+  });
+
+  render(<WatchProvider snapshot={snapshot()}><Controls /></WatchProvider>);
+  act(() => watch.setVisible(target, true));
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+
+  act(() => watch.setVisible(target, false));
+  expect(watch.watchedTargets).toContainEqual(target);
+  await act(async () => { await vi.advanceTimersByTimeAsync(520); });
+  expect(calls).toBe(3);
+  expect(watch.watchedTargets).toHaveLength(0);
+
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(calls).toBe(3);
+});
+
 it("throws if useWatch is called outside WatchProvider", () => {
   expect(() => renderHook(() => useWatch())).toThrow(
     "useWatch must be used within WatchProvider",

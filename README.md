@@ -65,7 +65,9 @@ in an inactive scope tab. Watches poll every 250 ms (and pause while the page is
 an immutable full-snapshot baseline plus independent cached overrides for watched
 paths. Each poll compares live values first and only clones changed values;
 changes replace whole watched subtrees. Missing paths remain watched and are
-shown as read-only placeholders until they reappear. Complex values such as
+shown as read-only placeholders until they reappear. Registrations store the target
+and favorite status; row visibility is tracked separately so restored offscreen
+paths can be released. Complex values such as
 Maps and Sets are replaced in full when changed. Watch-performance notifications
 are deferred pending a redesign; see
 [deferred watch-performance notifications](docs/deferred-watch-performance-notices.md).

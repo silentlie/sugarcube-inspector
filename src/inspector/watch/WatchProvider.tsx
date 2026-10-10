@@ -24,7 +24,6 @@ type Variables = SugarCubeSnapshot["variables"];
 
 interface WatchRegistration {
   target: WatchTarget;
-  visible: boolean;
   favorite: boolean;
 }
 
@@ -32,7 +31,7 @@ interface WatchContextValue {
   variables: Variables;
   favorites: ReadonlyMap<string, WatchTarget>;
   watchedTargets: readonly WatchTarget[];
-  toggleFavorite: (target: WatchTarget) => void;
+  toggleFavorite: (target: WatchTarget, favorite: boolean) => void;
   setVisible: (target: WatchTarget, visible: boolean) => void;
 }
 
@@ -51,12 +50,13 @@ export function WatchProvider({
     source: snapshot,
     variables: snapshot.variables,
   });
-  // One registry holds active visible and favorite watches. Missing paths
-  // stay registered when their variable row unmounts.
+  // A single registry holds all watches. Visibility observations are kept
+  // separately to release unfavorited watches once missing paths return.
   const [registrations, setRegistrations] = useState<ReadonlyMap<string, WatchRegistration>>(
     () => new Map(),
   );
   const registrationsRef = useRef(registrations);
+  const visibleKeysRef = useRef(new Set<string>());
   const currentVariables = view.source === snapshot ? view.variables : snapshot.variables;
   const variablesRef = useRef(currentVariables);
 
@@ -68,32 +68,39 @@ export function WatchProvider({
     variablesRef.current = currentVariables;
   }, [currentVariables]);
   const setVisible = useCallback((target: WatchTarget, visible: boolean) => {
+    const key = watchKey(target);
+    if (visible) visibleKeysRef.current.add(key);
+    else visibleKeysRef.current.delete(key);
+
     setRegistrations((current) => {
-      const key = watchKey(target);
       const existing = current.get(key);
-      if ((!existing && !visible) || (existing && existing.visible === visible)) {
+      if (visible) {
+        if (existing) return current;
+        return new Map(current).set(key, { target, favorite: false });
+      }
+      // A deleted path remains watched even after its row unmounts.
+      if (!existing || existing.favorite || !watchPathExists(variablesRef.current, target)) {
         return current;
       }
       const next = new Map(current);
-      next.set(key, {
-        target,
-        visible,
-        favorite: existing?.favorite ?? false,
-      });
+      next.delete(key);
       return next;
     });
   }, []);
 
-  const toggleFavorite = useCallback((target: WatchTarget) => {
+  // Accept desired state rather than inverting potentially stale state.
+  const toggleFavorite = useCallback((target: WatchTarget, favorite: boolean) => {
     setRegistrations((current) => {
       const key = watchKey(target);
       const existing = current.get(key);
+      if (existing?.favorite === favorite || (!existing && !favorite)) return current;
       const next = new Map(current);
-      next.set(key, {
-        target,
-        visible: existing?.visible ?? false,
-        favorite: !existing?.favorite,
-      });
+      if (favorite || visibleKeysRef.current.has(key) ||
+          !watchPathExists(variablesRef.current, target)) {
+        next.set(key, { target, favorite });
+      } else {
+        next.delete(key);
+      }
       return next;
     });
   }, []);
@@ -115,19 +122,8 @@ export function WatchProvider({
         return;
       }
 
-      // Missing paths stay registered even after their rows disappear.
-      const relevant = new Map(
-        [...registrationsRef.current.entries()].filter(([, registration]) =>
-          registration.visible || registration.favorite ||
-          !watchPathExists(variablesRef.current, registration.target),
-        ),
-      );
-      if (relevant.size !== registrationsRef.current.size) {
-        registrationsRef.current = relevant;
-        setRegistrations(relevant);
-      }
       const targets = minimizeWatchTargets(
-        [...relevant.values()].map(({ target }) => target),
+        [...registrationsRef.current.values()].map(({ target }) => target),
       );
       if (targets.length === 0) {
         schedule(WATCH_INTERVAL_MS);
@@ -150,17 +146,17 @@ export function WatchProvider({
           setView({ source: snapshot, variables: updated });
         }
 
-        // Retain only registrations still visible, favorited, or missing.
-        // When a missing path returns outside the viewport, it can be released.
+        // Once a missing path returns, release it if its row is offscreen.
         setRegistrations((current) => {
-          const next = new Map(current);
-          for (const [key, registration] of next) {
-            if (!registration.visible && !registration.favorite &&
+          let next: Map<string, WatchRegistration> | undefined;
+          for (const [key, registration] of current) {
+            if (!registration.favorite && !visibleKeysRef.current.has(key) &&
                 watchPathExists(variablesRef.current, registration.target)) {
+              next ??= new Map(current);
               next.delete(key);
             }
           }
-          return next.size === current.size ? current : next;
+          return next ?? current;
         });
       } catch (error) {
         if (active) {

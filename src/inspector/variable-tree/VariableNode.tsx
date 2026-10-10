@@ -69,7 +69,7 @@ export default function VariableNode({
           expanded={expanded}
           onToggle={() => onToggle(id)}
           favorite={watch.favorites.has(id)}
-          onToggleFavorite={() => watch.toggleFavorite(target)}
+          onToggleFavorite={() => watch.toggleFavorite(target, !watch.favorites.has(id))}
         />
       </div>
 
