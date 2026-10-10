@@ -10,8 +10,8 @@ export default function Variables() {
   const [activeTab, setActiveTab] = useState<Tab>("story");
   const watch = useWatch();
   const setVisible = watch.setVisible;
-  // Keep the active root registered as a structural fallback. WatchProvider
-  // omits it from the request when a direct primitive row is visibly watched.
+  // Watch the active scope's root structure on every poll, even when empty,
+  // offscreen, or composed entirely of collapsed containers.
   useEffect(() => {
     const root: WatchTarget = { scope: activeTab, path: [] };
     setVisible(root, true);
