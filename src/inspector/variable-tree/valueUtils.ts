@@ -27,15 +27,6 @@ export function isExpandable(value: unknown): value is object {
   return true;
 }
 
-export function isCircular(
-  value: unknown,
-  ancestors: readonly object[],
-): boolean {
-  return (
-    isNonFunctionObject(value) && ancestors.includes(value)
-  );
-}
-
 export function getChildren(value: unknown): VariableChild[] {
   if (!isExpandable(value)) {
     return [];
