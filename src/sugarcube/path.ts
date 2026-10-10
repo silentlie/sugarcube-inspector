@@ -86,8 +86,7 @@ function samePathSegment(left: PathSegment, right: PathSegment): boolean {
   if (left.type === "property") {
     return right.type === "property" && left.key === right.key;
   }
-  return left.type === right.type && right.type !== "property" &&
-    left.index === right.index;
+  return left.type === right.type && left.index === right.index;
 }
 
 /** True if prefix is the same path or an ancestor of path. */
