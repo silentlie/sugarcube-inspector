@@ -44,14 +44,14 @@ function sameEntry(
   key: string,
   circularPaths: Set<string>,
 ): boolean {
-  if (previous.exists !== current.exists) return false;
-  if (!current.exists) {
-    if (JSON.stringify(previous.missingPath) !== JSON.stringify(current.missingPath) ||
-        Boolean(previous.blockedExists) !== Boolean(current.blockedExists)) return false;
-    return !current.blockedExists ||
-      sameValue(previous.blocked, current.blocked, key, circularPaths);
+  if (previous.exists) {
+    return current.exists && sameValue(previous.value, current.value, key, circularPaths);
   }
-  return sameValue(previous.value, current.value, key, circularPaths);
+  if (current.exists) return false;
+  if (JSON.stringify(previous.missingPath) !== JSON.stringify(current.missingPath) ||
+      Boolean(previous.blockedExists) !== Boolean(current.blockedExists)) return false;
+  return !previous.blockedExists || !current.blockedExists ||
+    sameValue(previous.blocked, current.blocked, key, circularPaths);
 }
 
 type Structure =
@@ -195,9 +195,9 @@ export class WatchService {
       if (!current.exists) {
         // A previously absent/blocked parent may now be present, even when
         // the leaf remains missing. Replace that parent to repair the tree.
-        const restorePrevious = !previous.exists && previous.missingPath &&
-          previous.missingPath.length < (current.missingPath?.length ?? path.length);
-        const patchPath = (restorePrevious ? previous.missingPath! : current.missingPath ?? path) as VariablePath;
+        const restorePrevious = !previous.exists &&
+          previous.missingPath.length < current.missingPath.length;
+        const patchPath = (restorePrevious ? previous.missingPath : current.missingPath) as VariablePath;
         const parent = resolve(stores, patchPath);
         const copy = parent.exists ? structuredClone(parent.value) : undefined;
         valueChanges.push(parent.exists
@@ -208,8 +208,7 @@ export class WatchService {
 
       // If an ancestor was deleted, restore the whole ancestor, not just a
       // leaf that would leave an incomplete, invented object in the UI.
-      const restorePath = (!previous.exists && previous.missingPath &&
-        previous.missingPath.length < path.length
+      const restorePath = (!previous.exists && previous.missingPath.length < path.length
         ? previous.missingPath
         : path) as VariablePath;
       const restored = resolve(stores, restorePath);

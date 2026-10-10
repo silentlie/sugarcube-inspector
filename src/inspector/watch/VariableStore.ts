@@ -21,7 +21,8 @@ export class VariableStore {
   }
 
   getValue(path: VariablePath): unknown {
-    return resolvePath(this.variables, path).value;
+    const result = resolvePath(this.variables, path);
+    return result.exists ? result.value : undefined;
   }
 
   getVersion(key: string): number {

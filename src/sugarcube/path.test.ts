@@ -40,6 +40,23 @@ describe("shared path operations", () => {
     });
   });
 
+  it("returns exactly the fields belonging to each resolution outcome", () => {
+    const stores = { story: { player: { hp: undefined }, empty: {}, blocked: null }, temporary: {} };
+
+    expect(resolvePath(stores, story(prop("player"), prop("hp")))).toEqual({
+      exists: true, value: undefined,
+    });
+    expect(resolvePath(stores, story(prop("empty"), prop("hp")))).toEqual({
+      exists: false, missingPath: story(prop("empty"), prop("hp")),
+    });
+    expect(resolvePath(stores, story(prop("blocked"), prop("hp")))).toEqual({
+      exists: false,
+      missingPath: story(prop("blocked")),
+      blockedExists: true,
+      blocked: null,
+    });
+  });
+
   it("preserves sparse-array holes and defined undefined entries", () => {
     const items = new Array<unknown>(2);
     items[1] = undefined;
@@ -54,7 +71,9 @@ describe("shared path operations", () => {
     const collection = new Map<unknown, unknown>([[key, undefined]]);
     const members = new Set<unknown>([undefined, key]);
     const stores = { story: { collection, members }, temporary: {} };
-    expect(resolvePath(stores, story(prop("collection"), { type: "mapKey", index: 0 })).value).toBe(key);
+    expect(resolvePath(stores, story(prop("collection"), { type: "mapKey", index: 0 }))).toEqual({
+      exists: true, value: key,
+    });
     expect(resolvePath(stores, story(prop("collection"), { type: "mapValue", index: 0 }))).toEqual({
       exists: true, value: undefined,
     });

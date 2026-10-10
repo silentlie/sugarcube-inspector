@@ -1,17 +1,10 @@
 import type { PathSegment, VariablePath } from "./watch";
 
-/** Preserve existence separately from value: an existing undefined is not missing. */
-export interface PathResult {
-  exists: boolean;
-  value?: unknown;
-}
-
-export interface PathResolution extends PathResult {
-  /** First missing segment, or the existing ancestor that blocks traversal. */
-  missingPath?: PathSegment[];
-  blockedExists?: boolean;
-  blocked?: unknown;
-}
+/** Existing undefined values are found; missing and blocked paths are distinct. */
+export type PathResolution =
+  | { exists: true; value: unknown }
+  | { exists: false; missingPath: PathSegment[]; blockedExists?: false }
+  | { exists: false; missingPath: PathSegment[]; blockedExists: true; blocked: unknown };
 
 /** Reading a path child distinguishes type incompatibility from absence. */
 export type ChildResult =
