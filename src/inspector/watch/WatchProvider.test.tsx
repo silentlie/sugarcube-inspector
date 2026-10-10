@@ -7,7 +7,7 @@ import { createSnapshotFixture } from "../../../tests/fixtures";
 import { WatchProvider, useWatch } from "./WatchProvider";
 import { useVariableVersion } from "./VariableStore";
 import Variables from "../Variables";
-import type { VariablePath } from "../../sugarcube/watch";
+import type { VariablePath } from "../../sugarcube/watch/types";
 
 const rpc = vi.hoisted(() => ({
   sendMessage: vi.fn<(type: string, request: unknown) => Promise<unknown>>(),

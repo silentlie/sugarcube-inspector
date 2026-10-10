@@ -5,8 +5,8 @@ import type { PathSegment, VariableAncestor, VariableScope } from "./types";
 import { formatVariablePath, getChildren, isExpandable } from "./valueUtils";
 import { useWatch } from "../watch/WatchProvider";
 import { useVariableVersion } from "../watch/VariableStore";
-import { pathToKey } from "../../sugarcube/path";
-import type { VariablePath } from "../../sugarcube/watch";
+import { pathToKey } from "../../sugarcube/variables/path";
+import type { VariablePath } from "../../sugarcube/watch/types";
 
 interface VariableNodeProps {
   name: string;

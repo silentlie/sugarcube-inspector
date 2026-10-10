@@ -1,6 +1,6 @@
 import { defineCustomEventMessaging } from "@webext-core/messaging/page";
 import type { SugarCubeSnapshot } from "./types";
-import type { WatchRequest, WatchResponse } from "./watch";
+import type { WatchRequest, WatchResponse } from "./watch/types";
 
 export interface SugarCubeRPC {
   bridgeReady(): true;

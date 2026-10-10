@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyWatchPatches } from "./applyWatchPatches";
-import type { PathSegment, WatchPatch } from "./watch";
-import type { SugarCubeSnapshot } from "./types";
+import type { PathSegment, WatchPatch } from "../watch/types";
+import type { SugarCubeSnapshot } from "../types";
 
 type Stores = SugarCubeSnapshot["variables"];
 

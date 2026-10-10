@@ -1,10 +1,10 @@
 import { isArray } from "@sindresorhus/is";
 import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
-import { applyWatchPatches } from "../../sugarcube/applyWatchPatches";
-import { isPathPrefix, pathToKey, readPathChild, resolvePath } from "../../sugarcube/path";
+import { applyWatchPatches } from "../../sugarcube/variables/applyWatchPatches";
+import { isPathPrefix, pathToKey, readPathChild, resolvePath } from "../../sugarcube/variables/path";
 import type { SugarCubeVariables } from "../../sugarcube/types";
-import type { PathSegment, VariablePath, WatchPatch } from "../../sugarcube/watch";
+import type { PathSegment, VariablePath, WatchPatch } from "../../sugarcube/watch/types";
 
 type Listener = () => void;
 type Subscription = { path: VariablePath; listeners: Set<Listener> };

@@ -11,8 +11,8 @@ import {
 import { sugarcubeRPC } from "../../sugarcube/rpc";
 import { VariableStore } from "./VariableStore";
 import type { SugarCubeSnapshot, SugarCubeVariables } from "../../sugarcube/types";
-import { pathToKey } from "../../sugarcube/path";
-import type { VariablePath } from "../../sugarcube/watch";
+import { pathToKey } from "../../sugarcube/variables/path";
+import type { VariablePath } from "../../sugarcube/watch/types";
 import { withTimeout } from "../../utils/withTimeout";
 
 export const WATCH_INTERVAL_MS = 250;

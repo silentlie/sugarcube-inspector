@@ -1,6 +1,6 @@
-import type { PathSegment } from "../../sugarcube/watch";
+import type { PathSegment } from "../../sugarcube/watch/types";
 
-export type { PathSegment, VariableScope } from "../../sugarcube/watch";
+export type { PathSegment, VariableScope } from "../../sugarcube/watch/types";
 
 export interface VariableChild {
   name: string;

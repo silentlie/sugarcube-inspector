@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { VariableStore } from "./VariableStore";
-import type { VariablePath } from "../../sugarcube/watch";
+import type { VariablePath } from "../../sugarcube/watch/types";
 
 const prop = (key: string) => ({ type: "property" as const, key });
 const target = (...names: string[]): VariablePath => ([{ type: "property", key: "story" }, ...names.map(prop)]);

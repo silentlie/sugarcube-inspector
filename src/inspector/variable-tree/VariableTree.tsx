@@ -2,7 +2,7 @@ import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 import { useCallback, useRef, useState } from "react";
 import VariableNode from "./VariableNode";
 import type { PathSegment, VariableAncestor, VariableScope } from "./types";
-import { pathToKey } from "../../sugarcube/path";
+import { pathToKey } from "../../sugarcube/variables/path";
 import { getChildren } from "./valueUtils";
 import { useWatch } from "../watch/WatchProvider";
 import { useVariableVersion } from "../watch/VariableStore";

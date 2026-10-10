@@ -5,7 +5,7 @@ import {
   readPathChild,
   resolvePath,
 } from "./path";
-import type { PathSegment, VariablePath } from "./watch";
+import type { PathSegment, VariablePath } from "../watch/types";
 
 const prop = (key: string): PathSegment => ({ type: "property", key });
 const story = (...parts: PathSegment[]): VariablePath => [prop("story") as VariablePath[0], ...parts];

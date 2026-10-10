@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { WatchService } from "./watchService";
-import { applyWatchPatches } from "./applyWatchPatches";
-import { minimizeWatchPaths, type WatchRequest, type VariablePath, type PathSegment } from "./watch";
-import { resolvePath } from "./path";
-import type { SugarCubeSnapshot } from "./types";
+import { WatchService } from "./WatchService";
+import { applyWatchPatches } from "../variables/applyWatchPatches";
+import type { WatchRequest, VariablePath, PathSegment } from "./types";
+import { minimizeWatchPaths } from "./watchPaths";
+import { resolvePath } from "../variables/path";
+import type { SugarCubeSnapshot } from "../types";
 
 const player: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "player" }];
 const health: VariablePath = [...player, { type: "property", key: "health" }];

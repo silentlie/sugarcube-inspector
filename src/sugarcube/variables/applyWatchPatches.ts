@@ -1,7 +1,7 @@
 import { isArray, isMap, isSet } from "@sindresorhus/is";
-import { isNonFunctionObject } from "../utils/isNonFunctionObject";
-import type { PathSegment, WatchPatch } from "./watch";
-import type { SugarCubeVariables } from "./types";
+import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
+import type { PathSegment, WatchPatch } from "../watch/types";
+import type { SugarCubeVariables } from "../types";
 import { readPathChild } from "./path";
 
 function writeProperty(target: object, key: string | number, value: unknown) {

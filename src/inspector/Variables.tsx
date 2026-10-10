@@ -3,8 +3,8 @@ import { Star } from "lucide-react";
 import VariableTree from "./variable-tree/VariableTree";
 import { formatVariablePath } from "./variable-tree/valueUtils";
 import { useWatch } from "./watch/WatchProvider";
-import { pathToKey, resolvePath } from "../sugarcube/path";
-import type { VariablePath, VariableScope } from "../sugarcube/watch";
+import { pathToKey, resolvePath } from "../sugarcube/variables/path";
+import type { VariablePath, VariableScope } from "../sugarcube/watch/types";
 import { useAnyVariableVersion } from "./watch/VariableStore";
 
 export default function Variables() {

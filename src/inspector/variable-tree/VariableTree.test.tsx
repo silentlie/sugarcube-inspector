@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, render as renderRTL, screen } from "@testing-library/react";
 import { createSnapshotFixture } from "../../../tests/fixtures";
 import { WatchProvider } from "../watch/WatchProvider";
-import type { VariableScope } from "../../sugarcube/watch";
+import type { VariableScope } from "../../sugarcube/watch/types";
 import { afterEach, describe, expect, it } from "vitest";
 import VariableTree from "./VariableTree";
 

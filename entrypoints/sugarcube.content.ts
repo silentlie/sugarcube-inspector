@@ -1,6 +1,6 @@
 import { sugarcubeRPC } from "@/src/sugarcube/rpc";
 import { createSugarCubeSnapshot } from "@/src/sugarcube/snapshot";
-import { WatchService } from "@/src/sugarcube/watchService";
+import { WatchService } from "@/src/sugarcube/watch/WatchService";
 import type {} from "twine-sugarcube";
 
 export default defineContentScript({

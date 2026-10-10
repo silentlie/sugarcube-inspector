@@ -1,5 +1,3 @@
-import { isPathPrefix, pathToKey } from "./path";
-
 export type VariableScope = "story" | "temporary";
 
 export type PathSegment =
@@ -28,12 +26,4 @@ export interface WatchRequest {
 export interface WatchResponse {
   generation: number;
   changes: WatchPatch[];
-}
-
-/** Keep requested paths intact, deduplicating them and discarding descendants of watched ancestors. */
-export function minimizeWatchPaths(paths: VariablePath[]): VariablePath[] {
-  const unique = [...new Map(paths.map((path) => [pathToKey(path), path])).values()];
-  return unique.filter(
-    (path) => !unique.some((other) => other !== path && isPathPrefix(other, path)),
-  );
 }

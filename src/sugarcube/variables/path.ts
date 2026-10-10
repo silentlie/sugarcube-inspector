@@ -1,6 +1,6 @@
 import { isMap, isSet } from "@sindresorhus/is";
-import { isNonFunctionObject } from "../utils/isNonFunctionObject";
-import type { PathSegment } from "./watch";
+import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
+import type { PathSegment } from "../watch/types";
 
 /** Existing undefined values are found; missing and blocked paths are distinct. */
 export type PathResolution =
