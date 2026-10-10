@@ -299,6 +299,34 @@ it("sets favorite state idempotently, and only favorites survive an unmount", as
   expect(requested).toHaveLength(1); // Neither list has watches now.
 });
 
+it("lets users unfavorite a missing variable without waiting for it to return", async () => {
+  const path = [{ type: "property" as const, key: "score" }];
+  const requests: Array<{ favorites: unknown[] }> = [];
+  let polls = 0;
+  rpc.sendMessage.mockImplementation(async (_type, data) => {
+    const request = data as { generation: number; favorites: unknown[] };
+    requests.push({ favorites: request.favorites });
+    return {
+      generation: request.generation,
+      changes: polls++ === 0
+        ? [{ op: "delete", scope: "story", path }]
+        : [],
+      mainDurationMs: 1,
+    };
+  });
+
+  render(<WatchProvider snapshot={snapshot()}><Variables /></WatchProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Favorite score" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+
+  expect(requests[0]!.favorites).toContainEqual({ scope: "story", path });
+  fireEvent.click(screen.getByRole("button", { name: "Unfavorite $score" }));
+  expect(screen.queryByText("Missing watched variables (read-only)")).toBeNull();
+
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(requests[1]!.favorites).toEqual([]);
+});
+
 it("polls empty story roots even when no variable tiles exist", async () => {
   const requests: Array<{ visible: unknown[] }> = [];
   rpc.sendMessage.mockImplementation(async (_type, data) => {
