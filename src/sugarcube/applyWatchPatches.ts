@@ -1,3 +1,5 @@
+import { isArray, isMap, isSet } from "@sindresorhus/is";
+import { isNonFunctionObject } from "../utils/isNonFunctionObject";
 import type { PathSegment, WatchPatch } from "./watch";
 import type { SugarCubeVariables } from "./types";
 import { readPathChild } from "./path";
@@ -20,7 +22,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
 
   const part = path[0]!;
   const rest = path.slice(1);
-  if (root == null || typeof root !== "object") {
+  if (!isNonFunctionObject(root)) {
     // MAIN sends whole-value patches to restore missing ancestors; never
     // guess whether an absent intermediate container was an array or object.
     if (patch.op === "delete") return root;
@@ -28,7 +30,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
   }
 
   if (part.type === "mapKey" || part.type === "mapValue") {
-    if (!(root instanceof Map)) return root;
+    if (!isMap(root)) return root;
     const entries = [...root.entries()];
     const entry = entries[part.index];
     if (!entry) return root;
@@ -48,7 +50,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
   }
 
   if (part.type === "setValue") {
-    if (!(root instanceof Set)) return root;
+    if (!isSet(root)) return root;
     const values = [...root];
     if (part.index < 0 || part.index >= values.length) return root;
     if (rest.length === 0 && patch.op === "delete") values.splice(part.index, 1);
@@ -68,7 +70,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
     if (!Reflect.deleteProperty(record, key)) {
       throw new TypeError(`Cannot delete non-configurable property: ${String(key)}`);
     }
-  } else if (rest.length === 0 && key === "length" && Array.isArray(root)) {
+  } else if (rest.length === 0 && key === "length" && isArray(root)) {
     if (patch.op === "set") root.length = patch.value as number;
   } else {
     const previous = readPathChild(root, part);
