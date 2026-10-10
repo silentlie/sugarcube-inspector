@@ -60,11 +60,6 @@ async function readDetection(): Promise<DetectionState> {
       return {
         detected: true,
 
-        version:
-          sc.version?.toString?.() ??
-          storyData?.getAttribute("format-version") ??
-          "",
-
         storyName:
           sc.Story?.name ??
           sc.Story?.title ??
@@ -75,7 +70,6 @@ async function readDetection(): Promise<DetectionState> {
 
         passage: sc.State?.passage ?? "",
 
-        variableCount: Object.keys(sc.State?.variables ?? {}).length,
       };
     },
   });
