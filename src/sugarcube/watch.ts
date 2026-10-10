@@ -1,9 +1,6 @@
-import { isPathPrefix, pathToKey, resolvePath } from "./path";
+import { isPathPrefix, pathToKey } from "./path";
 
 export type VariableScope = "story" | "temporary";
-
-/** JavaScript primitives (including null and undefined), not functions or objects. */
-export { isPrimitive as isPrimitiveValue } from "@sindresorhus/is";
 
 export type PathSegment =
   | { type: "property"; key: string }
@@ -31,8 +28,6 @@ export interface WatchRequest {
 export interface WatchResponse {
   generation: number;
   changes: WatchPatch[];
-  /** Synchronous MAIN-world compare and clone time, excluding RPC latency. */
-  mainDurationMs: number;
 }
 
 /** Keep requested paths intact, deduplicating them and discarding descendants of watched ancestors. */
@@ -41,12 +36,4 @@ export function minimizeWatchPaths(paths: VariablePath[]): VariablePath[] {
   return unique.filter(
     (path) => !unique.some((other) => other !== path && isPathPrefix(other, path)),
   );
-}
-
-/** Presence is independent of the value: an existing undefined is not missing. */
-export function watchPathExists(
-  stores: { story: unknown; temporary: unknown },
-  path: VariablePath,
-): boolean {
-  return resolvePath(stores, path).exists;
 }
