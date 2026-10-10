@@ -184,7 +184,7 @@ export class WatchService {
         oldEntries.some((member, index) => tracked?.kind === newMembers.kind
           ? !Object.is(member, newMembers.entries[index])
           : !sameValue(member, newMembers.entries[index], key, this.circularPaths));
-      if (entriesChanged) {
+      if (entriesChanged && current.exists) {
         collectionChanges.push({ op: "set", path, value: structuredClone(current.value) });
         replacedCollections.push(path);
       }
