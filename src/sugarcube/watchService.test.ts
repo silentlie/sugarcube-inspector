@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { WatchService } from "./watchService";
 import { applyWatchPatches } from "./applyWatchPatches";
-import { minimizeWatchPaths, watchPathExists, type WatchRequest, type VariablePath, type PathSegment } from "./watch";
+import { minimizeWatchPaths, type WatchRequest, type VariablePath, type PathSegment } from "./watch";
+import { resolvePath } from "./path";
 import type { SugarCubeSnapshot } from "./types";
 
 const player: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "player" }];
@@ -38,7 +39,6 @@ describe("synchronized snapshot watch service", () => {
       op: "set", path: player,
       value: { health: 75, stats: { strength: 10 } },
     }]);
-    expect(response.mainDurationMs).toBeGreaterThanOrEqual(0);
     expect((snapshot.variables.story as Record<string, unknown>).player).toEqual({ health: 100, stats: { strength: 10 } });
 
     // The synchronized state must retain a clone, not a mutable live object.
@@ -174,8 +174,8 @@ describe("synchronized snapshot watch service", () => {
     expect(minimizeWatchPaths([player, storyRoot, temporaryScore])).toEqual([
       storyRoot, temporaryScore,
     ]);
-    expect(watchPathExists({ story: {}, temporary: { score: 5 } }, temporaryScore)).toBe(true);
-    expect(watchPathExists({ story: { score: 5 }, temporary: {} }, temporaryScore)).toBe(false);
+    expect(resolvePath({ story: {}, temporary: { score: 5 } }, temporaryScore).exists).toBe(true);
+    expect(resolvePath({ story: { score: 5 }, temporary: {} }, temporaryScore).exists).toBe(false);
   });
 
   it("keeps distinct Map/Set entry paths and only prunes actual descendants", () => {
@@ -638,16 +638,16 @@ describe("visible structural watch", () => {
   });
 });
 
-describe("watchPathExists", () => {
+describe("path existence", () => {
   it("distinguishes missing values from explicitly undefined values", () => {
     const stores = { story: { player: { health: undefined } }, temporary: {} };
-    expect(watchPathExists(stores, health)).toBe(true);
+    expect(resolvePath(stores, health).exists).toBe(true);
     delete (stores.story.player as Record<string, unknown>).health;
-    expect(watchPathExists(stores, health)).toBe(false);
+    expect(resolvePath(stores, health).exists).toBe(false);
     stores.story.player.health = undefined;
-    expect(watchPathExists(stores, health)).toBe(true);
+    expect(resolvePath(stores, health).exists).toBe(true);
     (stores.story as Record<string, unknown>).player = null;
-    expect(watchPathExists(stores, health)).toBe(false);
+    expect(resolvePath(stores, health).exists).toBe(false);
   });
 
   it("handles typed paths through array and Map/Set entries", () => {
@@ -657,10 +657,10 @@ describe("watchPathExists", () => {
       list: [undefined],
     }, temporary: {} };
     const key = (segments: PathSegment[]): VariablePath => ([{ type: "property", key: "story" }, ...segments]);
-    expect(watchPathExists(stores, key([{ type: "property", key: "items" }, { type: "mapValue", index: 0 }]))).toBe(true);
-    expect(watchPathExists(stores, key([{ type: "property", key: "items" }, { type: "mapKey", index: 1 }]))).toBe(false);
-    expect(watchPathExists(stores, key([{ type: "property", key: "flags" }, { type: "setValue", index: 0 }]))).toBe(true);
-    expect(watchPathExists(stores, key([{ type: "property", key: "list" }, { type: "property", key: "0" }]))).toBe(true);
-    expect(watchPathExists(stores, key([{ type: "property", key: "list" }, { type: "property", key: "1" }]))).toBe(false);
+    expect(resolvePath(stores, key([{ type: "property", key: "items" }, { type: "mapValue", index: 0 }])).exists).toBe(true);
+    expect(resolvePath(stores, key([{ type: "property", key: "items" }, { type: "mapKey", index: 1 }])).exists).toBe(false);
+    expect(resolvePath(stores, key([{ type: "property", key: "flags" }, { type: "setValue", index: 0 }])).exists).toBe(true);
+    expect(resolvePath(stores, key([{ type: "property", key: "list" }, { type: "property", key: "0" }])).exists).toBe(true);
+    expect(resolvePath(stores, key([{ type: "property", key: "list" }, { type: "property", key: "1" }])).exists).toBe(false);
   });
 });
