@@ -1,5 +1,4 @@
 import type { VariableChild } from "./types";
-import { segmentForKey } from "../../sugarcube/path";
 
 export function isExpandable(value: unknown): value is object {
   if (value === null || typeof value !== "object") {
@@ -65,12 +64,16 @@ export function getChildren(value: unknown): VariableChild[] {
     }));
   }
 
+  // Numeric indices are displayed in brackets, but every array entry
+  // uses a regular property path. Named array properties keep their keys.
+  const isArray = Array.isArray(value);
   return Object.entries(value).map(([key, item]) => {
-    const segment = segmentForKey(key, Array.isArray(value));
+    const arrayIndex = isArray && /^(0|[1-9]\d*)$/.test(key) &&
+      Number(key) < 2 ** 32 - 1;
     return {
-      name: segment.type === "index" ? `[${segment.index}]` : key,
+      name: arrayIndex ? `[${key}]` : key,
       value: item,
-      segment,
+      segment: { type: "property" as const, key },
     };
   });
 }
@@ -107,7 +110,7 @@ export function formatVariablePath(
       }
       return `[${JSON.stringify(part.key)}]`;
     }
-    if (part.type === "index" || part.type === "setValue") return `[${part.index}]`;
+    if (part.type === "setValue") return `[${part.index}]`;
     return `[${part.index}].${part.type === "mapKey" ? "key" : "value"}`;
   }).join("");
 }

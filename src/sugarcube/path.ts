@@ -22,15 +22,10 @@ export type ChildResult =
 /** Read one segment, preserving the distinction between missing and undefined. */
 export function readPathChild(value: unknown, part: PathSegment): ChildResult {
   switch (part.type) {
-    case "property":
-    case "index": {
+    case "property": {
       if (value === null || typeof value !== "object") return { status: "blocked" };
-      const key = part.type === "property" ? part.key : part.index;
-      if (!Object.hasOwn(value, key)) return { status: "missing" };
-      return {
-        status: "found",
-        value: Reflect.get(value, key),
-      };
+      if (!Object.hasOwn(value, part.key)) return { status: "missing" };
+      return { status: "found", value: Reflect.get(value, part.key) };
     }
     case "mapKey":
     case "mapValue": {
@@ -107,11 +102,3 @@ export function normalizeCollectionPath(path: VariablePath): VariablePath {
   return collectionIndex < 0 ? path : path.slice(0, collectionIndex) as VariablePath;
 }
 
-/** Use array-index segments only for canonical JavaScript array index keys. */
-export function segmentForKey(key: string, isArray: boolean): PathSegment {
-  const index = Number(key);
-  return isArray && Number.isInteger(index) && index >= 0 &&
-    index < 2 ** 32 - 1 && String(index) === key
-    ? { type: "index", index }
-    : { type: "property", key };
-}

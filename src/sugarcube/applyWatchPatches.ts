@@ -23,9 +23,10 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
   const part = path[0]!;
   const rest = path.slice(1);
   if (root == null || typeof root !== "object") {
-    // Only additions may create an absent intermediate container.
+    // MAIN sends whole-value patches to restore missing ancestors; never
+    // guess whether an absent intermediate container was an array or object.
     if (patch.op === "delete") return root;
-    root = part.type === "index" ? [] : {};
+    throw new Error("Cannot apply a watch patch through a missing or non-object ancestor.");
   }
 
   if (part.type === "mapKey" || part.type === "mapValue") {
@@ -63,7 +64,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
     return root;
   }
 
-  const key = part.type === "property" ? part.key : part.index;
+  const key = part.key;
   const record = root as Record<string | number, unknown>;
   if (rest.length === 0 && patch.op === "delete") {
     if (!Reflect.deleteProperty(record, key)) {

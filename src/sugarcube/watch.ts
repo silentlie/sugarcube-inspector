@@ -10,7 +10,6 @@ export function isPrimitiveValue(value: unknown): boolean {
 
 export type PathSegment =
   | { type: "property"; key: string }
-  | { type: "index"; index: number }
   | { type: "mapKey"; index: number }
   | { type: "mapValue"; index: number }
   | { type: "setValue"; index: number };

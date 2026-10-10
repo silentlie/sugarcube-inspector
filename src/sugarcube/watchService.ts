@@ -1,7 +1,7 @@
 import { circularDeepEqual, deepEqual } from "fast-equals";
 import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./watch";
 import { minimizeWatchPaths } from "./watch";
-import { isPathPrefix, pathKey, segmentForKey } from "./path";
+import { isPathPrefix, pathKey } from "./path";
 import { applyWatchPatches } from "./applyWatchPatches";
 import { resolvePath, type PathResolution } from "./path";
 import type { SugarCubeSnapshot } from "./types";
@@ -151,17 +151,16 @@ export class WatchService {
       }
       const before = new Set(previous.keys as string[]);
       const after = new Set(current.keys as string[]);
-      const isArray = current.kind === "array";
       for (const childKey of before) {
         if (!after.has(childKey)) {
           structuralChanges.push({
-            op: "delete", path: [...path, segmentForKey(childKey, isArray)] as VariablePath,
+            op: "delete", path: [...path, { type: "property", key: childKey }] as VariablePath,
           });
         }
       }
       for (const childKey of after) {
         if (!before.has(childKey)) {
-          const childPath: VariablePath = [...path, segmentForKey(childKey, isArray)];
+          const childPath: VariablePath = [...path, { type: "property", key: childKey }];
           const added = resolve(stores, childPath);
           if (!added.exists) throw new Error("Added watch child disappeared during polling.");
           structuralChanges.push({

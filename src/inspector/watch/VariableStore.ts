@@ -59,9 +59,9 @@ export class VariableStore {
         : patch.path.slice(0, -1) as VariablePath;
       const parentValue = this.getValue(parent);
       const lastPart = patch.path.length > 1 ? patch.path.at(-1) as PathSegment : undefined;
-      const hadKey = lastPart && (lastPart.type === "property" || lastPart.type === "index")
+      const hadKey = lastPart?.type === "property"
         && parentValue != null && typeof parentValue === "object"
-        && Object.hasOwn(parentValue, lastPart.type === "property" ? lastPart.key : lastPart.index);
+        && Object.hasOwn(parentValue, lastPart.key);
       const arrayLengthChanged = lastPart?.type === "property" &&
         lastPart.key === "length" && Array.isArray(parentValue);
       const structureChanged = arrayLengthChanged || patch.path.length === 1 ||
