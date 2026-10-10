@@ -1,27 +1,29 @@
 // @vitest-environment happy-dom
 
 import { cleanup, fireEvent, render as renderRTL, screen } from "@testing-library/react";
-import type { ReactElement } from "react";
 import { createSnapshotFixture } from "../../../tests/fixtures";
 import { WatchProvider } from "../watch/WatchProvider";
+import type { VariableScope } from "../../sugarcube/watch";
 import { afterEach, describe, expect, it } from "vitest";
 import VariableTree from "./VariableTree";
 
 afterEach(cleanup);
 
-function render(ui: ReactElement) {
-  return renderRTL(ui, {
-    wrapper: ({ children }) => (
-      <WatchProvider snapshot={createSnapshotFixture()}>{children}</WatchProvider>
-    ),
-  });
+function renderTree(scope: VariableScope, variables: Record<string, unknown>) {
+  const snapshot = createSnapshotFixture();
+  Object.assign(snapshot.variables, { [scope]: variables });
+  return renderRTL(
+    <WatchProvider snapshot={snapshot}>
+      <VariableTree scope={scope} />
+    </WatchProvider>,
+  );
 }
 
 describe("variable tree", () => {
   it.each(["story", "temporary"] as const)(
     "shows an empty state for %s variables",
     (scope) => {
-      render(<VariableTree scope={scope} value={{}} />);
+      renderTree(scope, {});
 
       expect(screen.getByText("No variables")).toBeDefined();
       expect(screen.queryByRole("button")).toBeNull();
@@ -29,12 +31,7 @@ describe("variable tree", () => {
   );
 
   it("renders top-level variables and offers expansion even for empty containers", () => {
-    render(
-      <VariableTree
-        scope="story"
-        value={{ score: 7, enabled: false, empty: {}, inventory: ["map"] }}
-      />,
-    );
+    renderTree("story", { score: 7, enabled: false, empty: {}, inventory: ["map"] });
 
     expect(screen.getByText("score")).toBeDefined();
     expect(screen.getByTitle("7")).toBeDefined();
@@ -54,7 +51,7 @@ describe("variable tree", () => {
   });
 
   it("ignores the second click of a double-click when favoriting a variable", () => {
-    render(<VariableTree scope="story" value={{ score: 7 }} />);
+    renderTree("story", { score: 7 });
 
     const button = screen.getByRole("button", { name: "Favorite score" });
     fireEvent.click(button, { detail: 1 });
@@ -68,12 +65,7 @@ describe("variable tree", () => {
   });
 
   it("expands and collapses nested arrays while retaining the child expansion state", () => {
-    render(
-      <VariableTree
-        scope="story"
-        value={{ inventory: ["map", { charges: 3 }] }}
-      />,
-    );
+    renderTree("story", { inventory: ["map", { charges: 3 }] });
 
     fireEvent.click(screen.getByRole("button", { name: "Expand inventory" }));
     expect(screen.getByText("[0]")).toBeDefined();
@@ -95,16 +87,15 @@ describe("variable tree", () => {
   });
 
   it("keeps expanded property paths when a cloned snapshot changes values and property order", () => {
-    const { rerender } = render(
-      <VariableTree scope="story" value={{ hero: { hp: 10 }, bag: ["map"] }} />,
-    );
+    const { rerender } = renderTree("story", { hero: { hp: 10 }, bag: ["map"] });
     fireEvent.click(screen.getByRole("button", { name: "Expand hero" }));
 
+    const updated = createSnapshotFixture();
+    updated.variables.story = { added: true, bag: ["torch"], hero: { hp: 6 } };
     rerender(
-      <VariableTree
-        scope="story"
-        value={{ added: true, bag: ["torch"], hero: { hp: 6 } }}
-      />,
+      <WatchProvider snapshot={updated}>
+        <VariableTree scope="story" />
+      </WatchProvider>,
     );
 
     expect(
@@ -123,12 +114,7 @@ describe("variable tree", () => {
   });
 
   it("does not confuse a literal dotted property with a nested property path", () => {
-    render(
-      <VariableTree
-        scope="story"
-        value={{ "a.b": { marker: "literal" }, a: { b: { marker: "nested" } } }}
-      />,
-    );
+    renderTree("story", { "a.b": { marker: "literal" }, a: { b: { marker: "nested" } } });
 
     fireEvent.click(screen.getByRole("button", { name: "Expand a.b" }));
     expect(screen.getByTitle('"literal"')).toBeDefined();
@@ -147,12 +133,7 @@ describe("variable tree", () => {
   it("expands Map keys and values independently", () => {
     const key = { keyName: "door" };
     const value = { valueName: "unlocked" };
-    render(
-      <VariableTree
-        scope="story"
-        value={{ lookup: new Map([[key, value]]) }}
-      />,
-    );
+    renderTree("story", { lookup: new Map([[key, value]]) });
     fireEvent.click(screen.getByRole("button", { name: "Expand lookup" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Expand [0].key" }));
@@ -173,7 +154,7 @@ describe("variable tree", () => {
 
   it("renders Set entries in insertion order and expands each entry separately", () => {
     const inventory = new Set([{ item: "map" }, { item: "key" }]);
-    render(<VariableTree scope="story" value={{ inventory }} />);
+    renderTree("story", { inventory });
     fireEvent.click(screen.getByRole("button", { name: "Expand inventory" }));
 
     expect(
@@ -189,7 +170,7 @@ describe("variable tree", () => {
   it("marks circular ancestors as leaves instead of recursing indefinitely", () => {
     const loop: Record<string, unknown> = { score: 7 };
     loop.self = loop;
-    render(<VariableTree scope="story" value={{ loop }} />);
+    renderTree("story", { loop });
     fireEvent.click(screen.getByRole("button", { name: "Expand loop" }));
 
     expect(screen.getByText("self")).toBeDefined();
@@ -205,7 +186,7 @@ describe("variable tree", () => {
   it("navigates root-level circular references back to the scope root", () => {
     const variables: Record<string, unknown> = { score: 7 };
     variables.self = variables;
-    const { container } = render(<VariableTree scope="story" value={variables} />);
+    const { container } = renderTree("story", variables);
 
     const link = screen.getByRole("button", { name: "Go to $" });
     expect(screen.queryByRole("button", { name: "Expand self" })).toBeNull();
@@ -220,7 +201,7 @@ describe("variable tree", () => {
     const player: Record<string, unknown> = { hp: 12 };
     const inventory = { owner: player };
     player.inventory = inventory;
-    render(<VariableTree scope="story" value={{ player }} />);
+    renderTree("story", { player });
     fireEvent.click(screen.getByRole("button", { name: "Expand player" }));
     fireEvent.click(screen.getByRole("button", { name: "Expand inventory" }));
 
@@ -232,9 +213,7 @@ describe("variable tree", () => {
 
   it("allows the same object under different siblings without treating it as circular", () => {
     const shared = { item: "map" };
-    render(
-      <VariableTree scope="story" value={{ left: shared, right: shared }} />,
-    );
+    renderTree("story", { left: shared, right: shared });
     fireEvent.click(screen.getByRole("button", { name: "Expand left" }));
     fireEvent.click(screen.getByRole("button", { name: "Expand right" }));
 
