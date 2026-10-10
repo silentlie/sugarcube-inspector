@@ -2,11 +2,8 @@ import { isPathPrefix, pathToKey, resolvePath } from "./path";
 
 export type VariableScope = "story" | "temporary";
 
-/** JavaScript primitives (including null and undefined), not object-like values. */
-export function isPrimitiveValue(value: unknown): boolean {
-  return value === null ||
-    (typeof value !== "object" && typeof value !== "function");
-}
+/** JavaScript primitives (including null and undefined), not functions or objects. */
+export { isPrimitive as isPrimitiveValue } from "@sindresorhus/is";
 
 export type PathSegment =
   | { type: "property"; key: string }
