@@ -1,21 +1,23 @@
+import { isArray, isArrayBuffer, isDate, isError, isMap, isRegExp, isSet, isWeakMap, isWeakSet } from "@sindresorhus/is";
+import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 import type { VariableChild } from "./types";
 
 export function isExpandable(value: unknown): value is object {
-  if (value === null || typeof value !== "object") {
+  if (!isNonFunctionObject(value)) {
     return false;
   }
 
-  if (value instanceof Map || value instanceof Set) {
+  if (isMap(value) || isSet(value)) {
     return true;
   }
 
   if (
-    value instanceof Date ||
-    value instanceof RegExp ||
-    value instanceof Error ||
-    value instanceof ArrayBuffer ||
-    value instanceof WeakMap ||
-    value instanceof WeakSet ||
+    isDate(value) ||
+    isRegExp(value) ||
+    isError(value) ||
+    isArrayBuffer(value) ||
+    isWeakMap(value) ||
+    isWeakSet(value) ||
     ArrayBuffer.isView(value)
   ) {
     return false;
@@ -30,7 +32,7 @@ export function isCircular(
   ancestors: readonly object[],
 ): boolean {
   return (
-    value !== null && typeof value === "object" && ancestors.includes(value)
+    isNonFunctionObject(value) && ancestors.includes(value)
   );
 }
 
@@ -39,7 +41,7 @@ export function getChildren(value: unknown): VariableChild[] {
     return [];
   }
 
-  if (value instanceof Map) {
+  if (isMap(value)) {
     return Array.from(value.entries()).flatMap(
       ([key, entryValue], index): VariableChild[] => [
         {
@@ -56,7 +58,7 @@ export function getChildren(value: unknown): VariableChild[] {
     );
   }
 
-  if (value instanceof Set) {
+  if (isSet(value)) {
     return Array.from(value.values(), (item, index) => ({
       name: `[${index}]`,
       value: item,
@@ -66,9 +68,9 @@ export function getChildren(value: unknown): VariableChild[] {
 
   // Numeric indices are displayed in brackets, but every array entry
   // uses a regular property path. Named array properties keep their keys.
-  const isArray = Array.isArray(value);
+  const array = isArray(value);
   return Object.entries(value).map(([key, item]) => {
-    const arrayIndex = isArray && /^(0|[1-9]\d*)$/.test(key) &&
+    const arrayIndex = array && /^(0|[1-9]\d*)$/.test(key) &&
       Number(key) < 2 ** 32 - 1;
     return {
       name: arrayIndex ? `[${key}]` : key,
@@ -81,18 +83,18 @@ export function getChildren(value: unknown): VariableChild[] {
 export function getValueType(value: unknown): string {
   if (value === null) return "null";
 
-  if (Array.isArray(value)) return "Array";
-  if (value instanceof Map) return "Map";
-  if (value instanceof Set) return "Set";
-  if (value instanceof Date) return "Date";
-  if (value instanceof RegExp) return "RegExp";
-  if (value instanceof Error) return value.name;
+  if (isArray(value)) return "Array";
+  if (isMap(value)) return "Map";
+  if (isSet(value)) return "Set";
+  if (isDate(value)) return "Date";
+  if (isRegExp(value)) return "RegExp";
+  if (isError(value)) return value.name;
 
   if (ArrayBuffer.isView(value)) {
     return value.constructor.name;
   }
 
-  if (value instanceof ArrayBuffer) return "ArrayBuffer";
+  if (isArrayBuffer(value)) return "ArrayBuffer";
 
   return typeof value === "object" ? "Object" : typeof value;
 }
