@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { Star } from "lucide-react";
 import VariableTree from "./variable-tree/VariableTree";
 import { useWatch } from "./watch/WatchProvider";
 import { watchPathExists, type WatchTarget } from "../sugarcube/watch";
@@ -140,6 +141,15 @@ function MissingWatches({ scope }: { scope: Tab }) {
           className="flex gap-2 px-2 py-1 font-mono text-zinc-500">
           <span className="min-w-0 truncate">{name}</span>
           <span className="ml-auto">Missing</span>
+          <button
+            type="button"
+            aria-label={`Unfavorite ${name}`}
+            title="Remove favorite"
+            onClick={() => watch.toggleFavorite(target, false)}
+            className="shrink-0 rounded p-1 text-amber-400 focus-visible:outline-2 focus-visible:outline-zinc-400"
+          >
+            <Star size={14} fill="currentColor" aria-hidden="true" />
+          </button>
         </div>;
       })}
     </section>
