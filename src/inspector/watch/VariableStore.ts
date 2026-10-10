@@ -1,35 +1,12 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { applyWatchPatches } from "../../sugarcube/applyWatchPatches";
+import { isPathPrefix, readPathChild, resolvePath } from "../../sugarcube/path";
 import type { SugarCubeSnapshot } from "../../sugarcube/types";
 import { watchKey, type PathSegment, type VariablePath, type WatchPatch, type WatchTarget } from "../../sugarcube/watch";
 
 type Variables = SugarCubeSnapshot["variables"];
 type Listener = () => void;
 type Subscription = { target: WatchTarget; listeners: Set<Listener> };
-
-function child(value: unknown, segment: PathSegment): unknown {
-  if (value == null) return undefined;
-  if (segment.type === "property" || segment.type === "index") {
-    const key = segment.type === "property" ? segment.key : segment.index;
-    return typeof value === "object" && Object.hasOwn(value, key)
-      ? (value as Record<string | number, unknown>)[key] : undefined;
-  }
-  if (segment.type === "mapKey" || segment.type === "mapValue") {
-    if (!(value instanceof Map)) return undefined;
-    const entry = [...value.entries()][segment.index];
-    return entry?.[segment.type === "mapKey" ? 0 : 1];
-  }
-  return value instanceof Set ? [...value][segment.index] : undefined;
-}
-
-function resolve(variables: Variables, target: WatchTarget): unknown {
-  return target.path.reduce<unknown>((value, part) => child(value, part), variables);
-}
-
-function isPrefix(prefix: VariablePath, path: VariablePath): boolean {
-  return prefix.length <= path.length && prefix.every((part, i) =>
-    JSON.stringify(part) === JSON.stringify(path[i]));
-}
 
 /** A mutable graph with versioned, path-local React subscriptions. */
 export class VariableStore {
@@ -44,7 +21,7 @@ export class VariableStore {
   }
 
   getValue(target: WatchTarget): unknown {
-    return resolve(this.variables, target);
+    return resolvePath(this.variables, target.path).value;
   }
 
   getVersion(key: string): number {
@@ -94,8 +71,8 @@ export class VariableStore {
       // Collect impacted subscribers BEFORE mutating the graph, so aliases
       // can be identified by their existing object identity.
       for (const [key, { target: watched }] of this.subscriptions) {
-        if (isPrefix(patch.path, watched.path) ||
-            (structureChanged && isPrefix(watched.path, patch.path) &&
+        if (isPathPrefix(patch.path, watched.path) ||
+            (structureChanged && isPathPrefix(watched.path, patch.path) &&
               watched.path.length === patch.path.length - 1)) {
           changed.add(key);
           continue;
@@ -113,7 +90,7 @@ export class VariableStore {
             changed.add(key);
             break;
           }
-          if (i < watched.path.length) value = child(value, watched.path[i] as PathSegment);
+          if (i < watched.path.length) value = readPathChild(value, watched.path[i] as PathSegment).value;
         }
       }
 

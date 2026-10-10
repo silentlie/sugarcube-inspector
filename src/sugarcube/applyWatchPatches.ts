@@ -1,22 +1,8 @@
 import type { PathSegment, WatchPatch } from "./watch";
 import type { SugarCubeSnapshot } from "./types";
+import { readPathChild } from "./path";
 
 type Stores = SugarCubeSnapshot["variables"];
-
-function read(value: unknown, part: PathSegment): unknown {
-  if (value == null) return undefined;
-  if (part.type === "property" || part.type === "index") {
-    const key = part.type === "property" ? part.key : part.index;
-    return typeof value === "object" && Object.hasOwn(value, key)
-      ? (value as Record<string | number, unknown>)[key] : undefined;
-  }
-  if (part.type === "mapKey" || part.type === "mapValue") {
-    if (!(value instanceof Map)) return undefined;
-    const entry = [...value.entries()][part.index];
-    return entry?.[part.type === "mapKey" ? 0 : 1];
-  }
-  return value instanceof Set ? [...value][part.index] : undefined;
-}
 
 function writeProperty(target: object, key: string | number, value: unknown) {
   const descriptor = Object.getOwnPropertyDescriptor(target, key);
@@ -86,7 +72,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
   } else if (rest.length === 0 && key === "length" && Array.isArray(root)) {
     if (patch.op === "set") root.length = patch.value as number;
   } else {
-    const old = read(root, part);
+    const old = readPathChild(root, part).value;
     const next = rest.length
       ? mutate(old, rest, patch)
       : (patch as Extract<WatchPatch, { op: "set" }>).value;

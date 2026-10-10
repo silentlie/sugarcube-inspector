@@ -2,67 +2,14 @@ import { circularDeepEqual, deepEqual } from "fast-equals";
 import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, WatchTarget, VariablePath } from "./watch";
 import { minimizeWatchTargets, watchKey } from "./watch";
 import { applyWatchPatches } from "./applyWatchPatches";
+import { resolvePath, type PathResolution } from "./path";
 import type { SugarCubeSnapshot } from "./types";
 
-interface Entry {
-  exists: boolean;
-  value?: unknown;
-  /** The first missing segment, including its path. */
-  missingPath?: VariablePath;
-  /** Existing parent that cannot be traversed (null, primitive, wrong collection). */
-  blockedExists?: boolean;
-  blocked?: unknown;
-}
-
+type Entry = PathResolution;
 type Stores = SugarCubeSnapshot["variables"];
 
-function child(value: unknown, segment: PathSegment): Entry {
-  if (value == null) return { exists: false };
-  if (segment.type === "property" || segment.type === "index") {
-    const key = segment.type === "property" ? segment.key : segment.index;
-    if (typeof value !== "object" || !Object.hasOwn(value, key)) return { exists: false };
-    return { exists: true, value: (value as Record<string | number, unknown>)[key] };
-  }
-  if (segment.type === "mapKey" || segment.type === "mapValue") {
-    if (!(value instanceof Map)) return { exists: false };
-    const entry = Array.from(value.entries())[segment.index];
-    return entry
-      ? { exists: true, value: entry[segment.type === "mapKey" ? 0 : 1] }
-      : { exists: false };
-  }
-  if (!(value instanceof Set)) return { exists: false };
-  const values = Array.from(value);
-  return segment.index >= 0 && segment.index < values.length
-    ? { exists: true, value: values[segment.index] }
-    : { exists: false };
-}
-
-function resolveValue(root: unknown, path: readonly PathSegment[]): Entry {
-  let entry: Entry = { exists: true, value: root };
-  for (let index = 0; index < path.length; index++) {
-    const part = path[index]!;
-    const parent = entry.value;
-    const traversable = (part.type === "property" || part.type === "index")
-      ? parent !== null && typeof parent === "object"
-      : (part.type === "mapKey" || part.type === "mapValue")
-        ? parent instanceof Map
-        : parent instanceof Set;
-    if (!traversable) {
-      return {
-        exists: false,
-        missingPath: path.slice(0, index) as VariablePath,
-        blockedExists: true,
-        blocked: parent,
-      };
-    }
-    entry = child(parent, part);
-    if (!entry.exists) return { exists: false, missingPath: path.slice(0, index + 1) as VariablePath };
-  }
-  return entry;
-}
-
 function resolve(stores: Stores, target: WatchTarget): Entry {
-  return resolveValue(stores, target.path);
+  return resolvePath(stores, target.path);
 }
 
 /**
@@ -264,7 +211,7 @@ export class WatchService {
         // the leaf remains missing. Replace that parent to repair the tree.
         const restorePrevious = !previous.exists && previous.missingPath &&
           previous.missingPath.length < (current.missingPath?.length ?? target.path.length);
-        const patchPath = restorePrevious ? previous.missingPath! : current.missingPath ?? target.path;
+        const patchPath = (restorePrevious ? previous.missingPath! : current.missingPath ?? target.path) as VariablePath;
         const parent = resolve(stores, { path: patchPath });
         const copy = parent.exists ? structuredClone(parent.value) : undefined;
         valueChanges.push(parent.exists
@@ -275,14 +222,14 @@ export class WatchService {
 
       // If an ancestor was deleted, restore the whole ancestor, not just a
       // leaf that would leave an incomplete, invented object in the UI.
-      const restorePath = !previous.exists && previous.missingPath &&
+      const restorePath = (!previous.exists && previous.missingPath &&
         previous.missingPath.length < target.path.length
         ? previous.missingPath
-        : target.path;
+        : target.path) as VariablePath;
       const restored = resolve(stores, { path: restorePath });
       if (!restored.exists) throw new Error("Watch path disappeared during polling.");
       const cloned = structuredClone(restored.value);
-      if (!resolveValue(cloned, target.path.slice(restorePath.length)).exists) {
+      if (!resolvePath(cloned, target.path.slice(restorePath.length)).exists) {
         throw new Error("Cloned watch path is missing.");
       }
       valueChanges.push({ op: "set", path: restorePath, value: cloned });

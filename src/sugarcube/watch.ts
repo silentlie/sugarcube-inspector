@@ -1,3 +1,5 @@
+import { isPathPrefix, normalizeCollectionPath, pathKey, resolvePath } from "./path";
+
 export type VariableScope = "story" | "temporary";
 
 /** JavaScript primitives (including null and undefined), not object-like values. */
@@ -42,16 +44,7 @@ export interface WatchResponse {
 }
 
 export function watchKey(target: WatchTarget): string {
-  return JSON.stringify(target.path);
-}
-
-function isAncestor(ancestor: WatchTarget, child: WatchTarget): boolean {
-  if (ancestor.path.length > child.path.length) {
-    return false;
-  }
-  return ancestor.path.every(
-    (part, index) => JSON.stringify(part) === JSON.stringify(child.path[index]),
-  );
+  return pathKey(target.path);
 }
 
 /**
@@ -64,18 +57,10 @@ function isAncestor(ancestor: WatchTarget, child: WatchTarget): boolean {
  * To avoid stale entry paths, watch/copy the whole Map/Set on any change.
  */
 export function minimizeWatchTargets(targets: WatchTarget[]): WatchTarget[] {
-  const normalized = targets.map((target) => {
-    const collectionIndex = target.path.findIndex(
-      (part) => part.type === "mapKey" || part.type === "mapValue" ||
-        part.type === "setValue",
-    );
-    return collectionIndex < 0 ? target : {
-      path: target.path.slice(0, collectionIndex) as VariablePath,
-    };
-  });
+  const normalized = targets.map((target) => ({ path: normalizeCollectionPath(target.path) }));
   const unique = [...new Map(normalized.map((target) => [watchKey(target), target])).values()];
   return unique.filter(
-    (target) => !unique.some((other) => other !== target && isAncestor(other, target)),
+    (target) => !unique.some((other) => other !== target && isPathPrefix(other.path, target.path)),
   );
 }
 
@@ -84,24 +69,5 @@ export function watchPathExists(
   stores: { story: unknown; temporary: unknown },
   target: WatchTarget,
 ): boolean {
-  let value: unknown = stores;
-  for (const part of target.path) {
-    if (part.type === "property" || part.type === "index") {
-      if (value === null || typeof value !== "object") return false;
-      const key = part.type === "property" ? part.key : part.index;
-      if (!Object.hasOwn(value, key)) return false;
-      value = (value as Record<string | number, unknown>)[key];
-    } else if (part.type === "mapKey" || part.type === "mapValue") {
-      if (!(value instanceof Map)) return false;
-      const entry = [...value.entries()][part.index];
-      if (!entry) return false;
-      value = entry[part.type === "mapKey" ? 0 : 1];
-    } else {
-      if (!(value instanceof Set)) return false;
-      const values = [...value.values()];
-      if (part.index < 0 || part.index >= values.length) return false;
-      value = values[part.index];
-    }
-  }
-  return true;
+  return resolvePath(stores, target.path).exists;
 }
