@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { sugarcubeRPC } from "../../sugarcube/rpc";
-import { applyWatchPatches } from "../../sugarcube/applyWatchPatches";
+import { VariableStore } from "./VariableStore";
 import type { SugarCubeSnapshot } from "../../sugarcube/types";
 import {
   watchKey,
@@ -19,10 +19,10 @@ import {
 import { withTimeout } from "../../utils/withTimeout";
 
 export const WATCH_INTERVAL_MS = 250;
-type Variables = SugarCubeSnapshot["variables"];
 
 interface WatchContextValue {
-  variables: Variables;
+  variables: SugarCubeSnapshot["variables"];
+  store: VariableStore;
   favorites: ReadonlyMap<string, WatchTarget>;
   watchedTargets: readonly WatchTarget[];
   toggleFavorite: (target: WatchTarget, favorite: boolean) => void;
@@ -40,26 +40,17 @@ export function WatchProvider({
   onResync?: () => void;
   children: ReactNode;
 }) {
-  const [view, setView] = useState<{ source: SugarCubeSnapshot; variables: Variables }>({
-    source: snapshot,
-    variables: snapshot.variables,
-  });
+  const store = useMemo(() => new VariableStore(snapshot.variables), [snapshot]);
   const [favorites, setFavorites] = useState<ReadonlyMap<string, WatchTarget>>(
     () => new Map(),
   );
   const favoritesRef = useRef(favorites);
   const visibleRef = useRef(new Map<string, VisibleWatch>());
   const wakeRef = useRef<(() => void) | null>(null);
-  const currentVariables = view.source === snapshot ? view.variables : snapshot.variables;
-  const variablesRef = useRef(currentVariables);
 
   useEffect(() => {
     favoritesRef.current = favorites;
   }, [favorites]);
-
-  useEffect(() => {
-    variablesRef.current = currentVariables;
-  }, [currentVariables]);
 
   const setVisible = useCallback((target: WatchTarget, isVisible: boolean, expanded = false) => {
     const key = watchKey(target);
@@ -135,9 +126,7 @@ export function WatchProvider({
         }
 
         if (response.changes.length > 0) {
-          const updated = applyWatchPatches(variablesRef.current, response.changes);
-          variablesRef.current = updated;
-          setView({ source: snapshot, variables: updated });
+          store.apply(response.changes);
         }
       } catch (error) {
         if (active) {
@@ -166,16 +155,17 @@ export function WatchProvider({
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [snapshot, onResync]);
+  }, [snapshot, store, onResync]);
 
   const value = useMemo<WatchContextValue>(() => ({
-    variables: currentVariables,
+    variables: store.variables,
+    store,
     favorites,
     // Only favorited missing paths remain watched when their rows unmount.
     watchedTargets: [...favorites.values()],
     toggleFavorite,
     setVisible,
-  }), [currentVariables, favorites, setVisible, toggleFavorite]);
+  }), [store, favorites, setVisible, toggleFavorite]);
 
   return <WatchContext value={value}>{children}</WatchContext>;
 }

@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import VariableTile from "./VariableTile";
 import type { PathSegment, VariableAncestor, VariableScope } from "./types";
 import { formatVariablePath, getChildren, isExpandable } from "./valueUtils";
 import { useWatch } from "../watch/WatchProvider";
+import { useVariableVersion } from "../watch/VariableStore";
 import { watchKey, type WatchTarget } from "../../sugarcube/watch";
 
 interface VariableNodeProps {
   name: string;
   value: unknown;
+  fromStore?: boolean;
   scope: VariableScope;
   path: readonly PathSegment[];
   expandedPaths: ReadonlySet<string>;
@@ -17,9 +19,10 @@ interface VariableNodeProps {
   registerNode: (id: string, element: HTMLDivElement | null) => void;
 }
 
-export default function VariableNode({
+function VariableNode({
   name,
-  value,
+  value: initialValue,
+  fromStore = false,
   scope,
   path,
   expandedPaths,
@@ -31,6 +34,8 @@ export default function VariableNode({
   const watch = useWatch();
   const rowRef = useRef<HTMLDivElement>(null);
   const [target] = useState<WatchTarget>(() => ({ scope, path: [...path] }));
+  useVariableVersion(watch.store, target);
+  const value = fromStore ? watch.store.getValue(target) : initialValue;
   const id = watchKey(target);
   const circularAncestor = value !== null && typeof value === "object"
     ? ancestors.find((ancestor) => ancestor.value === value)
@@ -122,6 +127,7 @@ export default function VariableNode({
               key={JSON.stringify(child.segment)}
               name={child.name}
               value={child.value}
+              fromStore={fromStore}
               scope={scope}
               path={[...path, child.segment]}
               expandedPaths={expandedPaths}
@@ -136,3 +142,22 @@ export default function VariableNode({
     </div>
   );
 }
+
+// Parent structural changes must not rerender unchanged child tiles.
+// Node-local store subscriptions handle value changes, while the explicit
+// ancestor comparison handles reference replacements affecting cycle links.
+function sameNodeProps(a: VariableNodeProps, b: VariableNodeProps): boolean {
+  const aKey = watchKey({ scope: a.scope, path: [...a.path] });
+  const bKey = watchKey({ scope: b.scope, path: [...b.path] });
+  return aKey === bKey && a.name === b.name &&
+    a.fromStore === b.fromStore &&
+    (a.fromStore || Object.is(a.value, b.value)) &&
+    a.expandedPaths.has(aKey) === b.expandedPaths.has(bKey) &&
+    a.onToggle === b.onToggle && a.onNavigate === b.onNavigate &&
+    a.registerNode === b.registerNode &&
+    (a.ancestors?.length ?? 0) === (b.ancestors?.length ?? 0) &&
+    (a.ancestors ?? []).every((ancestor, index) =>
+      ancestor.value === b.ancestors?.[index]?.value);
+}
+
+export default memo(VariableNode, sameNodeProps);

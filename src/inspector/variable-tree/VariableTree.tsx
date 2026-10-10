@@ -3,13 +3,19 @@ import VariableNode from "./VariableNode";
 import type { PathSegment, VariableAncestor, VariableScope } from "./types";
 import { watchKey } from "../../sugarcube/watch";
 import { getChildren } from "./valueUtils";
+import { useWatch } from "../watch/WatchProvider";
+import { useVariableVersion } from "../watch/VariableStore";
 
 interface VariableTreeProps {
   scope: VariableScope;
-  value: unknown;
+  value?: unknown;
 }
 
 export default function VariableTree({ scope, value }: VariableTreeProps) {
+  const watch = useWatch();
+  useVariableVersion(watch.store, { scope, path: [] });
+  const fromStore = value === undefined;
+  const rootValue = fromStore ? watch.store.getValue({ scope, path: [] }) : value;
   const [expandedPaths, setExpandedPaths] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -41,10 +47,10 @@ export default function VariableTree({ scope, value }: VariableTreeProps) {
     });
   }, []);
 
-  const children = getChildren(value);
+  const children = getChildren(rootValue);
   const ancestors: readonly VariableAncestor[] =
-    value !== null && typeof value === "object"
-      ? [{ value, path: [] }]
+    rootValue !== null && typeof rootValue === "object"
+      ? [{ value: rootValue, path: [] }]
       : [];
 
   if (children.length === 0) {
@@ -59,6 +65,7 @@ export default function VariableTree({ scope, value }: VariableTreeProps) {
           key={JSON.stringify(child.segment)}
           name={child.name}
           value={child.value}
+          fromStore={fromStore}
           scope={scope}
           path={[child.segment]}
           expandedPaths={expandedPaths}

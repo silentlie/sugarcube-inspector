@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import VariableTree from "./variable-tree/VariableTree";
 import { useWatch } from "./watch/WatchProvider";
 import { watchPathExists, type WatchTarget } from "../sugarcube/watch";
+import { useAnyVariableVersion, useVariableVersion } from "./watch/VariableStore";
 
 type Tab = "story" | "temporary";
 
@@ -9,6 +10,7 @@ export default function Variables() {
   const [activeTab, setActiveTab] = useState<Tab>("story");
   const watch = useWatch();
   const variables = watch.variables;
+  useVariableVersion(watch.store, { scope: activeTab, path: [] });
   const setVisible = watch.setVisible;
   // Top-level visible rows already cause the root structure to be watched
   // through their parent. Register the root directly only when it has no rows.
@@ -20,7 +22,6 @@ export default function Variables() {
     return () => setVisible(root, false);
   }, [activeTab, rootIsEmpty, setVisible]);
 
-  const missing = watch.watchedTargets.filter((target) => !watchPathExists(variables, target));
   const id = useId();
 
   const storyTabRef = useRef<HTMLButtonElement>(null);
@@ -104,8 +105,8 @@ export default function Variables() {
         hidden={activeTab !== "story"}
         className="pt-3"
       >
-        <VariableTree scope="story" value={variables.story} />
-        <MissingWatches targets={missing.filter((target) => target.scope === "story")} />
+        <VariableTree scope="story" />
+        <MissingWatches scope="story" />
       </section>
 
       <section
@@ -115,14 +116,19 @@ export default function Variables() {
         hidden={activeTab !== "temporary"}
         className="pt-3"
       >
-        <VariableTree scope="temporary" value={variables.temporary} />
-        <MissingWatches targets={missing.filter((target) => target.scope === "temporary")} />
+        <VariableTree scope="temporary" />
+        <MissingWatches scope="temporary" />
       </section>
     </div>
   );
 }
 
-function MissingWatches({ targets }: { targets: readonly WatchTarget[] }) {
+function MissingWatches({ scope }: { scope: Tab }) {
+  const watch = useWatch();
+  useAnyVariableVersion(watch.store);
+  const targets = watch.watchedTargets.filter((target) =>
+    target.scope === scope && !watchPathExists(watch.variables, target),
+  );
   if (targets.length === 0) return null;
   return (
     <section aria-label="Missing watched variables" className="mt-3 border-t border-zinc-800 pt-2">
