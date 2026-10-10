@@ -11,7 +11,7 @@ import {
 import { sugarcubeRPC } from "../../sugarcube/rpc";
 import { VariableStore } from "./VariableStore";
 import type { SugarCubeSnapshot, SugarCubeVariables } from "../../sugarcube/types";
-import { pathKey } from "../../sugarcube/path";
+import { pathToKey } from "../../sugarcube/path";
 import type { VariablePath } from "../../sugarcube/watch";
 import { withTimeout } from "../../utils/withTimeout";
 
@@ -51,7 +51,7 @@ export function WatchProvider({
   }, [favorites]);
 
   const setVisible = useCallback((path: VariablePath, isVisible: boolean) => {
-    const key = pathKey(path);
+    const key = pathToKey(path);
     if (isVisible) visibleRef.current.set(key, path);
     else visibleRef.current.delete(key);
   }, []);
@@ -62,7 +62,7 @@ export function WatchProvider({
   // Explicit desired state is idempotent, even with repeated requests.
   const toggleFavorite = useCallback((path: VariablePath, favorite: boolean) => {
     setFavorites((current) => {
-      const key = pathKey(path);
+      const key = pathToKey(path);
       if (favorite === current.has(key)) return current;
       const next = new Map(current);
       if (favorite) next.set(key, path);
