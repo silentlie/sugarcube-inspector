@@ -175,7 +175,7 @@ export class WatchService {
       for (const childKey of after) {
         if (!before.has(childKey)) {
           const childPath: VariablePath = [...path, segmentForKey(childKey, isArray)];
-          const added = resolve(stores, { path: childPath });
+          const added = resolve(stores, childPath);
           if (!added.exists) throw new Error("Added watch child disappeared during polling.");
           structuralChanges.push({
             op: "set", path: childPath,
@@ -212,7 +212,7 @@ export class WatchService {
         const restorePrevious = !previous.exists && previous.missingPath &&
           previous.missingPath.length < (current.missingPath?.length ?? path.length);
         const patchPath = (restorePrevious ? previous.missingPath! : current.missingPath ?? path) as VariablePath;
-        const parent = resolve(stores, { path: patchPath });
+        const parent = resolve(stores, patchPath);
         const copy = parent.exists ? structuredClone(parent.value) : undefined;
         valueChanges.push(parent.exists
           ? { op: "set", path: patchPath, value: copy }
@@ -226,7 +226,7 @@ export class WatchService {
         previous.missingPath.length < path.length
         ? previous.missingPath
         : path) as VariablePath;
-      const restored = resolve(stores, { path: restorePath });
+      const restored = resolve(stores, restorePath);
       if (!restored.exists) throw new Error("Watch path disappeared during polling.");
       const cloned = structuredClone(restored.value);
       if (!resolvePath(cloned, path.slice(restorePath.length)).exists) {
