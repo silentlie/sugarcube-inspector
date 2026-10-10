@@ -30,15 +30,16 @@ named properties, type labels, special numeric values, and preview tooltips.
 - `src/inspector/watch/VariableStore.test.ts`: path-version notifications
   and updates to shared aliases without unnecessary root/sibling notifications.
 - `src/inspector/watch/WatchProvider.test.tsx`: independent visible/favorite
-  registrations, 250 ms polling, recovery, scope-root structural fallback,
-  and immediate polling when expanding visible containers.
+  registrations, missing-favorite removal, 250 ms polling, recovery,
+  unconditional active-scope root watching, and immediate polling when
+  expanding visible containers.
 
-**Root fallback contract:** The *active* scope has an explicit structure-only
-root watch when its visible registration list has no immediate
-primitive-valued property. A visible top-level primitive already implies a
-root structure check through its parent, so the explicit fallback is omitted.
-This is decided from actual visible watches, **not** by scanning all current
-root values. Offscreen primitives do not suppress the fallback. See
+**Active-root watch contract:** Every active poll includes the selected
+scope's root as a structure-only target, even if no variable rows are visible,
+all containers are collapsed, or the scope is empty. This checks for top-level
+additions and removals without deep-comparing root values. Structure checks
+implied by visible child rows are deduplicated with the explicit root check.
+Polling pauses while the page is hidden. See
 [visible structure watching](../docs/visible-structure-watching.md).
 
 The production comparator uses `fast-equals`. The custom comparator and
