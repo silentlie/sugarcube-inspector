@@ -31,7 +31,7 @@ export interface VisibleWatch {
 export interface WatchRequest {
   generation: number;
   favorites: WatchTarget[];
-  /** Includes the active-scope structure-only root fallback unless an immediate primitive row is visibly watched. */
+  /** Includes the active-scope root for structure-only checking on every poll. */
   visible: VisibleWatch[];
 }
 
