@@ -9,6 +9,8 @@ interface VariableTileProps {
   expandable: boolean;
   expanded: boolean;
   onToggle: () => void;
+  circularTarget?: string;
+  onNavigateCircular?: () => void;
   favorite?: boolean;
   onToggleFavorite?: () => void;
 }
@@ -20,6 +22,8 @@ export default function VariableTile({
   expandable,
   expanded,
   onToggle,
+  circularTarget,
+  onNavigateCircular,
   favorite = false,
   onToggleFavorite,
 }: VariableTileProps) {
@@ -38,7 +42,15 @@ export default function VariableTile({
 
       <span className="ml-auto min-w-0 truncate font-mono">
         {circular ? (
-          <span className="text-zinc-500">[Circular]</span>
+          <button
+            type="button"
+            aria-label={`Go to ${circularTarget ?? "circular ancestor"}`}
+            title={`Navigate to ${circularTarget ?? "ancestor"}`}
+            onClick={onNavigateCircular}
+            className="cursor-pointer rounded text-sky-400 underline decoration-dotted underline-offset-2 hover:text-sky-300 focus-visible:outline-2 focus-visible:outline-sky-400"
+          >
+            ↗ {circularTarget ?? "[Circular]"}
+          </button>
         ) : (
           <ValuePreview value={value} />
         )}

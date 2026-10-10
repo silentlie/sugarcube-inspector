@@ -17,6 +17,21 @@ function read(value: unknown, part: PathSegment): unknown {
   return value instanceof Set ? Array.from(value)[part.index] : undefined;
 }
 
+/**
+ * A slice/spread clone loses sparse-array metadata, symbol keys, and named
+ * array properties. Copy descriptors instead of using Object.assign, which
+ * also treats an own "__proto__" key as a prototype setter.
+ *
+ * This is for ordinary objects and arrays; Map/Set entries have their own
+ * patch handling below.
+ */
+function shallowCopy(source: object): Record<string | number, unknown> {
+  const copy = Array.isArray(source)
+    ? []
+    : Object.create(Object.getPrototypeOf(source));
+  return Object.defineProperties(copy, Object.getOwnPropertyDescriptors(source));
+}
+
 function update(
   source: unknown,
   path: readonly PathSegment[],
@@ -59,20 +74,28 @@ function update(
   }
 
   const copy: Record<string | number, unknown> =
-    Array.isArray(source) ? source.slice() :
-    source !== null && typeof source === "object" ?
-      Object.assign(Object.create(Object.getPrototypeOf(source)), source) :
-      part.type === "index" ? [] : {};
+    source !== null && typeof source === "object"
+      ? shallowCopy(source)
+      : part.type === "index" ? [] : {};
 
   const key = part.type === "property" ? part.key : part.index;
   if (Array.isArray(copy) && key === "length") {
     if (patch.op === "set" && typeof replacement === "number") copy.length = replacement;
   } else if (rest.length === 0 && patch.op === "delete") {
-    Reflect.deleteProperty(copy, key);
+    if (!Reflect.deleteProperty(copy, key)) {
+      throw new TypeError(`Cannot delete non-configurable property: ${String(key)}`);
+    }
   } else {
-    // defineProperty also handles special keys such as "__proto__" safely.
+    // Preserve existing descriptor flags where possible. This also handles
+    // own "__proto__" properties without invoking a prototype setter.
+    const previousDescriptor = Object.getOwnPropertyDescriptor(copy, key);
     Object.defineProperty(copy, key, {
-      value: replacement, writable: true, configurable: true, enumerable: true,
+      value: replacement,
+      writable: previousDescriptor && "writable" in previousDescriptor
+        ? previousDescriptor.writable
+        : true,
+      configurable: previousDescriptor?.configurable ?? true,
+      enumerable: previousDescriptor?.enumerable ?? true,
     });
   }
   return copy;

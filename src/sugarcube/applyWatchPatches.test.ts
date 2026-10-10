@@ -1,0 +1,142 @@
+import { describe, expect, it } from "vitest";
+import { applyWatchPatches } from "./applyWatchPatches";
+import type { WatchPatch } from "./watch";
+import type { SugarCubeSnapshot } from "./types";
+
+type Stores = SugarCubeSnapshot["variables"];
+
+const change = (path: WatchPatch["path"], value: unknown): WatchPatch => ({
+  op: "set", scope: "story", path, value,
+});
+const prop = (key: string) => ({ type: "property" as const, key });
+const index = (at: number) => ({ type: "index" as const, index: at });
+const snapshot = (story: Record<string, unknown>): Stores => ({
+  story, temporary: {},
+});
+
+describe("immutable watch patches", () => {
+  it("preserves sparse-array holes, named and symbol properties, and nonenumerable metadata", () => {
+    const array: unknown[] = [];
+    array.length = 5;
+    array[3] = "map";
+    const marker = Symbol("marker");
+    Object.defineProperty(array, "category", {
+      value: "loot", enumerable: true, writable: true, configurable: true,
+    });
+    Object.defineProperty(array, "hidden", {
+      value: 42, enumerable: false, writable: true, configurable: true,
+    });
+    Object.defineProperty(array, marker, {
+      value: "flag", enumerable: false, writable: true, configurable: true,
+    });
+
+    const initial = snapshot({ inventory: array });
+    const updated = applyWatchPatches(initial, [
+      change([prop("inventory"), index(3)], "compass"),
+    ]);
+    const next = (updated.story as Record<string, unknown>).inventory as
+      Array<unknown> & { category: string; hidden: number; [marker]: string };
+
+    expect(next).not.toBe(array);
+    expect(next.length).toBe(5);
+    expect(Object.hasOwn(next, 0)).toBe(false);
+    expect(Object.hasOwn(next, 2)).toBe(false);
+    expect(next[3]).toBe("compass");
+    expect(next.category).toBe("loot");
+    expect(next.hidden).toBe(42);
+    expect(next[marker]).toBe("flag");
+    expect(Object.getOwnPropertyDescriptor(next, "hidden")?.enumerable).toBe(false);
+    expect(array[3]).toBe("map");
+  });
+
+  it("preserves holes and extra properties on index deletion and length changes", () => {
+    const arr = ["map", "key"];
+    Object.defineProperty(arr, "category", {
+      value: "loot", enumerable: true, configurable: true, writable: true,
+    });
+    const initial = snapshot({ inventory: arr });
+    const withoutIndex = applyWatchPatches(initial, [{
+      op: "delete", scope: "story", path: [prop("inventory"), index(0)],
+    }]);
+    const next = (withoutIndex.story as Record<string, unknown>).inventory as string[];
+    expect(Object.hasOwn(next, 0)).toBe(false);
+    expect(next.length).toBe(2);
+    expect((next as unknown as { category: string }).category).toBe("loot");
+    expect(arr[0]).toBe("map");
+
+    const extended = applyWatchPatches(withoutIndex, [
+      change([prop("inventory"), prop("length")], 4),
+    ]);
+    const result = (extended.story as Record<string, unknown>).inventory as string[];
+    expect(result.length).toBe(4);
+    expect(Object.hasOwn(result, 3)).toBe(false);
+    expect((result as unknown as { category: string }).category).toBe("loot");
+  });
+
+  it("preserves an own __proto__ key as data rather than changing the prototype", () => {
+    const player = Object.create(null) as Record<string, unknown>;
+    Object.defineProperty(player, "__proto__", {
+      value: "literal", enumerable: true, configurable: true, writable: true,
+    });
+    player.health = 10;
+    const initial = snapshot({ player });
+    const changed = applyWatchPatches(initial, [
+      change([prop("player"), prop("health")], 20),
+    ]);
+    const next = (changed.story as Record<string, unknown>).player as Record<string, unknown>;
+    expect(Object.getPrototypeOf(next)).toBeNull();
+    expect(Object.hasOwn(next, "__proto__")).toBe(true);
+    expect(Object.getOwnPropertyDescriptor(next, "__proto__")?.value).toBe("literal");
+    expect(next.health).toBe(20);
+    expect(player.health).toBe(10);
+
+    const replaced = applyWatchPatches(changed, [
+      change([prop("player"), prop("__proto__")], { note: "updated" }),
+    ]);
+    const after = (replaced.story as Record<string, unknown>).player as Record<string, unknown>;
+    expect(Object.getPrototypeOf(after)).toBeNull();
+    expect(Object.getOwnPropertyDescriptor(after, "__proto__")?.value).toEqual({ note: "updated" });
+  });
+
+  it("keeps nonenumerable and readonly property descriptors unchanged on other patches", () => {
+    const player = { health: 10 };
+    Object.defineProperty(player, "locked", {
+      value: 1, enumerable: false, writable: false, configurable: false,
+    });
+    const next = applyWatchPatches(snapshot({ player }), [
+      change([prop("player"), prop("health")], 20),
+    ]);
+    const result = (next.story as Record<string, unknown>).player;
+    expect(Object.getOwnPropertyDescriptor(result, "locked")).toEqual({
+      value: 1, enumerable: false, writable: false, configurable: false,
+    });
+    expect((result as { health: number }).health).toBe(20);
+  });
+
+  it("preserves special constructor and prototype keys on nested patches", () => {
+    const player = { health: 10 } as Record<string, unknown>;
+    Object.defineProperty(player, "constructor", {
+      value: "literal-constructor", enumerable: true, writable: true, configurable: true,
+    });
+    Object.defineProperty(player, "prototype", {
+      value: "literal-prototype", enumerable: true, writable: true, configurable: true,
+    });
+    const updated = applyWatchPatches(snapshot({ player }), [
+      change([prop("player"), prop("health")], 42),
+    ]);
+    const result = (updated.story as Record<string, unknown>).player as Record<string, unknown>;
+    expect(result.constructor).toBe("literal-constructor");
+    expect(result.prototype).toBe("literal-prototype");
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+  });
+
+  it("throws instead of silently ignoring deletion of a nonconfigurable property", () => {
+    const player = {};
+    Object.defineProperty(player, "locked", {
+      value: 1, enumerable: true, configurable: false, writable: false,
+    });
+    expect(() => applyWatchPatches(snapshot({ player }), [{
+      op: "delete", scope: "story", path: [prop("player"), prop("locked")],
+    }])).toThrow(TypeError);
+  });
+});

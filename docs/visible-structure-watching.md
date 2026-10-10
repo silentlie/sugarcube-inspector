@@ -42,6 +42,20 @@ and missing-favorite placeholders update.
 Empty objects, arrays, Maps and Sets remain expandable in the UI, allowing
 users to explicitly inspect them and trigger immediate refresh.
 
+## Circular references and immutable patching
+
+The tree renders circular references as links to the corresponding ancestor
+row, including the scope root. Activating a link scrolls to and focuses its
+target rather than recursively rendering the same object. Whole-container
+updates use structured cloning to preserve object cycles.
+
+The shared immutable patch applicator shallow-copies ordinary objects and
+arrays with own property descriptors. This preserves sparse-array holes, custom
+array properties, symbol properties, and nonenumerable metadata; unlike
+`Object.assign`, it safely copies own `__proto__` properties without altering
+the prototype. It preserves untouched property flags and refuses operations
+on nonconfigurable properties that cannot be represented as a valid patch.
+
 ## Cache consistency
 
 MAIN maintains one synchronized variable snapshot, initialized by a full

@@ -7,3 +7,9 @@ export interface VariableChild {
   value: unknown;
   segment: PathSegment;
 }
+
+/** Identity and path of a visible ancestor in the current variable tree. */
+export interface VariableAncestor {
+  value: object;
+  path: readonly PathSegment[];
+}

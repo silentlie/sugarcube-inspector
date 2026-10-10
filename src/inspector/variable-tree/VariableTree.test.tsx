@@ -193,9 +193,41 @@ describe("variable tree", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand loop" }));
 
     expect(screen.getByText("self")).toBeDefined();
-    expect(screen.getByText("[Circular]")).toBeDefined();
+    const link = screen.getByRole("button", { name: "Go to $loop" });
     expect(screen.queryByRole("button", { name: "Expand self" })).toBeNull();
     expect(screen.getByTitle("7")).toBeDefined();
+
+    const ancestorRow = screen.getByRole("button", { name: "Collapse loop" }).parentElement!;
+    fireEvent.click(link);
+    expect(document.activeElement).toBe(ancestorRow);
+  });
+
+  it("navigates root-level circular references back to the scope root", () => {
+    const variables: Record<string, unknown> = { score: 7 };
+    variables.self = variables;
+    const { container } = render(<VariableTree scope="story" value={variables} />);
+
+    const link = screen.getByRole("button", { name: "Go to $" });
+    expect(screen.queryByRole("button", { name: "Expand self" })).toBeNull();
+    fireEvent.click(link);
+
+    const root = container.querySelector('[tabindex="-1"]');
+    expect(document.activeElement).toBe(root);
+    expect(screen.getByText("score")).toBeDefined();
+  });
+
+  it("navigates a nested circular reference to the exact ancestor row", () => {
+    const player: Record<string, unknown> = { hp: 12 };
+    const inventory = { owner: player };
+    player.inventory = inventory;
+    render(<VariableTree scope="story" value={{ player }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand player" }));
+    fireEvent.click(screen.getByRole("button", { name: "Expand inventory" }));
+
+    const link = screen.getByRole("button", { name: "Go to $player" });
+    const playerRow = screen.getByRole("button", { name: "Collapse player" }).parentElement!;
+    fireEvent.click(link);
+    expect(document.activeElement).toBe(playerRow);
   });
 
   it("allows the same object under different siblings without treating it as circular", () => {

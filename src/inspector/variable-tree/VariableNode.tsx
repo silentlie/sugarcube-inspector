@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import VariableTile from "./VariableTile";
-import type { PathSegment, VariableScope } from "./types";
-import { getChildren, isCircular, isExpandable } from "./valueUtils";
+import type { PathSegment, VariableAncestor, VariableScope } from "./types";
+import { formatVariablePath, getChildren, isExpandable } from "./valueUtils";
 import { useWatch } from "../watch/WatchProvider";
 import { watchKey, type WatchTarget } from "../../sugarcube/watch";
 
@@ -12,7 +12,9 @@ interface VariableNodeProps {
   path: readonly PathSegment[];
   expandedPaths: ReadonlySet<string>;
   onToggle: (id: string) => void;
-  ancestors?: readonly object[];
+  ancestors?: readonly VariableAncestor[];
+  onNavigate: (path: readonly PathSegment[]) => void;
+  registerNode: (id: string, element: HTMLDivElement | null) => void;
 }
 
 export default function VariableNode({
@@ -23,18 +25,30 @@ export default function VariableNode({
   expandedPaths,
   onToggle,
   ancestors = [],
+  onNavigate,
+  registerNode,
 }: VariableNodeProps) {
   const watch = useWatch();
   const rowRef = useRef<HTMLDivElement>(null);
   const [target] = useState<WatchTarget>(() => ({ scope, path: [...path] }));
   const id = watchKey(target);
-  const circular = isCircular(value, ancestors);
+  const circularAncestor = value !== null && typeof value === "object"
+    ? ancestors.find((ancestor) => ancestor.value === value)
+    : undefined;
+  const circular = circularAncestor !== undefined;
   const expandable = !circular && isExpandable(value);
   const expanded = expandable && expandedPaths.has(id);
   const expandedRef = useRef(expanded);
   const expandableRef = useRef(expandable);
   const intersectsRef = useRef(false);
   const setVisible = watch.setVisible;
+
+  useEffect(() => {
+    const element = rowRef.current;
+    if (!element) return;
+    registerNode(id, element);
+    return () => registerNode(id, null);
+  }, [id, registerNode]);
 
   // Collapsed containers are not active watches. A visible primitive or an
   // expanded visible container is; favorites are registered separately.
@@ -68,18 +82,25 @@ export default function VariableNode({
     };
   }, [target, setVisible]);
 
-  const nextAncestors =
+  const nextAncestors: readonly VariableAncestor[] =
     value !== null && typeof value === "object"
-      ? [...ancestors, value]
+      ? [...ancestors, { value, path }]
       : ancestors;
 
   return (
     <div>
-      <div ref={rowRef}>
+      <div ref={rowRef} tabIndex={-1}
+        className="scroll-mt-5 rounded focus:outline-2 focus:outline-sky-400">
         <VariableTile
           name={name}
           value={value}
           circular={circular}
+          circularTarget={circularAncestor
+            ? formatVariablePath(scope, circularAncestor.path)
+            : undefined}
+          onNavigateCircular={circularAncestor
+            ? () => onNavigate(circularAncestor.path)
+            : undefined}
           expandable={expandable}
           expanded={expanded}
           onToggle={() => {
@@ -106,6 +127,8 @@ export default function VariableNode({
               expandedPaths={expandedPaths}
               onToggle={onToggle}
               ancestors={nextAncestors}
+              onNavigate={onNavigate}
+              registerNode={registerNode}
             />
           ))}
         </div>

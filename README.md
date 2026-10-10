@@ -54,8 +54,10 @@ open the drawer. Drag the handle to adjust its width. With the handle focused,
 **Enter** or **Space** toggles the drawer, and **Left Arrow** or **Right Arrow**
 adjusts its width.
 
-Expand the variable trees to inspect values. Passage changes refresh them
-automatically; use **Refresh** to capture changes made without passage
+Expand the variable trees to inspect values. Circular references appear as
+links to their ancestor nodes; selecting a link scrolls to and focuses that
+ancestor instead of rendering the same object again. Passage changes refresh
+values automatically; use **Refresh** to capture changes made without passage
 navigation. If a snapshot request fails, the drawer shows the error and a
 **Retry** button.
 

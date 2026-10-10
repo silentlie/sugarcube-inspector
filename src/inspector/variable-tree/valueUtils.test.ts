@@ -2,9 +2,23 @@ import { describe, expect, it } from "vitest";
 import {
   getChildren,
   getValueType,
+  formatVariablePath,
   isCircular,
   isExpandable,
 } from "./valueUtils";
+
+describe("circular-reference path labels", () => {
+  it("formats scope roots, nested properties, and special keys", () => {
+    expect(formatVariablePath("story", [])).toBe("$");
+    expect(formatVariablePath("temporary", [{ type: "property", key: "choice" }]))
+      .toBe("_choice");
+    expect(formatVariablePath("story", [
+      { type: "property", key: "player" },
+      { type: "property", key: "a.b" },
+      { type: "index", index: 2 },
+    ])).toBe('$player["a.b"][2]');
+  });
+});
 
 describe("expandable variable values", () => {
   it.each([
