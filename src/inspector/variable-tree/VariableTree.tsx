@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import VariableNode from "./VariableNode";
 import type { PathSegment, VariableAncestor, VariableScope } from "./types";
-import { pathKey } from "../../sugarcube/path";
+import { pathToKey } from "../../sugarcube/path";
 import { getChildren } from "./valueUtils";
 import { useWatch } from "../watch/WatchProvider";
 import { useVariableVersion } from "../watch/VariableStore";
@@ -28,7 +28,7 @@ export default function VariableTree({ scope, value }: VariableTreeProps) {
   const onNavigate = useCallback((path: readonly PathSegment[]) => {
     const node = path.length === 0
       ? rootRef.current
-      : rowRefs.current.get(pathKey([{ type: "property", key: scope }, ...path]));
+      : rowRefs.current.get(pathToKey([{ type: "property", key: scope }, ...path]));
     node?.scrollIntoView?.({ block: "nearest" });
     node?.focus();
   }, [scope]);
@@ -62,7 +62,7 @@ export default function VariableTree({ scope, value }: VariableTreeProps) {
       className="scroll-mt-5 rounded focus:outline-2 focus:outline-sky-400">
       {children.map((child) => (
         <VariableNode
-          key={JSON.stringify(child.segment)}
+          key={pathToKey([child.segment])}
           name={child.name}
           value={child.value}
           fromStore={fromStore}
