@@ -202,7 +202,12 @@ it("omits collapsed containers from visible watches unless favorited", async () 
     return { generation: request.generation, changes: [], mainDurationMs: 1 };
   });
 
-  render(<WatchProvider snapshot={snapshot()}><Variables /></WatchProvider>);
+  // happy-dom does not drive IntersectionObserver; keep the visible scalar
+  // explicitly registered to exercise regular polls before expansion.
+  render(<WatchProvider snapshot={snapshot()}>
+    <RegisterWatch />
+    <Variables />
+  </WatchProvider>);
   const inventory = {
     scope: "story",
     path: [{ type: "property", key: "inventory" }],
