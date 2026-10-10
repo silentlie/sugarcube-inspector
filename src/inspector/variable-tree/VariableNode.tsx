@@ -10,8 +10,6 @@ import type { VariablePath } from "../../sugarcube/watch";
 
 interface VariableNodeProps {
   name: string;
-  value: unknown;
-  fromStore?: boolean;
   scope: VariableScope;
   path: readonly PathSegment[];
   expandedPaths: ReadonlySet<string>;
@@ -23,8 +21,6 @@ interface VariableNodeProps {
 
 function VariableNode({
   name,
-  value: initialValue,
-  fromStore = false,
   scope,
   path,
   expandedPaths,
@@ -37,7 +33,7 @@ function VariableNode({
   const rowRef = useRef<HTMLDivElement>(null);
   const [watchPath] = useState<VariablePath>(() => [{ type: "property", key: scope }, ...path]);
   useVariableVersion(watch.store, watchPath);
-  const value = fromStore ? watch.store.getValue(watchPath) : initialValue;
+  const value = watch.store.getValue(watchPath);
   const id = pathToKey(watchPath);
   const circularAncestor = isNonFunctionObject(value)
     ? ancestors.find((ancestor) => ancestor.value === value)
@@ -129,8 +125,6 @@ function VariableNode({
             <VariableNode
               key={pathToKey([child.segment])}
               name={child.name}
-              value={child.value}
-              fromStore={fromStore}
               scope={scope}
               path={[...path, child.segment]}
               expandedPaths={expandedPaths}
