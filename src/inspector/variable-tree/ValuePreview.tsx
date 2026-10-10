@@ -1,3 +1,5 @@
+import { isArray, isArrayBuffer, isDate, isError, isMap, isRegExp, isSet, isWeakMap, isWeakSet } from "@sindresorhus/is";
+
 interface ValuePreviewProps {
   value: unknown;
 }
@@ -28,31 +30,31 @@ export function formatValue(value: unknown): string {
       return value.name || "anonymous";
   }
 
-  if (Array.isArray(value)) {
+  if (isArray(value)) {
     return `${value.length} items`;
   }
 
-  if (value instanceof Map) {
+  if (isMap(value)) {
     return `${value.size} entries`;
   }
 
-  if (value instanceof Set) {
+  if (isSet(value)) {
     return `${value.size} values`;
   }
 
-  if (value instanceof Date) {
+  if (isDate(value)) {
     return Number.isNaN(value.getTime()) ? "Invalid Date" : value.toISOString();
   }
 
-  if (value instanceof RegExp) {
+  if (isRegExp(value)) {
     return String(value);
   }
 
-  if (value instanceof Error) {
+  if (isError(value)) {
     return value.message;
   }
 
-  if (value instanceof ArrayBuffer) {
+  if (isArrayBuffer(value)) {
     return `${value.byteLength} bytes`;
   }
 
@@ -60,7 +62,7 @@ export function formatValue(value: unknown): string {
     return `${value.byteLength} bytes`;
   }
 
-  if (value instanceof WeakMap || value instanceof WeakSet) {
+  if (isWeakMap(value) || isWeakSet(value)) {
     return "Contents unavailable";
   }
 
