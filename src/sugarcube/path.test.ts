@@ -83,6 +83,42 @@ describe("shared path operations", () => {
     });
   });
 
+  it("checks Map and Set entries by index, not by their contained values", () => {
+    const map = new Map<unknown, unknown>([
+      ["zero", 0],
+      ["false", false],
+      ["undefined", undefined],
+    ]);
+    const set = new Set<unknown>([0, false, undefined]);
+
+    for (const index of [0, 1, 2]) {
+      expect(readPathChild(map, { type: "mapValue", index })).toEqual({
+        status: "found", value: [0, false, undefined][index],
+      });
+      expect(readPathChild(set, { type: "setValue", index })).toEqual({
+        status: "found", value: [0, false, undefined][index],
+      });
+    }
+
+    for (const index of [-1, 3, 100]) {
+      expect(readPathChild(map, { type: "mapKey", index })).toEqual({ status: "missing" });
+      expect(readPathChild(map, { type: "mapValue", index })).toEqual({ status: "missing" });
+      expect(readPathChild(set, { type: "setValue", index })).toEqual({ status: "missing" });
+    }
+  });
+
+  it("reads own properties through Reflect.get without changing existence rules", () => {
+    const object = Object.create({ inherited: "ignored" }) as Record<string, unknown>;
+    Object.defineProperty(object, "computed", { get: () => 42, enumerable: true });
+    object["0"] = undefined;
+
+    expect(readPathChild(object, prop("computed"))).toEqual({ status: "found", value: 42 });
+    expect(readPathChild(object, { type: "index", index: 0 })).toEqual({
+      status: "found", value: undefined,
+    });
+    expect(readPathChild(object, prop("inherited"))).toEqual({ status: "missing" });
+  });
+
   it("generates canonical array indices and preserves named properties", () => {
     expect(segmentForKey("0", true)).toEqual({ type: "index", index: 0 });
     expect(segmentForKey("4294967294", true)).toEqual({ type: "index", index: 4294967294 });

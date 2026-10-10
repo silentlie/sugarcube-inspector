@@ -29,20 +29,21 @@ export function readPathChild(value: unknown, part: PathSegment): ChildResult {
       if (!Object.hasOwn(value, key)) return { status: "missing" };
       return {
         status: "found",
-        value: (value as Record<string | number, unknown>)[key],
+        value: Reflect.get(value, key),
       };
     }
     case "mapKey":
     case "mapValue": {
       if (!(value instanceof Map)) return { status: "blocked" };
-      const entry = [...value.entries()][part.index];
-      if (!entry) return { status: "missing" };
+      const entries = [...value.entries()];
+      if (!(part.index in entries)) return { status: "missing" };
+      const entry = entries[part.index]!;
       return { status: "found", value: entry[part.type === "mapKey" ? 0 : 1] };
     }
     case "setValue": {
       if (!(value instanceof Set)) return { status: "blocked" };
       const values = [...value.values()];
-      if (part.index < 0 || part.index >= values.length) return { status: "missing" };
+      if (!(part.index in values)) return { status: "missing" };
       return { status: "found", value: values[part.index] };
     }
   }
