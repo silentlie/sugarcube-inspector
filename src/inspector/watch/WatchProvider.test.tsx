@@ -103,58 +103,51 @@ it("retains deleted watches in one registry, without missingTargets in the RPC",
 
 it("sets favorite state idempotently and retains visible unfavorited watches", () => {
   const target = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
-  let watch!: ReturnType<typeof useWatch>;
-  function Controls() {
-    watch = useWatch();
-    return null;
-  }
-  render(<WatchProvider snapshot={snapshot()}><Controls /></WatchProvider>);
-
-  act(() => watch.setVisible(target, true));
-  act(() => {
-    watch.toggleFavorite(target, true);
-    watch.toggleFavorite(target, true);
+  const { result } = renderHook(() => useWatch(), {
+    wrapper: ({ children }) => (
+      <WatchProvider snapshot={snapshot()}>{children}</WatchProvider>
+    ),
   });
-  expect(watch.favorites.size).toBe(1);
-  expect(watch.watchedTargets).toContainEqual(target);
+
+  act(() => result.current.setVisible(target, true));
+  act(() => {
+    result.current.toggleFavorite(target, true);
+    result.current.toggleFavorite(target, true);
+  });
+  expect(result.current.favorites.size).toBe(1);
+  expect(result.current.watchedTargets).toContainEqual(target);
 
   act(() => {
-    watch.toggleFavorite(target, false);
-    watch.toggleFavorite(target, false);
+    result.current.toggleFavorite(target, false);
+    result.current.toggleFavorite(target, false);
   });
-  expect(watch.favorites.size).toBe(0);
-  expect(watch.watchedTargets).toContainEqual(target); // Visible, though not favorite.
+  expect(result.current.favorites.size).toBe(0);
+  expect(result.current.watchedTargets).toContainEqual(target); // Visible, though not favorite.
 
-  act(() => watch.setVisible(target, false));
-  expect(watch.watchedTargets).toHaveLength(0);
+  act(() => result.current.setVisible(target, false));
+  expect(result.current.watchedTargets).toHaveLength(0);
 });
 
 it("drops an offscreen favorite when explicitly unfavorited", () => {
   const target = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
-  let watch!: ReturnType<typeof useWatch>;
-  function Controls() {
-    watch = useWatch();
-    return null;
-  }
-  render(<WatchProvider snapshot={snapshot()}><Controls /></WatchProvider>);
+  const { result } = renderHook(() => useWatch(), {
+    wrapper: ({ children }) => (
+      <WatchProvider snapshot={snapshot()}>{children}</WatchProvider>
+    ),
+  });
 
   act(() => {
-    watch.toggleFavorite(target, true);
-    watch.setVisible(target, false);
+    result.current.toggleFavorite(target, true);
+    result.current.setVisible(target, false);
   });
-  expect(watch.watchedTargets).toContainEqual(target);
+  expect(result.current.watchedTargets).toContainEqual(target);
 
-  act(() => watch.toggleFavorite(target, false));
-  expect(watch.watchedTargets).toHaveLength(0);
+  act(() => result.current.toggleFavorite(target, false));
+  expect(result.current.watchedTargets).toHaveLength(0);
 });
 
 it("retains unmounted missing watches and releases them after offscreen restoration", async () => {
   const target = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
-  let watch!: ReturnType<typeof useWatch>;
-  function Controls() {
-    watch = useWatch();
-    return null;
-  }
   let calls = 0;
   rpc.sendMessage.mockImplementation(async (_type, data) => {
     calls++;
@@ -167,15 +160,19 @@ it("retains unmounted missing watches and releases them after offscreen restorat
     return { generation: request.generation, changes, mainDurationMs: 1 };
   });
 
-  render(<WatchProvider snapshot={snapshot()}><Controls /></WatchProvider>);
-  act(() => watch.setVisible(target, true));
+  const { result } = renderHook(() => useWatch(), {
+    wrapper: ({ children }) => (
+      <WatchProvider snapshot={snapshot()}>{children}</WatchProvider>
+    ),
+  });
+  act(() => result.current.setVisible(target, true));
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
 
-  act(() => watch.setVisible(target, false));
-  expect(watch.watchedTargets).toContainEqual(target);
+  act(() => result.current.setVisible(target, false));
+  expect(result.current.watchedTargets).toContainEqual(target);
   await act(async () => { await vi.advanceTimersByTimeAsync(520); });
   expect(calls).toBe(3);
-  expect(watch.watchedTargets).toHaveLength(0);
+  expect(result.current.watchedTargets).toHaveLength(0);
 
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(calls).toBe(3);
