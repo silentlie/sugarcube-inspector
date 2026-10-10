@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Star } from "lucide-react";
 import VariableTree from "./variable-tree/VariableTree";
+import { formatVariablePath } from "./variable-tree/valueUtils";
 import { useWatch } from "./watch/WatchProvider";
 import { pathKey } from "../sugarcube/path";
 import { watchPathExists, type VariablePath } from "../sugarcube/watch";
@@ -132,13 +133,7 @@ function MissingWatches({ scope }: { scope: Tab }) {
     <section aria-label="Missing watched variables" className="mt-3 border-t border-zinc-800 pt-2">
       <p className="mb-1 text-zinc-500">Missing watched variables (read-only)</p>
       {targets.map((path) => {
-        const [, ...segments] = path;
-        const name = (path[0].key === "story" ? "$" : "_") +
-          segments.map((part, index) =>
-            part.type === "property" ? (index === 0 ? part.key : "." + part.key) :
-            part.type === "index" ? "[" + part.index + "]" :
-            "[" + part.type + " " + part.index + "]",
-          ).join("");
+        const name = formatVariablePath(scope, path.slice(1));
         return <div key={pathKey(path)}
           className="flex gap-2 px-2 py-1 font-mono text-zinc-500">
           <span className="min-w-0 truncate">{name}</span>
