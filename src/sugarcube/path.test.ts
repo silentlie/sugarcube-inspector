@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   isPathPrefix,
-  normalizeCollectionPath,
   pathKey,
   readPathChild,
   resolvePath,
@@ -177,16 +176,4 @@ describe("shared path operations", () => {
     expect(isPathPrefix([...parent, prop("hp")], [...parent, prop("mp")])).toBe(false);
   });
 
-  it("normalizes at the first Map/Set entry and leaves ordinary paths intact", () => {
-    const collection = story(prop("maps"));
-    const inside = story(
-      prop("maps"),
-      { type: "mapValue", index: 0 },
-      prop("set"),
-      { type: "setValue", index: 2 },
-    );
-    expect(normalizeCollectionPath(inside)).toEqual(collection);
-    const regular = story(prop("player"), prop("hp"));
-    expect(normalizeCollectionPath(regular)).toBe(regular);
-  });
 });

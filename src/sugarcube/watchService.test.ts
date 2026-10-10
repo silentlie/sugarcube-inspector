@@ -178,17 +178,132 @@ describe("synchronized snapshot watch service", () => {
     expect(watchPathExists({ story: { score: 5 }, temporary: {} }, temporaryScore)).toBe(false);
   });
 
-  it("watches whole Map/Set collections rather than unstable positional entries", () => {
+  it("keeps distinct Map/Set entry paths and only prunes actual descendants", () => {
     const targets: VariablePath[] = [
       [{ type: "property", key: "story" }, { type: "property", key: "items" }, { type: "mapValue", index: 1 }],
       [{ type: "property", key: "story" }, { type: "property", key: "items" }, { type: "mapKey", index: 0 }],
       [{ type: "property", key: "story" }, { type: "property", key: "flags" }, { type: "setValue", index: 0 }],
     ];
-    expect(minimizeWatchPaths(targets)).toEqual([
-      [{ type: "property", key: "story" }, { type: "property", key: "items" }],
-      [{ type: "property", key: "story" }, { type: "property", key: "flags" }],
-    ]);
+    expect(minimizeWatchPaths([...targets, targets[0]!])).toEqual(targets);
     expect(minimizeWatchPaths([player, health])).toEqual([player]);
+    expect(minimizeWatchPaths([targets[0]!, targets[0]!.slice(0, 2) as VariablePath]))
+      .toEqual([targets[0]!.slice(0, 2)]);
+  });
+
+  it("patches only changed nested Map values and Set members when entry positions stay stable", () => {
+    const member = { hp: 10 };
+    const stores = { story: {
+      map: new Map([["mc", { hp: 10 }]]),
+      set: new Set([member]),
+    }, temporary: {} };
+    const mapPath: VariablePath = [
+      { type: "property", key: "story" }, { type: "property", key: "map" },
+    ];
+    const setPath: VariablePath = [
+      { type: "property", key: "story" }, { type: "property", key: "set" },
+    ];
+    const mapHp: VariablePath = [...mapPath, { type: "mapValue", index: 0 }, { type: "property", key: "hp" }];
+    const setHp: VariablePath = [...setPath, { type: "setValue", index: 0 }, { type: "property", key: "hp" }];
+    const { service, generation, snapshot } = setup(stores.story);
+    const poll = () => service.poll(request(generation, [mapHp, setHp]), stores).changes;
+
+    expect(poll()).toEqual([]); // Establish live identities, not cloned snapshot references.
+    stores.story.map.get("mc")!.hp = 20;
+    member.hp = 30;
+    const changes = poll();
+    expect(changes).toEqual([
+      { op: "set", path: mapHp, value: 20 },
+      { op: "set", path: setHp, value: 30 },
+    ]);
+    applyWatchPatches(snapshot.variables, changes);
+    const copied = snapshot.variables.story as typeof stores.story;
+    expect(copied.map.get("mc")!.hp).toBe(20);
+    expect([...copied.set][0]!.hp).toBe(30);
+    expect(poll()).toEqual([]);
+  });
+
+  it("patches nested Map keys when the key's object identity is unchanged", () => {
+    const key = { hp: 10 };
+    const stores = { story: { map: new Map([[key, "hero"]]) }, temporary: {} };
+    const map: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "map" }];
+    const keyHp: VariablePath = [...map, { type: "mapKey", index: 0 }, { type: "property", key: "hp" }];
+    const { service, generation, snapshot } = setup(stores.story);
+    const poll = () => service.poll(request(generation, [keyHp]), stores).changes;
+
+    expect(poll()).toEqual([]);
+    key.hp = 15;
+    const patches = poll();
+    expect(patches).toEqual([{ op: "set", path: keyHp, value: 15 }]);
+    applyWatchPatches(snapshot.variables, patches);
+    const copied = (snapshot.variables.story as typeof stores.story).map;
+    expect([...copied.keys()][0]!.hp).toBe(15);
+  });
+
+  it("replaces a collection when an entry shifts and then resumes precise patches", () => {
+    const first = { hp: 1 }, second = { hp: 2 }, third = { hp: 3 };
+    const stores = { story: {
+      map: new Map([["a", first], ["b", second], ["c", third]]),
+      set: new Set([first, second, third]),
+    }, temporary: {} };
+    const map: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "map" }];
+    const set: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "set" }];
+    const mapHp: VariablePath = [...map, { type: "mapValue", index: 1 }, { type: "property", key: "hp" }];
+    const setHp: VariablePath = [...set, { type: "setValue", index: 1 }, { type: "property", key: "hp" }];
+    const { service, generation, snapshot } = setup(stores.story);
+    const poll = () => service.poll(request(generation, [mapHp, setHp]), stores).changes;
+
+    expect(poll()).toEqual([]);
+    stores.story.map.delete("a");
+    stores.story.set.delete(first);
+    const replaced = poll();
+    expect(replaced).toEqual([
+      { op: "set", path: map, value: new Map([["b", { hp: 2 }], ["c", { hp: 3 }]]) },
+      { op: "set", path: set, value: new Set([{ hp: 2 }, { hp: 3 }]) },
+    ]);
+    applyWatchPatches(snapshot.variables, replaced);
+    const copied = snapshot.variables.story as typeof stores.story;
+    expect([...copied.map.keys()]).toEqual(["b", "c"]);
+    expect([...copied.set].map((entry) => entry.hp)).toEqual([2, 3]);
+
+    third.hp = 30;
+    second.hp = 20;
+    const changes = poll();
+    expect(changes).toEqual([
+      { op: "set", path: mapHp, value: 20 },
+      { op: "set", path: setHp, value: 20 },
+    ]);
+    applyWatchPatches(snapshot.variables, changes);
+    expect(copied.map.get("b")!.hp).toBe(20);
+    expect([...copied.set][0]!.hp).toBe(20);
+  });
+
+  it("detects a changed Set member on the first poll from the cloned snapshot", () => {
+    const stores = { story: { set: new Set([{ hp: 1 }]) }, temporary: {} };
+    const set: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "set" }];
+    const hp: VariablePath = [...set, { type: "setValue", index: 0 }, { type: "property", key: "hp" }];
+    const { service, generation, snapshot } = setup(stores.story);
+    [...stores.story.set][0]!.hp = 2;
+    const patches = service.poll(request(generation, [hp]), stores).changes;
+    expect(patches).toEqual([{ op: "set", path: set, value: new Set([{ hp: 2 }]) }]);
+    applyWatchPatches(snapshot.variables, patches);
+    expect([...((snapshot.variables.story as typeof stores.story).set)][0]!.hp).toBe(2);
+  });
+
+  it("detects collection shifts with visible-only or missing favorite entry paths", () => {
+    const first = { hp: 1 }, second = { hp: 2 };
+    const stores = { story: { set: new Set([first, second]) }, temporary: {} };
+    const set: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "set" }];
+    const visibleHp: VariablePath = [...set, { type: "setValue", index: 0 }, { type: "property", key: "hp" }];
+    const absent: VariablePath = [...set, { type: "setValue", index: 7 }, { type: "property", key: "hp" }];
+    const { service, generation } = setup(stores.story);
+    const req: WatchRequest = { generation, favorites: [absent], visible: [visibleHp] };
+    const poll = () => service.poll(req, stores).changes;
+
+    expect(poll()).toEqual([]);
+    stores.story.set.delete(first);
+    expect(poll()).toEqual([{ op: "set", path: set, value: new Set([{ hp: 2 }]) }]);
+    second.hp = 25;
+    expect(poll()).toEqual([{ op: "set", path: visibleHp, value: 25 }]);
   });
 
   it("retains synchronized changes across watch removal and a different path reactivation", () => {
