@@ -293,7 +293,7 @@ it("rerenders a subscribed leaf without updating unrelated leaf versions or repl
   </WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(screen.getByTestId("score").textContent).toBe("15");
-  expect(screen.getByTestId("choice").textContent).toBe("undefined");
+  expect(screen.getByTestId("choice").textContent).toBe("north");
   expect(initial.variables.story).toBe(root);
   expect(seen.score).toEqual([0, 1]);
   expect(seen.choice).toEqual([0]);
