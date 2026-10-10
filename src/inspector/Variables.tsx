@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Star } from "lucide-react";
 import VariableTree from "./variable-tree/VariableTree";
 import { useWatch } from "./watch/WatchProvider";
-import { watchPathExists, type WatchTarget } from "../sugarcube/watch";
+import { watchKey, watchPathExists, type WatchTarget } from "../sugarcube/watch";
 import { useAnyVariableVersion } from "./watch/VariableStore";
 
 type Tab = "story" | "temporary";
@@ -14,7 +14,7 @@ export default function Variables() {
   // Watch the active scope's root structure on every poll, even when empty,
   // offscreen, or composed entirely of collapsed containers.
   useEffect(() => {
-    const root: WatchTarget = { scope: activeTab, path: [] };
+    const root: WatchTarget = { path: [activeTab] };
     setVisible(root, true);
     return () => setVisible(root, false);
   }, [activeTab, setVisible]);
@@ -124,20 +124,21 @@ function MissingWatches({ scope }: { scope: Tab }) {
   const watch = useWatch();
   useAnyVariableVersion(watch.store);
   const targets = watch.watchedTargets.filter((target) =>
-    target.scope === scope && !watchPathExists(watch.variables, target),
+    target.path[0] === scope && !watchPathExists(watch.variables, target),
   );
   if (targets.length === 0) return null;
   return (
     <section aria-label="Missing watched variables" className="mt-3 border-t border-zinc-800 pt-2">
       <p className="mb-1 text-zinc-500">Missing watched variables (read-only)</p>
       {targets.map((target) => {
-        const name = (target.scope === "story" ? "$" : "_") +
-          target.path.map((part, index) =>
+        const [, ...segments] = target.path;
+        const name = (target.path[0] === "story" ? "$" : "_") +
+          segments.map((part, index) =>
             part.type === "property" ? (index === 0 ? part.key : "." + part.key) :
             part.type === "index" ? "[" + part.index + "]" :
             "[" + part.type + " " + part.index + "]",
           ).join("");
-        return <div key={JSON.stringify([target.scope, target.path])}
+        return <div key={watchKey(target)}
           className="flex gap-2 px-2 py-1 font-mono text-zinc-500">
           <span className="min-w-0 truncate">{name}</span>
           <span className="ml-auto">Missing</span>

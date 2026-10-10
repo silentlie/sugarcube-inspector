@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { applyWatchPatches } from "../../sugarcube/applyWatchPatches";
 import type { SugarCubeSnapshot } from "../../sugarcube/types";
-import { watchKey, type PathSegment, type WatchPatch, type WatchTarget } from "../../sugarcube/watch";
+import { watchKey, type PathSegment, type VariablePath, type WatchPatch, type WatchTarget } from "../../sugarcube/watch";
 
 type Variables = SugarCubeSnapshot["variables"];
 type Listener = () => void;
@@ -23,10 +23,11 @@ function child(value: unknown, segment: PathSegment): unknown {
 }
 
 function resolve(variables: Variables, target: WatchTarget): unknown {
-  return target.path.reduce<unknown>((value, part) => child(value, part), variables[target.scope]);
+  const [scope, ...segments] = target.path;
+  return segments.reduce<unknown>((value, part) => child(value, part), variables[scope]);
 }
 
-function isPrefix(prefix: readonly PathSegment[], path: readonly PathSegment[]): boolean {
+function isPrefix(prefix: VariablePath, path: VariablePath): boolean {
   return prefix.length <= path.length && prefix.every((part, i) =>
     JSON.stringify(part) === JSON.stringify(path[i]));
 }
@@ -77,43 +78,43 @@ export class VariableStore {
     const changed = new Set<string>();
 
     for (const patch of patches) {
-      const parent: WatchTarget = { scope: patch.scope, path: patch.path.slice(0, -1) };
+      const parent: WatchTarget = {
+        path: patch.path.length === 1 ? patch.path : patch.path.slice(0, -1) as VariablePath,
+      };
       const parentValue = this.getValue(parent);
-      const lastPart = patch.path.at(-1);
+      const lastPart = patch.path.length > 1 ? patch.path.at(-1) as PathSegment : undefined;
       const hadKey = lastPart && (lastPart.type === "property" || lastPart.type === "index")
         && parentValue != null && typeof parentValue === "object"
         && Object.hasOwn(parentValue, lastPart.type === "property" ? lastPart.key : lastPart.index);
       const arrayLengthChanged = lastPart?.type === "property" &&
         lastPart.key === "length" && Array.isArray(parentValue);
-      const structureChanged = arrayLengthChanged || patch.path.length === 0 ||
+      const structureChanged = arrayLengthChanged || patch.path.length === 1 ||
         (lastPart && (lastPart.type === "mapKey" || lastPart.type === "mapValue" || lastPart.type === "setValue")) ||
         (patch.op === "delete" ? Boolean(hadKey) : !hadKey);
 
       // Collect impacted subscribers BEFORE mutating the graph, so aliases
       // can be identified by their existing object identity.
       for (const [key, { target: watched }] of this.subscriptions) {
-        if (watched.scope === patch.scope) {
-          if (isPrefix(patch.path, watched.path) ||
-              (structureChanged && isPrefix(watched.path, patch.path) &&
-                watched.path.length === patch.path.length - 1)) {
-            changed.add(key);
-            continue;
-          }
+        if (isPrefix(patch.path, watched.path) ||
+            (structureChanged && isPrefix(watched.path, patch.path) &&
+              watched.path.length === patch.path.length - 1)) {
+          changed.add(key);
+          continue;
         }
 
         // A shared object may also be visible under another path or scope.
         // Only traverse registered paths, never the whole SugarCube graph.
-        let value: unknown = this.variables[watched.scope];
-        for (let i = 0; i <= watched.path.length; i++) {
+        let value: unknown = this.variables[watched.path[0]];
+        for (let i = 1; i <= watched.path.length; i++) {
           // Whole-value replacement only changes the patched path. Notify
           // aliases when a nested patch actually mutates their shared parent.
-          if (i > 0 && parent.path.length > 0 &&
+          if (parent.path.length > 1 &&
               typeof parentValue === "object" && parentValue !== null &&
               value === parentValue) {
             changed.add(key);
             break;
           }
-          if (i < watched.path.length) value = child(value, watched.path[i]!);
+          if (i < watched.path.length) value = child(value, watched.path[i] as PathSegment);
         }
       }
 

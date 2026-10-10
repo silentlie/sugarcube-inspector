@@ -13,9 +13,9 @@ interface VariableTreeProps {
 
 export default function VariableTree({ scope, value }: VariableTreeProps) {
   const watch = useWatch();
-  useVariableVersion(watch.store, { scope, path: [] });
+  useVariableVersion(watch.store, { path: [scope] });
   const fromStore = value === undefined;
-  const rootValue = fromStore ? watch.store.getValue({ scope, path: [] }) : value;
+  const rootValue = fromStore ? watch.store.getValue({ path: [scope] }) : value;
   const [expandedPaths, setExpandedPaths] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -28,7 +28,7 @@ export default function VariableTree({ scope, value }: VariableTreeProps) {
   const onNavigate = useCallback((path: readonly PathSegment[]) => {
     const node = path.length === 0
       ? rootRef.current
-      : rowRefs.current.get(watchKey({ scope, path: [...path] }));
+      : rowRefs.current.get(watchKey({ path: [scope, ...path] }));
     node?.scrollIntoView?.({ block: "nearest" });
     node?.focus();
   }, [scope]);

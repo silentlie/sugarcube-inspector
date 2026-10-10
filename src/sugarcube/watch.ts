@@ -13,14 +13,16 @@ export type PathSegment =
   | { type: "mapValue"; index: number }
   | { type: "setValue"; index: number };
 
+/** The first segment identifies the SugarCube variable store. */
+export type VariablePath = [VariableScope, ...PathSegment[]];
+
 export interface WatchTarget {
-  scope: VariableScope;
-  path: PathSegment[];
+  path: VariablePath;
 }
 
 export type WatchPatch =
-  | { op: "set"; scope: VariableScope; path: PathSegment[]; value: unknown }
-  | { op: "delete"; scope: VariableScope; path: PathSegment[] };
+  | { op: "set"; path: VariablePath; value: unknown }
+  | { op: "delete"; path: VariablePath };
 
 export interface WatchRequest {
   generation: number;
@@ -37,11 +39,11 @@ export interface WatchResponse {
 }
 
 export function watchKey(target: WatchTarget): string {
-  return JSON.stringify([target.scope, target.path]);
+  return JSON.stringify(target.path);
 }
 
 function isAncestor(ancestor: WatchTarget, child: WatchTarget): boolean {
-  if (ancestor.scope !== child.scope || ancestor.path.length > child.path.length) {
+  if (ancestor.path.length > child.path.length) {
     return false;
   }
   return ancestor.path.every(
@@ -56,10 +58,11 @@ function isAncestor(ancestor: WatchTarget, child: WatchTarget): boolean {
 export function minimizeWatchTargets(targets: WatchTarget[]): WatchTarget[] {
   const normalized = targets.map((target) => {
     const collectionIndex = target.path.findIndex(
-      (part) => part.type === "mapKey" || part.type === "mapValue" || part.type === "setValue",
+      (part) => typeof part !== "string" &&
+        (part.type === "mapKey" || part.type === "mapValue" || part.type === "setValue"),
     );
     return collectionIndex < 0 ? target : {
-      scope: target.scope, path: target.path.slice(0, collectionIndex),
+      path: target.path.slice(0, collectionIndex) as VariablePath,
     };
   });
   const unique = [...new Map(normalized.map((target) => [watchKey(target), target])).values()];
@@ -73,8 +76,9 @@ export function watchPathExists(
   stores: { story: unknown; temporary: unknown },
   target: WatchTarget,
 ): boolean {
-  let value: unknown = stores[target.scope];
-  for (const part of target.path) {
+  const [scope, ...segments] = target.path;
+  let value: unknown = stores[scope];
+  for (const part of segments) {
     if (part.type === "property" || part.type === "index") {
       if (value === null || typeof value !== "object") return false;
       const key = part.type === "property" ? part.key : part.index;

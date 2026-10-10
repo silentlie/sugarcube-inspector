@@ -1,5 +1,5 @@
 import { circularDeepEqual, deepEqual } from "fast-equals";
-import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, WatchTarget } from "./watch";
+import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, WatchTarget, VariablePath, VariableScope } from "./watch";
 import { minimizeWatchTargets, watchKey } from "./watch";
 import { applyWatchPatches } from "./applyWatchPatches";
 import type { SugarCubeSnapshot } from "./types";
@@ -8,7 +8,7 @@ interface Entry {
   exists: boolean;
   value?: unknown;
   /** The first missing segment, including its path. */
-  missingPath?: PathSegment[];
+  missingPath?: VariablePath;
   /** Existing parent that cannot be traversed (null, primitive, wrong collection). */
   blockedExists?: boolean;
   blocked?: unknown;
@@ -37,7 +37,7 @@ function child(value: unknown, segment: PathSegment): Entry {
     : { exists: false };
 }
 
-function resolveValue(root: unknown, path: readonly PathSegment[]): Entry {
+function resolveValue(root: unknown, scope: VariableScope, path: readonly PathSegment[]): Entry {
   let entry: Entry = { exists: true, value: root };
   for (let index = 0; index < path.length; index++) {
     const part = path[index]!;
@@ -50,19 +50,20 @@ function resolveValue(root: unknown, path: readonly PathSegment[]): Entry {
     if (!traversable) {
       return {
         exists: false,
-        missingPath: path.slice(0, index),
+        missingPath: [scope, ...path.slice(0, index)],
         blockedExists: true,
         blocked: parent,
       };
     }
     entry = child(parent, part);
-    if (!entry.exists) return { exists: false, missingPath: path.slice(0, index + 1) };
+    if (!entry.exists) return { exists: false, missingPath: [scope, ...path.slice(0, index + 1)] };
   }
   return entry;
 }
 
 function resolve(stores: Stores, target: WatchTarget): Entry {
-  return resolveValue(stores[target.scope], target.path);
+  const [scope, ...segments] = target.path;
+  return resolveValue(stores[scope], scope, segments);
 }
 
 /**
@@ -135,7 +136,7 @@ function structureTargets(visible: readonly WatchTarget[]): WatchTarget[] {
   const targets = new Map<string, WatchTarget>();
   for (const target of visible) {
     // Explicit root registrations are structure-only, including when empty.
-    if (target.path.length === 0) {
+    if (target.path.length === 1) {
       targets.set(watchKey(target), target);
       continue;
     }
@@ -146,14 +147,14 @@ function structureTargets(visible: readonly WatchTarget[]): WatchTarget[] {
     const normalized = minimizeWatchTargets([target])[0]!;
     const parent = normalized.path.length < target.path.length
       ? normalized
-      : { scope: target.scope, path: target.path.slice(0, -1) };
+      : { path: target.path.slice(0, -1) as VariablePath };
     targets.set(watchKey(parent), parent);
   }
   return [...targets.values()];
 }
 
 function ancestorOrSelf(parent: WatchPatch, child: WatchPatch): boolean {
-  return parent.scope === child.scope && parent.path.length <= child.path.length &&
+  return parent.path.length <= child.path.length &&
     parent.path.every((part, i) => JSON.stringify(part) === JSON.stringify(child.path[i]));
 }
 
@@ -198,12 +199,12 @@ export class WatchService {
       const path = target.path;
       const add = (value: unknown) => {
         structuralChanges.push({
-          op: "set", scope: target.scope, path, value: structuredClone(value),
+          op: "set", path, value: structuredClone(value),
         });
       };
       if (!previous || !current || previous.kind !== current.kind) {
         if (liveEntry.exists) add(liveEntry.value);
-        else structuralChanges.push({ op: "delete", scope: target.scope, path });
+        else structuralChanges.push({ op: "delete", path });
         continue;
       }
       if (current.kind === "map" || current.kind === "set") {
@@ -221,18 +222,17 @@ export class WatchService {
       for (const childKey of before) {
         if (!after.has(childKey)) {
           structuralChanges.push({
-            op: "delete", scope: target.scope,
-            path: [...path, segmentForKey(childKey, isArray)],
+            op: "delete", path: [...path, segmentForKey(childKey, isArray)] as VariablePath,
           });
         }
       }
       for (const childKey of after) {
         if (!before.has(childKey)) {
-          const childPath = [...path, segmentForKey(childKey, isArray)];
-          const added = resolve(stores, { scope: target.scope, path: childPath });
+          const childPath: VariablePath = [...path, segmentForKey(childKey, isArray)];
+          const added = resolve(stores, { path: childPath });
           if (!added.exists) throw new Error("Added watch child disappeared during polling.");
           structuralChanges.push({
-            op: "set", scope: target.scope, path: childPath,
+            op: "set", path: childPath,
             value: structuredClone(added.value),
           });
         }
@@ -240,8 +240,7 @@ export class WatchService {
       if (current.kind === "array" && previous.kind === "array" &&
           previous.length !== current.length) {
         structuralChanges.push({
-          op: "set", scope: target.scope,
-          path: [...path, { type: "property", key: "length" }],
+          op: "set", path: [...path, { type: "property", key: "length" }] as VariablePath,
           value: current.length,
         });
       }
@@ -250,7 +249,7 @@ export class WatchService {
 
     // Only eligible visible leaves and expanded containers are registered.
     // The scope root is structure-only, never a whole-value watch.
-    const valueVisible = request.visible.filter((target) => target.path.length > 0);
+    const valueVisible = request.visible.filter((target) => target.path.length > 1);
     const targets = minimizeWatchTargets([...request.favorites, ...valueVisible]);
     const valueChanges: WatchPatch[] = [];
 
@@ -267,11 +266,11 @@ export class WatchService {
         const restorePrevious = !previous.exists && previous.missingPath &&
           previous.missingPath.length < (current.missingPath?.length ?? target.path.length);
         const patchPath = restorePrevious ? previous.missingPath! : current.missingPath ?? target.path;
-        const parent = resolve(stores, { scope: target.scope, path: patchPath });
+        const parent = resolve(stores, { path: patchPath });
         const copy = parent.exists ? structuredClone(parent.value) : undefined;
         valueChanges.push(parent.exists
-          ? { op: "set", scope: target.scope, path: patchPath, value: copy }
-          : { op: "delete", scope: target.scope, path: patchPath });
+          ? { op: "set", path: patchPath, value: copy }
+          : { op: "delete", path: patchPath });
         continue;
       }
 
@@ -281,13 +280,13 @@ export class WatchService {
         previous.missingPath.length < target.path.length
         ? previous.missingPath
         : target.path;
-      const restored = resolve(stores, { scope: target.scope, path: restorePath });
+      const restored = resolve(stores, { path: restorePath });
       if (!restored.exists) throw new Error("Watch path disappeared during polling.");
       const cloned = structuredClone(restored.value);
-      if (!resolveValue(cloned, target.path.slice(restorePath.length)).exists) {
+      if (!resolveValue(cloned, target.path[0], target.path.slice(restorePath.length) as PathSegment[]).exists) {
         throw new Error("Cloned watch path is missing.");
       }
-      valueChanges.push({ op: "set", scope: target.scope, path: restorePath, value: cloned });
+      valueChanges.push({ op: "set", path: restorePath, value: cloned });
     }
 
     // A whole-parent patch supersedes descendant patches. Both lists can
