@@ -40,10 +40,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("continues polling after slow MAIN-world work without showing a notice", async () => {
+it("continues polling after successful responses", async () => {
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
-    changes: [], mainDurationMs: 58,
+    changes: [],
   }));
   render(<WatchProvider snapshot={snapshot()}><RegisterWatch /></WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(760); });
@@ -54,7 +54,7 @@ it("continues polling after slow MAIN-world work without showing a notice", asyn
 it("requests a fresh snapshot on generation mismatch", async () => {
   const onResync = vi.fn();
   rpc.sendMessage.mockResolvedValue({
-    generation: 99, changes: [], mainDurationMs: 1,
+    generation: 99, changes: [],
   });
   render(<WatchProvider snapshot={snapshot()} onResync={onResync}>
     <RegisterWatch />
@@ -69,7 +69,7 @@ it("always sends the active root alongside visible top-level rows", async () => 
   rpc.sendMessage.mockImplementation(async (_type, data) => {
     const request = data as { generation: number; visible: unknown[]; favorites: unknown[] };
     requested.push(request);
-    return { generation: request.generation, changes: [], mainDurationMs: 1 };
+    return { generation: request.generation, changes: [] };
   });
   render(<WatchProvider snapshot={snapshot()}>
     <RegisterWatch />
@@ -95,7 +95,7 @@ it.each([
 ])("always registers the active root when $label", async ({ story, primitiveVisible }) => {
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
-    changes: [], mainDurationMs: 1,
+    changes: [],
   }));
   const initial = snapshot();
   initial.variables.story = story;
@@ -118,7 +118,7 @@ it("keeps the root structural watch while visible primitive rows appear and disa
   const initial = snapshot();
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
-    changes: [], mainDurationMs: 1,
+    changes: [],
   }));
   const { rerender } = render(<WatchProvider snapshot={initial}>
     <Variables />
@@ -150,7 +150,7 @@ it("keeps the root structural watch while visible primitive rows appear and disa
 it("watches only the active scope root while switching variable tabs", async () => {
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
-    changes: [], mainDurationMs: 1,
+    changes: [],
   }));
   render(<WatchProvider snapshot={snapshot()}><Variables /></WatchProvider>);
   const activeRoots = (index: number) => {
@@ -177,7 +177,7 @@ it("keeps the root structural watch with only a nested primitive watch", async (
   initial.variables.story = { player: { hp: 100 } };
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
-    changes: [], mainDurationMs: 1,
+    changes: [],
   }));
   function RegisterNested() {
     const watch = useWatch();
@@ -216,7 +216,7 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
       : calls === 3
         ? [{ op: "set", path: score, value: 99 }]
         : [];
-    return { generation: request.generation, changes, mainDurationMs: 1 };
+    return { generation: request.generation, changes };
   });
   const initial = snapshot();
   initial.variables.story = { score: 7 };
@@ -252,7 +252,7 @@ it("sets favorite state idempotently, and only favorites survive an unmount", as
   rpc.sendMessage.mockImplementation(async (_type, data) => {
     const request = data as { generation: number; visible: unknown[]; favorites: unknown[] };
     requested.push(request);
-    return { generation: request.generation, changes: [], mainDurationMs: 1 };
+    return { generation: request.generation, changes: [] };
   });
   const { result } = renderHook(() => useWatch(), {
     wrapper: ({ children }) => (
@@ -297,7 +297,6 @@ it("lets users unfavorite a missing variable without waiting for it to return", 
       changes: polls++ === 0
         ? [{ op: "delete", path }]
         : [],
-      mainDurationMs: 1,
     };
   });
 
@@ -318,7 +317,7 @@ it("polls empty story roots even when no variable tiles exist", async () => {
   rpc.sendMessage.mockImplementation(async (_type, data) => {
     const request = data as { generation: number; visible: unknown[] };
     requests.push(request);
-    return { generation: request.generation, changes: [], mainDurationMs: 1 };
+    return { generation: request.generation, changes: [] };
   });
   const empty = snapshot();
   empty.variables.story = {};
@@ -341,7 +340,7 @@ it("omits collapsed containers from visible watches unless favorited", async () 
       visible: unknown[];
     };
     requested.push({ favorites: request.favorites, visible: request.visible });
-    return { generation: request.generation, changes: [], mainDurationMs: 1 };
+    return { generation: request.generation, changes: [] };
   });
 
   // happy-dom does not drive IntersectionObserver; keep the visible scalar
@@ -380,7 +379,7 @@ it("polls immediately after expanding a visible container", async () => {
   rpc.sendMessage.mockImplementation(async (_type, data) => {
     const request = data as { generation: number; visible: unknown[] };
     requests.push(request);
-    return { generation: request.generation, changes: [], mainDurationMs: 1 };
+    return { generation: request.generation, changes: [] };
   });
   render(<WatchProvider snapshot={snapshot()}><Variables /></WatchProvider>);
   expect(rpc.sendMessage).not.toHaveBeenCalled();
@@ -417,7 +416,6 @@ it("rerenders a subscribed leaf without updating unrelated leaf versions or repl
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
     changes: [{ op: "set", path: [{ type: "property", key: "story" }, { type: "property", key: "score" }], value: 15 }],
-    mainDurationMs: 1,
   }));
   render(<WatchProvider snapshot={initial}>
     <RegisterWatch />
