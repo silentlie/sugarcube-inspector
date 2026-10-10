@@ -63,7 +63,7 @@ it("requests a fresh snapshot on generation mismatch", async () => {
   expect(rpc.sendMessage).toHaveBeenCalledTimes(1);
 });
 
-it("derives root structural watching from visible top-level rows without registering the root", async () => {
+it("always sends the active root alongside visible top-level rows", async () => {
   const requested: Array<{ visible: unknown[]; favorites: unknown[] }> = [];
   rpc.sendMessage.mockImplementation(async (_type, data) => {
     const request = data as { generation: number; visible: unknown[]; favorites: unknown[] };
@@ -77,7 +77,7 @@ it("derives root structural watching from visible top-level rows without registe
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(requested).toHaveLength(1);
   expect(requested[0]!.favorites).toEqual([]);
-  expect(requested[0]!.visible).not.toContainEqual({
+  expect(requested[0]!.visible).toContainEqual({
     target: { scope: "story", path: [] }, expanded: false,
   });
   expect(requested[0]!.visible).toContainEqual({
@@ -87,16 +87,16 @@ it("derives root structural watching from visible top-level rows without registe
 });
 
 it.each([
-  { label: "the root is empty", story: {}, primitiveVisible: false, registered: true },
-  { label: "all immediate values are containers", story: { mc: { hp: 100 }, inventory: [] }, primitiveVisible: false, registered: true },
-  { label: "only opaque objects exist", story: { date: new Date(0) }, primitiveVisible: false, registered: true },
-  { label: "a number exists but is offscreen", story: { mc: {}, score: 0 }, primitiveVisible: false, registered: true },
-  { label: "a number is visibly watched", story: { mc: {}, score: 0 }, primitiveVisible: true, registered: false },
-  { label: "null exists but is offscreen", story: { mc: {}, score: null }, primitiveVisible: false, registered: true },
-  { label: "null is visibly watched", story: { mc: {}, score: null }, primitiveVisible: true, registered: false },
-  { label: "undefined exists but is offscreen", story: { mc: {}, score: undefined }, primitiveVisible: false, registered: true },
-  { label: "undefined is visibly watched", story: { mc: {}, score: undefined }, primitiveVisible: true, registered: false },
-])("registers root fallback when $label", async ({ story, primitiveVisible, registered }) => {
+  { label: "the root is empty", story: {}, primitiveVisible: false },
+  { label: "all immediate values are containers", story: { mc: { hp: 100 }, inventory: [] }, primitiveVisible: false },
+  { label: "only opaque objects exist", story: { date: new Date(0) }, primitiveVisible: false },
+  { label: "a number exists but is offscreen", story: { mc: {}, score: 0 }, primitiveVisible: false },
+  { label: "a number is visibly watched", story: { mc: {}, score: 0 }, primitiveVisible: true },
+  { label: "null exists but is offscreen", story: { mc: {}, score: null }, primitiveVisible: false },
+  { label: "null is visibly watched", story: { mc: {}, score: null }, primitiveVisible: true },
+  { label: "undefined exists but is offscreen", story: { mc: {}, score: undefined }, primitiveVisible: false },
+  { label: "undefined is visibly watched", story: { mc: {}, score: undefined }, primitiveVisible: true },
+])("always registers the active root when $label", async ({ story, primitiveVisible }) => {
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
     changes: [], mainDurationMs: 1,
@@ -112,9 +112,9 @@ it.each([
   const request = rpc.sendMessage.mock.calls[0]![1] as {
     visible: Array<{ target: { scope: string; path: unknown[] } }>;
   };
-  expect(request.visible.some(({ target }) =>
-    target.scope === "story" && target.path.length === 0,
-  )).toBe(registered);
+  expect(request.visible).toContainEqual({
+    target: { scope: "story", path: [] }, expanded: false,
+  });
   if (primitiveVisible) {
     expect(request.visible).toContainEqual({
       target: { scope: "story", path: [{ type: "property", key: "score" }] },
@@ -123,7 +123,7 @@ it.each([
   }
 });
 
-it("reinstates the root fallback when the last visible top-level primitive disappears", async () => {
+it("keeps the root structural watch while visible primitive rows appear and disappear", async () => {
   const initial = snapshot();
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
@@ -133,14 +133,16 @@ it("reinstates the root fallback when the last visible top-level primitive disap
     <Variables />
     <RegisterWatch />
   </WatchProvider>);
+  const containsRoot = (index: number) => {
+    const request = rpc.sendMessage.mock.calls[index]![1] as {
+      visible: Array<{ target: { scope: string; path: unknown[] } }>;
+    };
+    return request.visible.some(({ target }) =>
+      target.scope === "story" && target.path.length === 0,
+    );
+  };
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  const requests = () => rpc.sendMessage.mock.calls.map((call) =>
-    call[1] as { visible: Array<{ target: { scope: string; path: unknown[] } }> },
-  );
-  const containsRoot = (index: number) => requests()[index]!.visible.some(
-    ({ target }) => target.scope === "story" && target.path.length === 0,
-  );
-  expect(containsRoot(0)).toBe(false);
+  expect(containsRoot(0)).toBe(true);
 
   rerender(<WatchProvider snapshot={initial}><Variables /></WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
@@ -151,10 +153,35 @@ it("reinstates the root fallback when the last visible top-level primitive disap
     <RegisterWatch />
   </WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(containsRoot(2)).toBe(false);
+  expect(containsRoot(2)).toBe(true);
 });
 
-it("checks immediate primitive rows only, not expanded containers or nested primitives", async () => {
+it("watches only the active scope root while switching variable tabs", async () => {
+  rpc.sendMessage.mockImplementation(async (_type, data) => ({
+    generation: (data as { generation: number }).generation,
+    changes: [], mainDurationMs: 1,
+  }));
+  render(<WatchProvider snapshot={snapshot()}><Variables /></WatchProvider>);
+  const activeRoots = (index: number) => {
+    const request = rpc.sendMessage.mock.calls[index]![1] as {
+      visible: Array<{ target: { scope: string; path: unknown[] } }>;
+    };
+    return request.visible.filter(({ target }) => target.path.length === 0)
+      .map(({ target }) => target.scope);
+  };
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(activeRoots(0)).toEqual(["story"]);
+
+  fireEvent.click(screen.getByRole("tab", { name: "Temporary Variables" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(activeRoots(1)).toEqual(["temporary"]);
+
+  fireEvent.click(screen.getByRole("tab", { name: "Story Variables" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(activeRoots(2)).toEqual(["story"]);
+});
+
+it("keeps the root structural watch with only a nested primitive watch", async () => {
   const initial = snapshot();
   initial.variables.story = { player: { hp: 100 } };
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
@@ -218,7 +245,7 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(screen.queryByText("Missing watched variables (read-only)")).toBeNull();
   expect(screen.queryByText("score")).toBeNull();
-  expect(requests[0]!.visible).not.toContainEqual({
+  expect(requests[0]!.visible).toContainEqual({
     target: { scope: "story", path: [] }, expanded: false,
   });
 
@@ -231,7 +258,7 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
   expect(screen.getByTitle("99")).toBeTruthy();
   expect(requests[2]!.favorites).toEqual([]);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(requests[3]!.visible).not.toContainEqual({
+  expect(requests[3]!.visible).toContainEqual({
     target: { scope: "story", path: [] }, expanded: false,
   });
 });
