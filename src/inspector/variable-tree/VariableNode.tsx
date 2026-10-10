@@ -28,6 +28,16 @@ export default function VariableNode({
   const rowRef = useRef<HTMLDivElement>(null);
   const [target] = useState<WatchTarget>(() => ({ scope, path: [...path] }));
   const id = watchKey(target);
+  const circular = isCircular(value, ancestors);
+  const expandable = !circular && isExpandable(value);
+  const expanded = expandable && expandedPaths.has(id);
+  const expandedRef = useRef(expanded);
+
+  const setExpanded = watch.setExpanded;
+  useEffect(() => {
+    expandedRef.current = expanded;
+    setExpanded(target, expanded);
+  }, [target, expanded, setExpanded]);
 
   const setVisible = watch.setVisible;
   useEffect(() => {
@@ -36,12 +46,12 @@ export default function VariableNode({
 
     const watched = target;
     if (typeof IntersectionObserver === "undefined") {
-      setVisible(watched, true);
+      setVisible(watched, true, expandedRef.current);
       return () => setVisible(watched, false);
     }
 
     const observer = new IntersectionObserver(([entry]) => {
-      setVisible(watched, entry?.isIntersecting ?? false);
+      setVisible(watched, entry?.isIntersecting ?? false, expandedRef.current);
     });
     observer.observe(element);
     return () => {
@@ -50,9 +60,6 @@ export default function VariableNode({
     };
   }, [target, setVisible]);
 
-  const circular = isCircular(value, ancestors);
-  const expandable = !circular && isExpandable(value);
-  const expanded = expandable && expandedPaths.has(id);
   const nextAncestors =
     value !== null && typeof value === "object"
       ? [...ancestors, value]

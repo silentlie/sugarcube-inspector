@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WatchService } from "./watchService";
 import { applyWatchPatches } from "./applyWatchPatches";
-import { minimizeWatchTargets, watchPathExists, type WatchRequest, type WatchTarget } from "./watch";
+import { minimizeWatchTargets, watchPathExists, type WatchRequest, type WatchTarget, type VisibleWatch } from "./watch";
 import type { SugarCubeSnapshot } from "./types";
 
 const player: WatchTarget = {
@@ -26,7 +26,7 @@ function setup(story: Record<string, unknown>) {
   return { service, generation, snapshot };
 }
 function request(generation: number, targets: WatchTarget[] = [player]): WatchRequest {
-  return { generation, targets };
+  return { generation, favorites: targets, visible: [] };
 }
 
 describe("two-layer selective watch service", () => {
@@ -200,6 +200,150 @@ describe("two-layer selective watch service", () => {
       { op: "set", scope: "story", path: targets[0]!.path, value: 3 },
       { op: "set", scope: "story", path: targets[1]!.path, value: 4 },
     ]);
+  });
+});
+
+describe("visible structural watch", () => {
+  const root: WatchTarget = { scope: "story", path: [] };
+  function visible(generation: number, entries: VisibleWatch[]): WatchRequest {
+    return { generation, favorites: [], visible: entries };
+  }
+  const watched = (target: WatchTarget, expanded = false): VisibleWatch =>
+    ({ target, expanded });
+
+  it("tracks an empty root, additions, removals and restoration without missing watches", () => {
+    const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
+      { story: {}, temporary: {} };
+    const { service, generation, snapshot } = setup(stores.story);
+    const poll = () => service.poll(visible(generation, [watched(root)]), stores).changes;
+    expect(poll()).toEqual([]);
+    stores.story.score = 7;
+    const added = poll();
+    expect(added).toEqual([{
+      op: "set", scope: "story", path: [{ type: "property", key: "score" }], value: 7,
+    }]);
+    let displayed = applyWatchPatches(snapshot.variables, added);
+    expect(displayed.story).toEqual({ score: 7 });
+    delete stores.story.score;
+    const removed = poll();
+    expect(removed).toEqual([{ op: "delete", scope: "story", path: [{ type: "property", key: "score" }] }]);
+    displayed = applyWatchPatches(displayed, removed);
+    expect(displayed.story).toEqual({});
+    stores.story.score = 9;
+    displayed = applyWatchPatches(displayed, poll());
+    expect(displayed.story).toEqual({ score: 9 });
+    expect(poll()).toEqual([]);
+  });
+
+  it("observes empty expanded containers and their parent structure", () => {
+    const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
+      { story: { player: {} }, temporary: {} };
+    const { service, generation } = setup(stores.story);
+    const poll = () => service.poll(visible(generation, [watched(player, true)]), stores).changes;
+    expect(poll()).toEqual([]);
+    (stores.story.player as Record<string, unknown>).hp = 100;
+    expect(poll()).toEqual([{
+      op: "set", scope: "story", path: [...player.path, { type: "property", key: "hp" }], value: 100,
+    }]);
+    delete (stores.story.player as Record<string, unknown>).hp;
+    expect(poll()).toEqual([{
+      op: "delete", scope: "story", path: [...player.path, { type: "property", key: "hp" }],
+    }]);
+    (stores.story.player as Record<string, unknown>).mp = 50;
+    expect(poll()).toEqual([{
+      op: "set", scope: "story", path: [...player.path, { type: "property", key: "mp" }], value: 50,
+    }]);
+  });
+
+  it("detects new siblings through the visible leaf's parent without cloning unchanged siblings", () => {
+    const stores = { story: { player: { health: 100 } as Record<string, unknown> }, temporary: {} };
+    const { service, generation } = setup(stores.story);
+    const poll = () => service.poll(visible(generation, [watched(health)]), stores).changes;
+    expect(poll()).toEqual([]);
+    stores.story.player.mana = { max: 50 };
+    expect(poll()).toEqual([{
+      op: "set", scope: "story", path: [...player.path, { type: "property", key: "mana" }],
+      value: { max: 50 },
+    }]);
+    stores.story.player.health = 75;
+    expect(poll()).toEqual([{
+      op: "set", scope: "story", path: health.path, value: 75,
+    }]);
+  });
+
+  it("keeps scalar watches after replacing a visible object with a primitive", () => {
+    const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
+      { story: { player: { hp: 10 } }, temporary: {} };
+    const { service, generation } = setup(stores.story);
+    const poll = () => service.poll(visible(generation, [watched(player, true)]), stores).changes;
+    expect(poll()).toEqual([]);
+    stores.story.player = 10;
+    expect(poll()).toEqual([{ op: "set", scope: "story", path: player.path, value: 10 }]);
+    stores.story.player = 20;
+    expect(poll()).toEqual([{ op: "set", scope: "story", path: player.path, value: 20 }]);
+    expect(poll()).toEqual([]);
+  });
+
+  it("updates array lengths and new indices when visible, including empty arrays", () => {
+    const stores = { story: { items: [] as number[] }, temporary: {} };
+    const item: WatchTarget = { scope: "story", path: [{ type: "property", key: "items" }] };
+    const { service, generation, snapshot } = setup(stores.story);
+    const poll = () => service.poll(visible(generation, [watched(item, true)]), stores).changes;
+    expect(poll()).toEqual([]);
+    stores.story.items.push(4);
+    const added = poll();
+    expect(added).toContainEqual({
+      op: "set", scope: "story", path: [...item.path, { type: "index", index: 0 }], value: 4,
+    });
+    let displayed = applyWatchPatches(snapshot.variables, added);
+    expect((displayed.story as Record<string, unknown>).items).toEqual([4]);
+    stores.story.items.pop();
+    displayed = applyWatchPatches(displayed, poll());
+    expect((displayed.story as Record<string, unknown>).items).toEqual([]);
+  });
+
+  it("replaces a Map when keys are inserted rather than tracking unstable indices", () => {
+    const stores = { story: { items: new Map<string, number>() }, temporary: {} };
+    const item: WatchTarget = { scope: "story", path: [{ type: "property", key: "items" }] };
+    const { service, generation } = setup(stores.story);
+    const poll = () => service.poll(visible(generation, [watched(item, true)]), stores).changes;
+    expect(poll()).toEqual([]);
+    stores.story.items.set("key", 1);
+    expect(poll()).toEqual([{
+      op: "set", scope: "story", path: item.path, value: new Map([["key", 1]]),
+    }]);
+  });
+
+  it("does not poll collapsed containers, but observes them when expanded", () => {
+    const stores = { story: { player: { hp: 10 } }, temporary: {} };
+    const { service, generation } = setup(stores.story);
+    const poll = (expanded: boolean) =>
+      service.poll(visible(generation, [watched(player, expanded)]), stores).changes;
+
+    expect(poll(false)).toEqual([]);
+    stores.story.player.hp = 20;
+    expect(poll(false)).toEqual([]);
+    // The first expanded poll compares the whole object to its baseline.
+    expect(poll(true)).toEqual([
+      { op: "set", scope: "story", path: player.path, value: { hp: 20 } },
+    ]);
+    expect(poll(true)).toEqual([]);
+    stores.story.player.hp = 30;
+    expect(poll(true)).toEqual([
+      { op: "set", scope: "story", path: player.path, value: { hp: 30 } },
+    ]);
+    expect(poll(false)).toEqual([]);
+  });
+
+  it("does not clone an unchanged value subtree just to inspect structure", () => {
+    const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
+      { story: { player: { health: 7 } }, temporary: {} };
+    const { service, generation } = setup(stores.story);
+    const poll = () => service.poll(visible(generation, [watched(root), watched(player)]), stores).changes;
+    expect(poll()).toEqual([]);
+    // Existing child value becomes non-cloneable, but only structure is watched.
+    (stores.story.player as Record<string, unknown>).health = () => {};
+    expect(poll()).toEqual([]);
   });
 });
 

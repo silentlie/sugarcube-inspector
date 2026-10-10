@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import VariableTree from "./variable-tree/VariableTree";
 import { useWatch } from "./watch/WatchProvider";
 import { watchPathExists, type WatchTarget } from "../sugarcube/watch";
@@ -9,6 +9,14 @@ export default function Variables() {
   const [activeTab, setActiveTab] = useState<Tab>("story");
   const watch = useWatch();
   const variables = watch.variables;
+  const setVisible = watch.setVisible;
+  // The root is structure-only, including while the selected scope is empty.
+  useEffect(() => {
+    const root: WatchTarget = { scope: activeTab, path: [] };
+    setVisible(root, true);
+    return () => setVisible(root, false);
+  }, [activeTab, setVisible]);
+
   const missing = watch.watchedTargets.filter((target) => !watchPathExists(variables, target));
   const id = useId();
 

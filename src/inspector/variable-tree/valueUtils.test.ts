@@ -16,10 +16,6 @@ describe("expandable variable values", () => {
     ["bigint", 7n],
     ["symbol", Symbol("item")],
     ["function", () => {}],
-    ["empty object", {}],
-    ["empty array", []],
-    ["empty Map", new Map()],
-    ["empty Set", new Set()],
     ["Date", new Date("2026-10-09T00:00:00Z")],
     ["RegExp", /map/],
     ["Error", new Error("missing")],
@@ -30,6 +26,16 @@ describe("expandable variable values", () => {
     ["WeakSet", new WeakSet()],
   ])("treats %s as a leaf", (_name, value) => {
     expect(isExpandable(value)).toBe(false);
+    expect(getChildren(value)).toEqual([]);
+  });
+
+  it.each([
+    ["empty object", {}],
+    ["empty array", []],
+    ["empty Map", new Map()],
+    ["empty Set", new Set()],
+  ])("allows expanding %s even without children", (_name, value) => {
+    expect(isExpandable(value)).toBe(true);
     expect(getChildren(value)).toEqual([]);
   });
 
@@ -49,7 +55,7 @@ describe("expandable variable values", () => {
       value: "hidden",
       enumerable: false,
     });
-    expect(isExpandable(value)).toBe(false);
+    expect(isExpandable(value)).toBe(true);
     Object.assign(value, { visible: 7 });
 
     expect(getChildren(value)).toEqual([

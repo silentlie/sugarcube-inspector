@@ -59,17 +59,22 @@ automatically; use **Refresh** to capture changes made without passage
 navigation. If a snapshot request fails, the drawer shows the error and a
 **Retry** button.
 
-Visible variables are automatically watched for changes between passage events.
-Use the star beside any variable to keep watching it when it is out of view or
-in an inactive scope tab. Watches poll every 250 ms (and pause while the page is hidden). MAIN retains
-an immutable full-snapshot baseline plus independent cached overrides for watched
-paths. Each poll compares live values first and only clones changed values;
-changes replace whole watched subtrees. Missing paths remain watched and are
-shown as read-only placeholders until they reappear. Registrations store the target
-and favorite status; row visibility is tracked separately so restored offscreen
-paths can be released. Complex values such as
-Maps and Sets are replaced in full when changed. Watch-performance notifications
-are deferred pending a redesign; see
+Visible variables are watched between passage events, with separate lists for
+favorites and visible rows. Watches poll every 250 ms and pause while the page
+is hidden. Visible scalar values and expanded visible containers are compared
+for changes; the entire expanded container is cloned only when its value
+changes. Collapsed containers are not deep-watched unless favorited, so their
+preview may be stale until expanded. Expanding a visible container triggers an
+immediate poll. Empty objects, arrays, Maps, and Sets can be expanded.
+
+The active scope root is always structurally watched, even when empty.
+Immediate child structures of visible rows' parents are also checked to
+discover additions and removals without cloning unchanged child values.
+Favorites remain value-watched when hidden; only missing favorites retain
+read-only placeholders. MAIN keeps an immutable full-snapshot baseline with
+independent per-path watch overrides, and full snapshots reset both value
+and structure caches. See [visible structure watching](docs/visible-structure-watching.md).
+Watch-performance notifications are deferred pending a redesign; see
 [deferred watch-performance notifications](docs/deferred-watch-performance-notices.md).
 Favorites currently last for the lifetime of the inspector.
 

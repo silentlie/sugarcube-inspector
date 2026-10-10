@@ -6,7 +6,7 @@ export function isExpandable(value: unknown): value is object {
   }
 
   if (value instanceof Map || value instanceof Set) {
-    return value.size > 0;
+    return true;
   }
 
   if (
@@ -21,7 +21,8 @@ export function isExpandable(value: unknown): value is object {
     return false;
   }
 
-  return Object.keys(value).length > 0;
+  // Empty containers must still be expandable so they can receive new children.
+  return true;
 }
 
 export function isCircular(

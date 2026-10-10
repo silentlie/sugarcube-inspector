@@ -16,9 +16,17 @@ export type WatchPatch =
   | { op: "set"; scope: VariableScope; path: PathSegment[]; value: unknown }
   | { op: "delete"; scope: VariableScope; path: PathSegment[] };
 
+export interface VisibleWatch {
+  target: WatchTarget;
+  /** Expanded containers receive full value watches; collapsed ones do not. */
+  expanded: boolean;
+}
+
 export interface WatchRequest {
   generation: number;
-  targets: WatchTarget[];
+  favorites: WatchTarget[];
+  /** Includes a synthetic empty-path root for the active scope. */
+  visible: VisibleWatch[];
 }
 
 export interface WatchResponse {

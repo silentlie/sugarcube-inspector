@@ -28,7 +28,7 @@ describe("variable tree", () => {
     },
   );
 
-  it("renders top-level variables directly and only offers expansion for containers with children", () => {
+  it("renders top-level variables and offers expansion even for empty containers", () => {
     render(
       <VariableTree
         scope="story"
@@ -41,8 +41,10 @@ describe("variable tree", () => {
     expect(screen.getByTitle("false")).toBeDefined();
     expect(screen.getByTitle("0 properties")).toBeDefined();
     expect(screen.queryByText("$")).toBeNull();
-    expect(screen.getAllByRole("button", { name: /^Expand / })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /^Expand / })).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Favorite score" })).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Expand empty" }));
+    expect(screen.getByRole("button", { name: "Collapse empty" })).toBeDefined();
     expect(
       screen
         .getByRole("button", { name: "Expand inventory" })
