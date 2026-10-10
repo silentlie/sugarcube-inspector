@@ -55,8 +55,13 @@ function isAncestor(ancestor: WatchTarget, child: WatchTarget): boolean {
 }
 
 /**
- * Keep ancestors, discard their descendants. Collection iteration positions
- * are unstable: watch the containing Map/Set rather than an indexed entry.
+ * Keep ancestors, discard their descendants.
+ *
+ * Map keys and Set values may be objects. JS exposes no object hash for
+ * serializable paths, and object-key lookup requires the original reference.
+ * Entries therefore use iteration indexes: removing a non-last entry shifts
+ * later indexes, while new or reinserted entries append at the end.
+ * To avoid stale entry paths, watch/copy the whole Map/Set on any change.
  */
 export function minimizeWatchTargets(targets: WatchTarget[]): WatchTarget[] {
   const normalized = targets.map((target) => {
