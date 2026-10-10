@@ -20,6 +20,14 @@ The benchmark runs on independently cloned inputs. It checks each
 implementation against each fixture before timing it, excluding any
 comparator that reports incorrect equality or throws.
 
+**Current script caveat:** `scripts/bench-watch-equality.cjs` also labels
+one detector `project deepEqual`, but it attempts to import `deepEqual`
+from `watchService.ts`, which does not export that symbol. Consequently
+that detector is not a valid measured production baseline in the current
+script; the published table instead identifies the explicit
+`fast-equals/deepEqual` comparator. This is a benchmark-harness cleanup
+item, not a watch-service runtime issue.
+
 ## Measured results (Node.js 22.23.3, Ubuntu runner)
 
 These are **single-run median detection-only times**, in milliseconds,
