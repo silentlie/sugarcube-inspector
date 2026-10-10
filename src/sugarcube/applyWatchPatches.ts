@@ -73,10 +73,9 @@ function update(
     return new Set(values);
   }
 
-  const copy: Record<string | number, unknown> =
-    source !== null && typeof source === "object"
-      ? shallowCopy(source)
-      : part.type === "index" ? [] : {};
+  const copy = source !== null && typeof source === "object"
+    ? shallowCopy(source)
+    : part.type === "index" ? [] : {};
 
   const key = part.type === "property" ? part.key : part.index;
   if (Array.isArray(copy) && key === "length") {
