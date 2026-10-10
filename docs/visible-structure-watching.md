@@ -108,9 +108,6 @@ synchronized state and increments the generation; the inspector similarly
 switches to the new snapshot. A lost reply or generation mismatch triggers a
 full resync instead of silently diverging.
 
-The RPC response retains MAIN-world processing duration for diagnostics
-but displays no performance warnings.
-
 ## Trade-offs
 
 Synchronization guarantees value updates for actively watched paths, not
@@ -130,8 +127,7 @@ Ordinary array positions are tracked by path; Map/Set positional entries
 are unstable, so the containing collection is the replacement unit.
 
 Watching a very large expanded object can be expensive, even with
-compare-before-clone. Changing the 250 ms polling interval or introducing
-performance notices remains a separate design decision.
+compare-before-clone. The 250 ms polling interval is an accepted trade-off.
 
 ## Accepted design decisions (2026-10-10)
 
@@ -164,8 +160,7 @@ problem, or changed requirement:
   so the containing collection is the replacement unit.
 - **Large expanded objects may be expensive to compare in MAIN.** This
   performance cost is accepted for now; do not change the 250 ms interval
-  solely on speculation. Keep timing diagnostics available for real-world
-  profiling.
+  solely on speculation. Profile real stories before changing the design.
 - **Full-snapshot recovery is acceptable.** A failed, lost, or generation-
   mismatched watch response triggers a new full snapshot instead of a more
   complicated acknowledgment/replay protocol.
