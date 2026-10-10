@@ -26,8 +26,9 @@ describe("path subscriptions", () => {
 
     store.apply([{ op: "set", scope: "story", path: target("left", "hp").path, value: 20 }]);
 
-    expect(store.variables.story.left).toBe(shared);
-    expect(store.variables.story.right).toBe(shared);
+    const story = store.variables.story as Record<string, unknown>;
+    expect(story.left).toBe(shared);
+    expect(story.right).toBe(shared);
     expect(shared.hp).toBe(20);
     expect(left).toHaveBeenCalledTimes(1);
     expect(right).toHaveBeenCalledTimes(1);
