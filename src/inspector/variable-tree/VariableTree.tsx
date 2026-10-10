@@ -1,3 +1,4 @@
+import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 import { useCallback, useRef, useState } from "react";
 import VariableNode from "./VariableNode";
 import type { PathSegment, VariableAncestor, VariableScope } from "./types";
@@ -49,7 +50,7 @@ export default function VariableTree({ scope, value }: VariableTreeProps) {
 
   const children = getChildren(rootValue);
   const ancestors: readonly VariableAncestor[] =
-    rootValue !== null && typeof rootValue === "object"
+    isNonFunctionObject(rootValue)
       ? [{ value: rootValue, path: [] }]
       : [];
 
