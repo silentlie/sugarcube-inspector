@@ -63,42 +63,52 @@ export function WatchProvider({
   });
   // One registry holds active visible and favorite watches. Missing paths
   // stay registered when their variable row unmounts.
-  const registrationsRef = useRef(new Map<string, WatchRegistration>());
-  const [favoritesVersion, setFavoritesVersion] = useState(0);
+  const [registrations, setRegistrations] = useState<ReadonlyMap<string, WatchRegistration>>(
+    () => new Map(),
+  );
+  const registrationsRef = useRef(registrations);
   const currentVariables = view.source === snapshot ? view.variables : snapshot.variables;
   const variablesRef = useRef(currentVariables);
-  variablesRef.current = currentVariables;
+
+  useEffect(() => {
+    registrationsRef.current = registrations;
+  }, [registrations]);
+
+  useEffect(() => {
+    variablesRef.current = currentVariables;
+  }, [currentVariables]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const dismissedRef = useRef(new Set<Notice["level"]>());
 
   const setVisible = useCallback((target: WatchTarget, visible: boolean) => {
-    const key = watchKey(target);
-    const registration = registrationsRef.current.get(key);
-    if (visible) {
-      if (registration) registration.visible = true;
-      else registrationsRef.current.set(key, { target, visible: true, favorite: false });
-    } else if (registration) {
-      registration.visible = false;
-      // Keep a missing watched path even after its row unmounts.
-      if (!registration.favorite && watchPathExists(variablesRef.current, target)) {
-        registrationsRef.current.delete(key);
+    setRegistrations((current) => {
+      const key = watchKey(target);
+      const existing = current.get(key);
+      if ((!existing && !visible) || (existing && existing.visible === visible)) {
+        return current;
       }
-    }
+      const next = new Map(current);
+      next.set(key, {
+        target,
+        visible,
+        favorite: existing?.favorite ?? false,
+      });
+      return next;
+    });
   }, []);
 
   const toggleFavorite = useCallback((target: WatchTarget) => {
-    const key = watchKey(target);
-    const registration = registrationsRef.current.get(key);
-    if (!registration) {
-      registrationsRef.current.set(key, { target, visible: false, favorite: true });
-    } else {
-      registration.favorite = !registration.favorite;
-      if (!registration.favorite && !registration.visible &&
-          watchPathExists(variablesRef.current, target)) {
-        registrationsRef.current.delete(key);
-      }
-    }
-    setFavoritesVersion((version) => version + 1);
+    setRegistrations((current) => {
+      const key = watchKey(target);
+      const existing = current.get(key);
+      const next = new Map(current);
+      next.set(key, {
+        target,
+        visible: existing?.visible ?? false,
+        favorite: !existing?.favorite,
+      });
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -138,8 +148,19 @@ export function WatchProvider({
         return;
       }
 
+      // Missing paths stay registered even after their rows disappear.
+      const relevant = new Map(
+        [...registrationsRef.current.entries()].filter(([, registration]) =>
+          registration.visible || registration.favorite ||
+          !watchPathExists(variablesRef.current, registration.target),
+        ),
+      );
+      if (relevant.size !== registrationsRef.current.size) {
+        registrationsRef.current = relevant;
+        setRegistrations(relevant);
+      }
       const targets = minimizeWatchTargets(
-        [...registrationsRef.current.values()].map(({ target }) => target),
+        [...relevant.values()].map(({ target }) => target),
       );
       if (targets.length === 0) {
         schedule(WATCH_INTERVAL_MS);
@@ -165,12 +186,16 @@ export function WatchProvider({
 
         // Retain only registrations still visible, favorited, or missing.
         // When a missing path returns outside the viewport, it can be released.
-        for (const [key, registration] of registrationsRef.current) {
-          if (!registration.visible && !registration.favorite &&
-              watchPathExists(variablesRef.current, registration.target)) {
-            registrationsRef.current.delete(key);
+        setRegistrations((current) => {
+          const next = new Map(current);
+          for (const [key, registration] of next) {
+            if (!registration.visible && !registration.favorite &&
+                watchPathExists(variablesRef.current, registration.target)) {
+              next.delete(key);
+            }
           }
-        }
+          return next.size === current.size ? current : next;
+        });
       } catch (error) {
         if (active) {
           console.error("[SugarCube Inspector] Watch poll failed:", error);
@@ -204,14 +229,14 @@ export function WatchProvider({
   const value = useMemo<WatchContextValue>(() => ({
     variables: currentVariables,
     favorites: new Map(
-      [...registrationsRef.current.entries()]
+      [...registrations.entries()]
         .filter(([, registration]) => registration.favorite)
         .map(([key, registration]) => [key, registration.target]),
     ),
-    watchedTargets: [...registrationsRef.current.values()].map(({ target }) => target),
+    watchedTargets: [...registrations.values()].map(({ target }) => target),
     toggleFavorite,
     setVisible,
-  }), [currentVariables, favoritesVersion, setVisible, toggleFavorite]);
+  }), [currentVariables, registrations, setVisible, toggleFavorite]);
 
   return (
     <WatchContext value={value}>
