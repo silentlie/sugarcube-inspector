@@ -1,3 +1,5 @@
+import { isArray } from "@sindresorhus/is";
+import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { applyWatchPatches } from "../../sugarcube/applyWatchPatches";
 import { isPathPrefix, pathToKey, readPathChild, resolvePath } from "../../sugarcube/path";
@@ -60,10 +62,10 @@ export class VariableStore {
       const parentValue = this.getValue(parent);
       const lastPart = patch.path.length > 1 ? patch.path.at(-1) as PathSegment : undefined;
       const hadKey = lastPart?.type === "property"
-        && parentValue != null && typeof parentValue === "object"
+        && isNonFunctionObject(parentValue)
         && Object.hasOwn(parentValue, lastPart.key);
       const arrayLengthChanged = lastPart?.type === "property" &&
-        lastPart.key === "length" && Array.isArray(parentValue);
+        lastPart.key === "length" && isArray(parentValue);
       const structureChanged = arrayLengthChanged || patch.path.length === 1 ||
         (lastPart && (lastPart.type === "mapKey" || lastPart.type === "mapValue" || lastPart.type === "setValue")) ||
         (patch.op === "delete" ? Boolean(hadKey) : !hadKey);
@@ -85,7 +87,7 @@ export class VariableStore {
           // Whole-value replacement only changes the patched path. Notify
           // aliases when a nested patch actually mutates their shared parent.
           if (i > 1 && parent.length > 1 &&
-              typeof parentValue === "object" && parentValue !== null &&
+              isNonFunctionObject(parentValue) &&
               value === parentValue) {
             changed.add(key);
             break;
