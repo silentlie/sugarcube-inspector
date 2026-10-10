@@ -143,21 +143,6 @@ function VariableNode({
   );
 }
 
-// Parent structural changes must not rerender unchanged child tiles.
-// Node-local store subscriptions handle value changes, while the explicit
-// ancestor comparison handles reference replacements affecting cycle links.
-function sameNodeProps(a: VariableNodeProps, b: VariableNodeProps): boolean {
-  const aKey = watchKey({ scope: a.scope, path: [...a.path] });
-  const bKey = watchKey({ scope: b.scope, path: [...b.path] });
-  return aKey === bKey && a.name === b.name &&
-    a.fromStore === b.fromStore &&
-    (a.fromStore || Object.is(a.value, b.value)) &&
-    a.expandedPaths.has(aKey) === b.expandedPaths.has(bKey) &&
-    a.onToggle === b.onToggle && a.onNavigate === b.onNavigate &&
-    a.registerNode === b.registerNode &&
-    (a.ancestors?.length ?? 0) === (b.ancestors?.length ?? 0) &&
-    (a.ancestors ?? []).every((ancestor, index) =>
-      ancestor.value === b.ancestors?.[index]?.value);
-}
-
-export default memo(VariableNode, sameNodeProps);
+// Poll updates use node-local subscriptions, not parent prop changes.
+// Expansion state remains shared so nested expansion is retained on collapse.
+export default memo(VariableNode);
