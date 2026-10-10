@@ -3,9 +3,11 @@ import type {
   SugarCubeTemporaryVariables,
 } from "twine-sugarcube";
 import { z } from "zod";
+import { isArray } from "@sindresorhus/is";
+import { isNonFunctionObject } from "../utils/isNonFunctionObject";
 
 const isVariableContainer = (value: unknown): value is object =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+  isNonFunctionObject(value) && !isArray(value);
 
 const StoryVariablesSchema =
   z.custom<SugarCubeStoryVariables>(isVariableContainer);
