@@ -10,7 +10,7 @@ import {
 } from "react";
 import { sugarcubeRPC } from "../../sugarcube/rpc";
 import { VariableStore } from "./VariableStore";
-import type { SugarCubeSnapshot } from "../../sugarcube/types";
+import type { SugarCubeSnapshot, SugarCubeVariables } from "../../sugarcube/types";
 import { pathKey } from "../../sugarcube/path";
 import type { VariablePath } from "../../sugarcube/watch";
 import { withTimeout } from "../../utils/withTimeout";
@@ -18,7 +18,7 @@ import { withTimeout } from "../../utils/withTimeout";
 export const WATCH_INTERVAL_MS = 250;
 
 interface WatchContextValue {
-  variables: SugarCubeSnapshot["variables"];
+  variables: SugarCubeVariables;
   store: VariableStore;
   favorites: ReadonlyMap<string, VariablePath>;
   watchedPaths: readonly VariablePath[];
