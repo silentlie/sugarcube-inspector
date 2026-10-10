@@ -31,7 +31,7 @@ export interface VisibleWatch {
 export interface WatchRequest {
   generation: number;
   favorites: WatchTarget[];
-  /** Includes the active scope's empty-path root only when it has no children. */
+  /** Includes the active-scope structure-only root fallback unless an immediate primitive row is visibly watched. */
   visible: VisibleWatch[];
 }
 
