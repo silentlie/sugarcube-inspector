@@ -74,7 +74,12 @@ export default function VariableNode({
           circular={circular}
           expandable={expandable}
           expanded={expanded}
-          onToggle={() => onToggle(id)}
+          onToggle={() => {
+            // A clicked row is visible even if IntersectionObserver has not
+            // delivered its first notification yet.
+            if (!expanded) setVisible(target, true, true);
+            onToggle(id);
+          }}
           favorite={watch.favorites.has(id)}
           onToggleFavorite={() => watch.toggleFavorite(target, !watch.favorites.has(id))}
         />

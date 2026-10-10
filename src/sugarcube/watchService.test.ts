@@ -243,15 +243,15 @@ describe("visible structural watch", () => {
     expect(poll()).toEqual([]);
     (stores.story.player as Record<string, unknown>).hp = 100;
     expect(poll()).toEqual([{
-      op: "set", scope: "story", path: [...player.path, { type: "property", key: "hp" }], value: 100,
+      op: "set", scope: "story", path: player.path, value: { hp: 100 },
     }]);
     delete (stores.story.player as Record<string, unknown>).hp;
     expect(poll()).toEqual([{
-      op: "delete", scope: "story", path: [...player.path, { type: "property", key: "hp" }],
+      op: "set", scope: "story", path: player.path, value: {},
     }]);
     (stores.story.player as Record<string, unknown>).mp = 50;
     expect(poll()).toEqual([{
-      op: "set", scope: "story", path: [...player.path, { type: "property", key: "mp" }], value: 50,
+      op: "set", scope: "story", path: player.path, value: { mp: 50 },
     }]);
   });
 
@@ -292,9 +292,9 @@ describe("visible structural watch", () => {
     expect(poll()).toEqual([]);
     stores.story.items.push(4);
     const added = poll();
-    expect(added).toContainEqual({
-      op: "set", scope: "story", path: [...item.path, { type: "index", index: 0 }], value: 4,
-    });
+    expect(added).toEqual([{
+      op: "set", scope: "story", path: item.path, value: [4],
+    }]);
     let displayed = applyWatchPatches(snapshot.variables, added);
     expect((displayed.story as Record<string, unknown>).items).toEqual([4]);
     stores.story.items.pop();
