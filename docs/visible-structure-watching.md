@@ -6,8 +6,8 @@
 
 - **Favorites** contain explicit watch targets, independent of visibility.
 - **Visible** contains the paths currently represented by visible rows with
-  an `expanded` flag. The selected scope also registers its empty-path root
-  even if no variable rows are rendered.
+  an `expanded` flag. The selected scope registers its empty-path root
+  only if it contains no child rows.
 
 The visible map lives in a ref because IntersectionObserver changes do not
 need to rerender the UI. Favorites live in React state so the star buttons
@@ -22,10 +22,14 @@ and missing-favorite placeholders update.
    clone it only when changed. Minimize overlapping value watch targets.
 4. A visible **collapsed** container has no content watch unless favorited.
    Its preview can therefore remain stale while collapsed.
-5. Check immediate child structure of the active scope root, including an
-   empty root, and of visible rows' parent containers. New child values are
-   cloned only when the child first appears; removed children use delete
-   patches. For Map/Set membership changes, replace the whole collection.
+5. Check immediate child structures of visible rows' parents. A visible
+   top-level row therefore implicitly watches the root structure. Register
+   the active scope root explicitly only while it has no child rows, so
+   newly added variables can appear after the scope becomes empty.
+   A nonempty root with no visible top-level rows is not monitored.
+   New child values are cloned only when first added; removed children use
+   delete patches. For Map/Set membership changes, replace the whole
+   collection.
 6. Expanding an already visible container schedules a poll immediately
    instead of waiting for the 250 ms cadence. If a poll is already in flight,
    queue another poll directly after it finishes.

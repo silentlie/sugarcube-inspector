@@ -211,6 +211,30 @@ describe("visible structural watch", () => {
   const watched = (target: WatchTarget, expanded = false): VisibleWatch =>
     ({ target, expanded });
 
+  it("derives root structure from a visible top-level child", () => {
+    const score: WatchTarget = {
+      scope: "story", path: [{ type: "property", key: "score" }],
+    };
+    const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
+      { story: { score: 7 }, temporary: {} };
+    const { service, generation } = setup(stores.story);
+    const poll = () => service.poll(visible(generation, [watched(score)]), stores).changes;
+
+    expect(poll()).toEqual([]);
+    stores.story.newVariable = 15;
+    expect(poll()).toEqual([{
+      op: "set", scope: "story", path: [{ type: "property", key: "newVariable" }],
+      value: 15,
+    }]);
+    delete stores.story.newVariable;
+    expect(poll()).toEqual([{
+      op: "delete", scope: "story", path: [{ type: "property", key: "newVariable" }],
+    }]);
+    // Without any visible rows or an explicit empty-root registration,
+    // the service does not keep polling the nonempty root.
+    expect(service.poll(visible(generation, []), stores).changes).toEqual([]);
+  });
+
   it("tracks an empty root, additions, removals and restoration without missing watches", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: {}, temporary: {} };

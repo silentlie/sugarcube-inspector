@@ -133,7 +133,7 @@ function segmentForKey(key: string, array: boolean): PathSegment {
 function structureTargets(visible: readonly VisibleWatch[]): WatchTarget[] {
   const targets = new Map<string, WatchTarget>();
   for (const { target } of visible) {
-    // Roots are always structure-only, including when they have no children.
+    // Explicit root registrations are structure-only, including when empty.
     if (target.path.length === 0) {
       targets.set(watchKey(target), target);
       continue;

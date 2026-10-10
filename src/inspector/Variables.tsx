@@ -10,12 +10,15 @@ export default function Variables() {
   const watch = useWatch();
   const variables = watch.variables;
   const setVisible = watch.setVisible;
-  // The root is structure-only, including while the selected scope is empty.
+  // Top-level visible rows already cause the root structure to be watched
+  // through their parent. Register the root directly only when it has no rows.
+  const rootIsEmpty = Object.keys(variables[activeTab]).length === 0;
   useEffect(() => {
+    if (!rootIsEmpty) return;
     const root: WatchTarget = { scope: activeTab, path: [] };
     setVisible(root, true);
     return () => setVisible(root, false);
-  }, [activeTab, setVisible]);
+  }, [activeTab, rootIsEmpty, setVisible]);
 
   const missing = watch.watchedTargets.filter((target) => !watchPathExists(variables, target));
   const id = useId();

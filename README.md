@@ -67,9 +67,11 @@ changes. Collapsed containers are not deep-watched unless favorited, so their
 preview may be stale until expanded. Expanding a visible container triggers an
 immediate poll. Empty objects, arrays, Maps, and Sets can be expanded.
 
-The active scope root is always structurally watched, even when empty.
-Immediate child structures of visible rows' parents are also checked to
-discover additions and removals without cloning unchanged child values.
+The active scope root is structurally watched through visible top-level rows,
+or registered directly when it has no children. A nonempty root with no visible
+top-level rows is not watched. Immediate child structures of visible rows'
+parents are checked to discover additions and removals without cloning
+unchanged child values.
 Favorites remain value-watched when hidden; only missing favorites retain
 read-only placeholders. MAIN keeps an immutable full-snapshot baseline with
 independent per-path watch overrides, and full snapshots reset both value

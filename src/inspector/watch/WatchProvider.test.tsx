@@ -62,7 +62,7 @@ it("requests a fresh snapshot on generation mismatch", async () => {
   expect(rpc.sendMessage).toHaveBeenCalledTimes(1);
 });
 
-it("polls visible targets separately from favorites, including the scope root", async () => {
+it("derives root structural watching from visible top-level rows without registering the root", async () => {
   const requested: Array<{ visible: unknown[]; favorites: unknown[] }> = [];
   rpc.sendMessage.mockImplementation(async (_type, data) => {
     const request = data as { generation: number; visible: unknown[]; favorites: unknown[] };
@@ -76,7 +76,7 @@ it("polls visible targets separately from favorites, including the scope root", 
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(requested).toHaveLength(1);
   expect(requested[0]!.favorites).toEqual([]);
-  expect(requested[0]!.visible).toContainEqual({
+  expect(requested[0]!.visible).not.toContainEqual({
     target: { scope: "story", path: [] }, expanded: false,
   });
   expect(requested[0]!.visible).toContainEqual({
@@ -101,10 +101,14 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
     return { generation: request.generation, changes, mainDurationMs: 1 };
   });
   const initial = snapshot();
+  initial.variables.story = { score: 7 };
   render(<WatchProvider snapshot={initial}><Variables /></WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(screen.queryByText("Missing watched variables (read-only)")).toBeNull();
   expect(screen.queryByText("score")).toBeNull();
+  expect(requests[0]!.visible).not.toContainEqual({
+    target: { scope: "story", path: [] }, expanded: false,
+  });
 
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(requests[1]!.visible).toContainEqual({
@@ -114,6 +118,10 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(screen.getByTitle("99")).toBeTruthy();
   expect(requests[2]!.favorites).toEqual([]);
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(requests[3]!.visible).not.toContainEqual({
+    target: { scope: "story", path: [] }, expanded: false,
+  });
 });
 
 it("sets favorite state idempotently, and only favorites survive an unmount", async () => {

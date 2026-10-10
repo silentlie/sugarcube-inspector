@@ -25,7 +25,7 @@ export interface VisibleWatch {
 export interface WatchRequest {
   generation: number;
   favorites: WatchTarget[];
-  /** Includes a synthetic empty-path root for the active scope. */
+  /** Includes the active scope's empty-path root only when it has no children. */
   visible: VisibleWatch[];
 }
 
