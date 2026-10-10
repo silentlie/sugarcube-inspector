@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { applyWatchPatches } from "./applyWatchPatches";
-import type { WatchPatch } from "./watch";
+import type { PathSegment, WatchPatch } from "./watch";
 import type { SugarCubeSnapshot } from "./types";
 
 type Stores = SugarCubeSnapshot["variables"];
 
-const change = (path: WatchPatch["path"], value: unknown): WatchPatch => ({
-  op: "set", scope: "story", path, value,
+const change = (segments: PathSegment[], value: unknown): WatchPatch => ({
+  op: "set", path: ["story", ...segments], value,
 });
 const prop = (key: string) => ({ type: "property" as const, key });
 const index = (at: number) => ({ type: "index" as const, index: at });
@@ -56,7 +56,7 @@ describe("in-place watch patches", () => {
     });
     const initial = snapshot({ inventory: arr });
     const withoutIndex = applyWatchPatches(initial, [{
-      op: "delete", scope: "story", path: [prop("inventory"), index(0)],
+      op: "delete", path: ["story", prop("inventory"), index(0)],
     }]);
     const next = (withoutIndex.story as Record<string, unknown>).inventory as string[];
     expect(Object.hasOwn(next, 0)).toBe(false);
@@ -193,7 +193,7 @@ describe("in-place watch patches", () => {
       value: 1, enumerable: true, configurable: false, writable: false,
     });
     expect(() => applyWatchPatches(snapshot({ player }), [{
-      op: "delete", scope: "story", path: [prop("player"), prop("locked")],
+      op: "delete", path: ["story", prop("player"), prop("locked")],
     }])).toThrow(TypeError);
   });
 });

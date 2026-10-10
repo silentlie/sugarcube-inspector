@@ -4,7 +4,7 @@ import type { WatchTarget } from "../../sugarcube/watch";
 
 const prop = (key: string) => ({ type: "property" as const, key });
 const target = (...names: string[]): WatchTarget => ({
-  scope: "story", path: names.map(prop),
+  path: ["story", ...names.map(prop)],
 });
 
 describe("path subscriptions", () => {
@@ -24,7 +24,7 @@ describe("path subscriptions", () => {
     store.subscribe(target(), root);
     store.subscribe(target("unrelated"), unchanged);
 
-    store.apply([{ op: "set", scope: "story", path: target("left", "hp").path, value: 20 }]);
+    store.apply([{ op: "set", path: target("left", "hp").path, value: 20 }]);
 
     const story = store.variables.story as Record<string, unknown>;
     expect(story.left).toBe(shared);
@@ -48,7 +48,7 @@ describe("path subscriptions", () => {
     store.subscribe(target("left", "hp"), left);
     store.subscribe(target("right", "hp"), right);
 
-    store.apply([{ op: "set", scope: "story", path: target("left").path, value: { hp: 30 } }]);
+    store.apply([{ op: "set", path: target("left").path, value: { hp: 30 } }]);
 
     const story = store.variables.story as { left: { hp: number }; right: { hp: number } };
     expect(story.left.hp).toBe(30);
@@ -67,12 +67,12 @@ describe("path subscriptions", () => {
     store.subscribe(target("inventory"), array);
     store.subscribe(target(), root);
 
-    store.apply([{ op: "set", scope: "story", path: target("inventory", "length").path, value: 3 }]);
+    store.apply([{ op: "set", path: target("inventory", "length").path, value: 3 }]);
     expect((store.variables.story as { inventory: unknown[] }).inventory.length).toBe(3);
     expect(array).toHaveBeenCalledTimes(1);
     expect(root).not.toHaveBeenCalled();
 
-    store.apply([{ op: "set", scope: "story", path: target("newVar").path, value: true }]);
+    store.apply([{ op: "set", path: target("newVar").path, value: true }]);
     expect(root).toHaveBeenCalledTimes(1);
   });
 
@@ -82,7 +82,7 @@ describe("path subscriptions", () => {
     });
     const changed = vi.fn();
     store.subscribe(target("player", "hp"), changed);
-    store.apply([{ op: "set", scope: "story", path: target("player").path, value: { hp: 3 } }]);
+    store.apply([{ op: "set", path: target("player").path, value: { hp: 3 } }]);
     expect(changed).toHaveBeenCalledTimes(1);
     expect(store.getValue(target("player", "hp"))).toBe(3);
   });

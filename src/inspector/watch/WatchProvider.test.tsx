@@ -7,6 +7,7 @@ import { createSnapshotFixture } from "../../../tests/fixtures";
 import { WatchProvider, useWatch } from "./WatchProvider";
 import { useVariableVersion } from "./VariableStore";
 import Variables from "../Variables";
+import type { WatchTarget } from "../../sugarcube/watch";
 
 const rpc = vi.hoisted(() => ({
   sendMessage: vi.fn<(type: string, request: unknown) => Promise<unknown>>(),
@@ -17,7 +18,7 @@ function RegisterWatch() {
   const watch = useWatch();
   const setVisible = watch.setVisible;
   useEffect(() => {
-    const target = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
+    const target: WatchTarget = { path: ["story", { type: "property" as const, key: "score" }] };
     setVisible(target, true);
     return () => setVisible(target, false);
   }, [setVisible]);
@@ -77,8 +78,8 @@ it("always sends the active root alongside visible top-level rows", async () => 
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(requested).toHaveLength(1);
   expect(requested[0]!.favorites).toEqual([]);
-  expect(requested[0]!.visible).toContainEqual({ scope: "story", path: [] });
-  expect(requested[0]!.visible).toContainEqual({ scope: "story", path: [{ type: "property", key: "score" }] });
+  expect(requested[0]!.visible).toContainEqual({ path: ["story"] });
+  expect(requested[0]!.visible).toContainEqual({ path: ["story", { type: "property", key: "score" }] });
 });
 
 it.each([
@@ -105,11 +106,11 @@ it.each([
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
 
   const request = rpc.sendMessage.mock.calls[0]![1] as {
-    visible: Array<{ scope: string; path: unknown[] }>;
+    visible: Array<{ path: unknown[] }>;
   };
-  expect(request.visible).toContainEqual({ scope: "story", path: [] });
+  expect(request.visible).toContainEqual({ path: ["story"] });
   if (primitiveVisible) {
-    expect(request.visible).toContainEqual({ scope: "story", path: [{ type: "property", key: "score" }] });
+    expect(request.visible).toContainEqual({ path: ["story", { type: "property", key: "score" }] });
   }
 });
 
@@ -125,10 +126,10 @@ it("keeps the root structural watch while visible primitive rows appear and disa
   </WatchProvider>);
   const containsRoot = (index: number) => {
     const request = rpc.sendMessage.mock.calls[index]![1] as {
-      visible: Array<{ scope: string; path: unknown[] }>;
+      visible: Array<{ path: unknown[] }>;
     };
     return request.visible.some((target) =>
-      target.scope === "story" && target.path.length === 0,
+      target.path[0] === "story" && target.path.length === 1,
     );
   };
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
@@ -154,10 +155,10 @@ it("watches only the active scope root while switching variable tabs", async () 
   render(<WatchProvider snapshot={snapshot()}><Variables /></WatchProvider>);
   const activeRoots = (index: number) => {
     const request = rpc.sendMessage.mock.calls[index]![1] as {
-      visible: Array<{ scope: string; path: unknown[] }>;
+      visible: Array<{ path: unknown[] }>;
     };
-    return request.visible.filter((target) => target.path.length === 0)
-      .map((target) => target.scope);
+    return request.visible.filter((target) => target.path.length === 1)
+      .map((target) => target.path[0]);
   };
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(activeRoots(0)).toEqual(["story"]);
@@ -182,7 +183,7 @@ it("keeps the root structural watch with only a nested primitive watch", async (
     const watch = useWatch();
     const setVisible = watch.setVisible;
     useEffect(() => {
-      const target = { scope: "story" as const, path: [
+      const target: WatchTarget = { path: ["story", 
         { type: "property" as const, key: "player" },
         { type: "property" as const, key: "hp" },
       ] };
@@ -197,13 +198,13 @@ it("keeps the root structural watch with only a nested primitive watch", async (
   </WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   const request = rpc.sendMessage.mock.calls[0]![1] as {
-    visible: Array<{ scope: string; path: unknown[] }>;
+    visible: Array<{ path: unknown[] }>;
   };
-  expect(request.visible).toContainEqual({ scope: "story", path: [] });
+  expect(request.visible).toContainEqual({ path: ["story"] });
 });
 
 it("continues monitoring an empty root, without retaining missing unfavorited paths", async () => {
-  const score = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
+  const score: WatchTarget = { path: ["story", { type: "property" as const, key: "score" }] };
   const requests: Array<{ visible: unknown[]; favorites: unknown[] }> = [];
   let calls = 0;
   rpc.sendMessage.mockImplementation(async (_type, data) => {
@@ -211,9 +212,9 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
     requests.push({ visible: request.visible, favorites: request.favorites });
     calls++;
     const changes = calls === 1
-      ? [{ op: "delete", scope: "story", path: score.path }]
+      ? [{ op: "delete", path: score.path }]
       : calls === 3
-        ? [{ op: "set", scope: "story", path: score.path, value: 99 }]
+        ? [{ op: "set", path: score.path, value: 99 }]
         : [];
     return { generation: request.generation, changes, mainDurationMs: 1 };
   });
@@ -223,7 +224,7 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
   // top-level row while it exists, then unregister it when the row unmounts.
   function VisibleScore() {
     const watch = useWatch();
-    useVariableVersion(watch.store, { scope: "story", path: [] });
+    useVariableVersion(watch.store, { path: ["story"] });
     return Object.hasOwn(watch.variables.story, "score") ? <RegisterWatch /> : null;
   }
   render(<WatchProvider snapshot={initial}>
@@ -233,20 +234,20 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(screen.queryByText("Missing watched variables (read-only)")).toBeNull();
   expect(screen.queryByText("score")).toBeNull();
-  expect(requests[0]!.visible).toContainEqual({ scope: "story", path: [] });
+  expect(requests[0]!.visible).toContainEqual({ path: ["story"] });
 
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(requests[1]!.visible).toContainEqual({ scope: "story", path: [] });
+  expect(requests[1]!.visible).toContainEqual({ path: ["story"] });
   expect(requests[1]!.visible).not.toContainEqual(score);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(screen.getByTitle("99")).toBeTruthy();
   expect(requests[2]!.favorites).toEqual([]);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(requests[3]!.visible).toContainEqual({ scope: "story", path: [] });
+  expect(requests[3]!.visible).toContainEqual({ path: ["story"] });
 });
 
 it("sets favorite state idempotently, and only favorites survive an unmount", async () => {
-  const target = { scope: "story" as const, path: [{ type: "property" as const, key: "score" }] };
+  const target: WatchTarget = { path: ["story", { type: "property" as const, key: "score" }] };
   const requested: Array<{ visible: unknown[]; favorites: unknown[] }> = [];
   rpc.sendMessage.mockImplementation(async (_type, data) => {
     const request = data as { generation: number; visible: unknown[]; favorites: unknown[] };
@@ -282,7 +283,7 @@ it("sets favorite state idempotently, and only favorites survive an unmount", as
 });
 
 it("lets users unfavorite a missing variable without waiting for it to return", async () => {
-  const path = [{ type: "property" as const, key: "score" }];
+  const path = ["story" as const, { type: "property" as const, key: "score" }];
   const requests: Array<{ favorites: unknown[] }> = [];
   let polls = 0;
   rpc.sendMessage.mockImplementation(async (_type, data) => {
@@ -291,7 +292,7 @@ it("lets users unfavorite a missing variable without waiting for it to return", 
     return {
       generation: request.generation,
       changes: polls++ === 0
-        ? [{ op: "delete", scope: "story", path }]
+        ? [{ op: "delete", path }]
         : [],
       mainDurationMs: 1,
     };
@@ -301,7 +302,7 @@ it("lets users unfavorite a missing variable without waiting for it to return", 
   fireEvent.click(screen.getByRole("button", { name: "Favorite score" }));
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
 
-  expect(requests[0]!.favorites).toContainEqual({ scope: "story", path });
+  expect(requests[0]!.favorites).toContainEqual({ path });
   fireEvent.click(screen.getByRole("button", { name: "Unfavorite $score" }));
   expect(screen.queryByText("Missing watched variables (read-only)")).toBeNull();
 
@@ -322,7 +323,7 @@ it("polls empty story roots even when no variable tiles exist", async () => {
   render(<WatchProvider snapshot={empty}><Variables /></WatchProvider>);
   expect(screen.getAllByText("No variables")).toHaveLength(2);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(requests[0]!.visible).toContainEqual({ scope: "story", path: [] });
+  expect(requests[0]!.visible).toContainEqual({ path: ["story"] });
 });
 
 it("omits collapsed containers from visible watches unless favorited", async () => {
@@ -347,8 +348,7 @@ it("omits collapsed containers from visible watches unless favorited", async () 
     <Variables />
   </WatchProvider>);
   const inventory = {
-    scope: "story",
-    path: [{ type: "property", key: "inventory" }],
+    path: ["story", { type: "property", key: "inventory" }],
   };
 
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
@@ -388,7 +388,7 @@ it("polls immediately after expanding a visible container", async () => {
   await act(async () => { await vi.advanceTimersByTimeAsync(0); });
 
   expect(requests).toHaveLength(1);
-  expect(requests[0]!.visible).toContainEqual({ scope: "story", path: [{ type: "property", key: "inventory" }] });
+  expect(requests[0]!.visible).toContainEqual({ path: ["story", { type: "property", key: "inventory" }] });
 });
 
 it("throws if useWatch is called outside WatchProvider", () => {
@@ -404,9 +404,8 @@ it("rerenders a subscribed leaf without updating unrelated leaf versions or repl
 
   function Probe({ keyName }: { keyName: "score" | "choice" }) {
     const watch = useWatch();
-    const target = {
-      scope: keyName === "score" ? "story" as const : "temporary" as const,
-      path: [{ type: "property" as const, key: keyName }],
+    const target: WatchTarget = {
+      path: [keyName === "score" ? "story" : "temporary", { type: "property", key: keyName }],
     };
     const version = useVariableVersion(watch.store, target);
     seen[keyName]!.push(version);
@@ -415,7 +414,7 @@ it("rerenders a subscribed leaf without updating unrelated leaf versions or repl
 
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
-    changes: [{ op: "set", scope: "story", path: [{ type: "property", key: "score" }], value: 15 }],
+    changes: [{ op: "set", path: ["story", { type: "property", key: "score" }], value: 15 }],
     mainDurationMs: 1,
   }));
   render(<WatchProvider snapshot={initial}>
