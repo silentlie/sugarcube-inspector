@@ -13,6 +13,13 @@ const StoryVariablesSchema =
 const TemporaryVariablesSchema =
   z.custom<SugarCubeTemporaryVariables>(isVariableContainer);
 
+export const SugarCubeVariablesSchema = z.object({
+  story: StoryVariablesSchema,
+  temporary: TemporaryVariablesSchema,
+});
+
+export type SugarCubeVariables = z.infer<typeof SugarCubeVariablesSchema>;
+
 export const SugarCubeSnapshotSchema = z.object({
   story: z.object({
     name: z.string(),
@@ -30,10 +37,7 @@ export const SugarCubeSnapshotSchema = z.object({
     length: z.number().int().nonnegative(),
   }),
 
-  variables: z.object({
-    story: StoryVariablesSchema,
-    temporary: TemporaryVariablesSchema,
-  }),
+  variables: SugarCubeVariablesSchema,
 
   capturedAt: z.number(),
   /** MAIN-world watch baseline generation. */
