@@ -1,22 +1,21 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { applyWatchPatches } from "../../sugarcube/applyWatchPatches";
 import { isPathPrefix, pathKey, readPathChild, resolvePath } from "../../sugarcube/path";
-import type { SugarCubeSnapshot } from "../../sugarcube/types";
+import type { SugarCubeVariables } from "../../sugarcube/types";
 import type { PathSegment, VariablePath, WatchPatch } from "../../sugarcube/watch";
 
-type Variables = SugarCubeSnapshot["variables"];
 type Listener = () => void;
 type Subscription = { path: VariablePath; listeners: Set<Listener> };
 
 /** A mutable graph with versioned, path-local React subscriptions. */
 export class VariableStore {
-  readonly variables: Variables;
+  readonly variables: SugarCubeVariables;
   private subscriptions = new Map<string, Subscription>();
   private versions = new Map<string, number>();
   private anyListeners = new Set<Listener>();
   private anyVersion = 0;
 
-  constructor(variables: Variables) {
+  constructor(variables: SugarCubeVariables) {
     this.variables = variables;
   }
 
