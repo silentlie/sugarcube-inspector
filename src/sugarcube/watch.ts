@@ -1,4 +1,4 @@
-import { isPathPrefix, normalizeCollectionPath, pathKey, resolvePath } from "./path";
+import { isPathPrefix, pathKey, resolvePath } from "./path";
 
 export type VariableScope = "story" | "temporary";
 
@@ -38,18 +38,9 @@ export interface WatchResponse {
   mainDurationMs: number;
 }
 
-/**
- * Keep ancestors, discard their descendants.
- *
- * Map keys and Set values may be objects. JS exposes no object hash for
- * serializable paths, and object-key lookup requires the original reference.
- * Entries therefore use iteration indexes: removing a non-last entry shifts
- * later indexes, while new or reinserted entries append at the end.
- * To avoid stale entry paths, watch/copy the whole Map/Set on any change.
- */
+/** Keep requested paths intact, deduplicating them and discarding descendants of watched ancestors. */
 export function minimizeWatchPaths(paths: VariablePath[]): VariablePath[] {
-  const normalized = paths.map(normalizeCollectionPath);
-  const unique = [...new Map(normalized.map((path) => [pathKey(path), path])).values()];
+  const unique = [...new Map(paths.map((path) => [pathKey(path), path])).values()];
   return unique.filter(
     (path) => !unique.some((other) => other !== path && isPathPrefix(other, path)),
   );

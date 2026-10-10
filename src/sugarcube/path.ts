@@ -1,4 +1,4 @@
-import type { PathSegment, VariablePath } from "./watch";
+import type { PathSegment } from "./watch";
 
 /** Existing undefined values are found; missing and blocked paths are distinct. */
 export type PathResolution =
@@ -81,17 +81,5 @@ function samePathSegment(left: PathSegment, right: PathSegment): boolean {
 export function isPathPrefix(prefix: readonly PathSegment[], path: readonly PathSegment[]): boolean {
   return prefix.length <= path.length &&
     prefix.every((part, index) => samePathSegment(part, path[index]!));
-}
-
-/**
- * Map/Set entry paths are positional, not stable keys. Watch their containing
- * collection instead of a potentially shifted entry.
- */
-export function normalizeCollectionPath(path: VariablePath): VariablePath {
-  const collectionIndex = path.findIndex(
-    (part) => part.type === "mapKey" || part.type === "mapValue" ||
-      part.type === "setValue",
-  );
-  return collectionIndex < 0 ? path : path.slice(0, collectionIndex) as VariablePath;
 }
 

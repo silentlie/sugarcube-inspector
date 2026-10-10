@@ -71,6 +71,30 @@ function structureOf(value: unknown): Structure | null {
   return { kind: "object", keys: Object.keys(value) };
 }
 
+/** Map keys and Set values define the meaning of positional entry paths. */
+type CollectionMembers = { kind: "map" | "set"; entries: unknown[] };
+
+function collectionMembers(value: unknown): CollectionMembers | null {
+  if (value instanceof Map) return { kind: "map", entries: [...value.keys()] };
+  if (value instanceof Set) return { kind: "set", entries: [...value.values()] };
+  return null;
+}
+
+/** Register collection prefixes from BOTH favorites and visible watches. */
+function collectionPaths(paths: readonly VariablePath[]): VariablePath[] {
+  const collections = new Map<string, VariablePath>();
+  for (const path of paths) {
+    for (let index = 1; index < path.length; index++) {
+      const part = path[index]!;
+      if (part.type !== "mapKey" && part.type !== "mapValue" && part.type !== "setValue") continue;
+      const collection = path.slice(0, index) as VariablePath;
+      collections.set(pathKey(collection), collection);
+    }
+  }
+  // An outer collection replacement supersedes all its descendant updates.
+  return [...collections.values()].sort((a, b) => a.length - b.length);
+}
+
 function structurePaths(visible: readonly VariablePath[]): VariablePath[] {
   const paths = new Map<string, VariablePath>();
   for (const path of visible) {
@@ -80,13 +104,9 @@ function structurePaths(visible: readonly VariablePath[]): VariablePath[] {
       continue;
     }
 
-    // Parent structures discover siblings. Do not inspect a collapsed
-    // container's own children. Collection entries use unstable indices,
-    // so check the containing Map/Set as a single structure.
-    const normalized = minimizeWatchPaths([path])[0]!;
-    const parent = normalized.length < path.length
-      ? normalized
-      : path.slice(0, -1) as VariablePath;
+    // A visible child's parent discovers its siblings, including children
+    // of Map/Set entries when their positions are still stable.
+    const parent = path.slice(0, -1) as VariablePath;
     paths.set(pathKey(parent), parent);
   }
   return [...paths.values()];
@@ -100,11 +120,16 @@ export class WatchService {
   private synchronized: Stores | null = null;
   private generation = 0;
   private circularPaths = new Set<string>();
+  // MAIN-only live references, kept just for collection paths being watched.
+  // The synchronized snapshot contains clones, so it cannot identify whether
+  // a Set object was mutated in place or replaced with another object.
+  private liveCollections = new Map<string, CollectionMembers>();
 
   capture(snapshot: SugarCubeSnapshot): number {
     this.synchronized = snapshot.variables;
     this.generation++;
     this.circularPaths.clear();
+    this.liveCollections.clear();
     return this.generation;
   }
 
@@ -119,12 +144,60 @@ export class WatchService {
       };
     }
 
+    // Collection entry indices are positional. Detect insertion/removal or
+    // reordering first, before interpreting any descendant paths. Once MAIN
+    // has observed a collection, compare its live entry identities; mutations
+    // *inside* an existing Set member must not look like a new Set entry.
+    const collections = collectionPaths([...request.favorites, ...request.visible]);
+    const collectionKeys = new Set(collections.map(pathKey));
+    const nextLiveCollections = new Map<string, CollectionMembers>();
+    const collectionChanges: WatchPatch[] = [];
+    const replacedCollections: VariablePath[] = [];
+
+    for (const path of collections) {
+      if (replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
+      const key = pathKey(path);
+      const previous = resolve(baseline, path);
+      const current = resolve(stores, path);
+      const oldMembers = previous.exists ? collectionMembers(previous.value) : null;
+      const newMembers = current.exists ? collectionMembers(current.value) : null;
+
+      if (newMembers) nextLiveCollections.set(key, newMembers);
+      if (!oldMembers && !newMembers) continue;
+
+      // If the container itself changed type or became missing, restore the
+      // nearest real ancestor instead of fabricating intermediate containers.
+      if (!oldMembers || !newMembers || oldMembers.kind !== newMembers.kind) {
+        const restorePath = (!previous.exists ? previous.missingPath
+          : !current.exists ? current.missingPath : path) as VariablePath;
+        const restored = resolve(stores, restorePath);
+        collectionChanges.push(restored.exists
+          ? { op: "set", path: restorePath, value: structuredClone(restored.value) }
+          : { op: "delete", path: restorePath });
+        replacedCollections.push(restorePath);
+        continue;
+      }
+
+      const tracked = this.liveCollections.get(key);
+      const oldEntries = tracked?.kind === newMembers.kind ? tracked.entries : oldMembers.entries;
+      const entriesChanged = oldEntries.length !== newMembers.entries.length ||
+        oldEntries.some((member, index) => tracked?.kind === newMembers.kind
+          ? !Object.is(member, newMembers.entries[index])
+          : !sameValue(member, newMembers.entries[index], key, this.circularPaths));
+      if (entriesChanged) {
+        collectionChanges.push({ op: "set", path, value: structuredClone(current.value) });
+        replacedCollections.push(path);
+      }
+    }
+
     const structs = structurePaths(request.visible);
     const structuralChanges: WatchPatch[] = [];
 
     // Compare against the last synchronized state, including earlier patches.
     for (const path of structs) {
       const key = pathKey(path);
+      if (collectionKeys.has(key) ||
+          replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
       const oldEntry = resolve(baseline, path);
       const liveEntry = resolve(stores, path);
       const previous = structureOf(oldEntry.exists ? oldEntry.value : undefined);
@@ -187,6 +260,7 @@ export class WatchService {
 
     // Stage all patches before advancing the synchronized snapshot.
     for (const path of paths) {
+      if (replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
       const key = pathKey(path);
       const previous = resolve(baseline, path);
       const current = resolve(stores, path);
@@ -222,7 +296,7 @@ export class WatchService {
 
     // A whole-parent patch supersedes descendant patches. Both lists can
     // legitimately observe the same path, so avoid applying overlapping edits.
-    const staged = [...structuralChanges, ...valueChanges];
+    const staged = [...collectionChanges, ...structuralChanges, ...valueChanges];
     const changes = staged.filter((patch, index) =>
       !staged.some((other, otherIndex) =>
         index !== otherIndex && isPathPrefix(other.path, patch.path) &&
@@ -233,6 +307,9 @@ export class WatchService {
     // Apply exactly the same patches sent to the inspector, in place.
     // Patch values were cloned before any mutation of the synchronized graph.
     if (changes.length) applyWatchPatches(baseline, changes);
+    // Commit only after staging, cloning, and applying all patches succeeds.
+    // Drop references for collections that are no longer being watched.
+    this.liveCollections = nextLiveCollections;
 
     return {
       generation: this.generation,
