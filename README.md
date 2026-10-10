@@ -83,8 +83,6 @@ graphs. Unwatching does not discard already synchronized state; only a fresh
 full snapshot replaces the baseline. Independent watched aliases may diverge,
 then catch up when watched again or refreshed.
 See [visible structure watching](docs/visible-structure-watching.md).
-Watch-performance notifications are deferred pending a redesign; see
-[deferred watch-performance notifications](docs/deferred-watch-performance-notices.md).
 Favorites currently last for the lifetime of the inspector.
 
 Select the extension's toolbar icon to open the side panel. Its **Refresh**
@@ -110,10 +108,6 @@ API, including `typescript-eslint`; `@typescript/native` supplies TypeScript 7's
 [Microsoft's side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0).
 Use `npx tsc --version` and `npx tsc6 --version` to check each compiler, or
 `npx tsc6 --noEmit` to check the project explicitly with TypeScript 6.
-
-The package also provides `npm run dev:firefox`, `npm run build:firefox`, and
-`npm run zip:firefox`. Runtime support and automated browser coverage currently
-target Chromium; Firefox support has not been validated.
 
 ## Testing
 
@@ -185,7 +179,7 @@ sequenceDiagram
         Inspector->>Bridge: getWatchChanges(generation, favorites, visible)
         Bridge->>Story: Compare registered values and structures
         Bridge->>Bridge: Clone changes; apply patches to MAIN copy
-        Bridge-->>Inspector: Patches + generation + mainDurationMs
+        Bridge-->>Inspector: Patches + generation
         Inspector->>Inspector: Mutate local copy; notify affected paths
     end
     Story->>Bridge: passageend event
@@ -202,33 +196,6 @@ snapshots or results received after unmounting. Watch polls do not overlap,
 pause when the page is hidden, and trigger full-snapshot recovery on failure
 or generation mismatch.
 
-## Watch performance experiments
-
-Experimental code compares custom deep-equality traversal and reference
-tracking, plus compare-before-clone, clone-before-compare, and always-clone
-strategies. Production already uses compare-before-clone with
-`fast-equals/deepEqual` and a circular-data fallback; the experimental
-comparators and pollers are not wired into production WatchService.
-See [watch polling benchmarks](docs/watch-polling-benchmarks.md) for results,
-including measurements of real Chromium MAIN-to-isolated-world
-`@webext-core/messaging/page` transport.
-
-Install benchmark-only dependencies without changing the project lockfile:
-
-```sh
-npm ci
-npm install --no-save --package-lock=false --ignore-scripts fast-equals@6.1.1 fast-deep-equal@3.1.3 dequal@2.0.3 esbuild@0.28.2
-npx playwright install chromium
-npm run bench:watch:equality -- equality.json
-npm run bench:watch:variants -- worker.json
-npm run bench:watch:chromium -- chromium.json
-```
-
-The equality and worker-thread measurements run in Node.js; the Chromium script
-bundles the project's actual custom-event RPC into two Chrome execution worlds
-with synthetic watched values. Results, assumptions and correctness limitations
-are recorded in [the benchmark notes](docs/watch-polling-benchmarks.md).
-
 ## Project structure
 
 | Path | Responsibility |
@@ -242,10 +209,9 @@ are recorded in [the benchmark notes](docs/watch-polling-benchmarks.md).
 | `src/sugarcube/watchService.ts` | Compare live values and structures to MAIN's synchronized baseline. |
 | `src/sugarcube/applyWatchPatches.ts` | Shared in-place patch application in MAIN and inspector. |
 | `src/sugarcube/watch.ts` | Watch targets, paths, patches, and ancestor pruning. |
-| `src/sugarcube/watchEqual.ts`, `watchPollingVariants.ts` | **Experimental only** equality/polling alternatives. |
 | `src/sugarcube/types.ts` | Snapshot validation schema. |
 | `tests/` and colocated `*.test.ts(x)` | Browser, bridge, startup, watch, and component tests. |
-| `docs/` | Implemented watch architecture, deferred designs, and historical benchmark evidence. |
+| `docs/` | Watch architecture and deferred feature designs. |
 
 ## Current scope and limitations
 
