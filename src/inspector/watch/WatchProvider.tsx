@@ -12,7 +12,6 @@ import { sugarcubeRPC } from "../../sugarcube/rpc";
 import { VariableStore } from "./VariableStore";
 import type { SugarCubeSnapshot } from "../../sugarcube/types";
 import {
-  isPrimitiveValue,
   watchKey,
   type VisibleWatch,
   type WatchTarget,
@@ -108,19 +107,9 @@ export function WatchProvider({
       }
 
       const favoriteTargets = [...favoritesRef.current.values()];
-      const registeredVisible = [...visibleRef.current.values()];
-      // Visible immediate primitive rows already cause MAIN to check their
-      // parent's (the root's) structure. Otherwise send the explicit root
-      // as a structure-only fallback, regardless of its stored contents.
-      const scopesWithVisiblePrimitive = new Set(
-        registeredVisible
-          .filter(({ target }) => target.path.length === 1 &&
-            isPrimitiveValue(store.getValue(target)))
-          .map(({ target }) => target.scope),
-      );
-      const visibleTargets = registeredVisible.filter(({ target }) =>
-        target.path.length !== 0 || !scopesWithVisiblePrimitive.has(target.scope),
-      );
+      // Include the active scope root on every poll for shallow structural
+      // discovery, independently of visible scalar and expanded value watches.
+      const visibleTargets = [...visibleRef.current.values()];
       if (favoriteTargets.length === 0 && visibleTargets.length === 0) {
         schedule(WATCH_INTERVAL_MS);
         return;
