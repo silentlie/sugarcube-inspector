@@ -29,7 +29,7 @@ function request(generation: number, targets: WatchTarget[] = [player]): WatchRe
   return { generation, favorites: targets, visible: [] };
 }
 
-describe("two-layer selective watch service", () => {
+describe("synchronized snapshot watch service", () => {
   it("skips unchanged paths and replaces only an entire changed watched value", () => {
     const stores = { story: { player: { health: 100, stats: { strength: 10 } }, inventory: [1, 2] }, temporary: {} };
     const { service, generation, snapshot } = setup(stores.story);
@@ -44,7 +44,7 @@ describe("two-layer selective watch service", () => {
     expect(response.mainDurationMs).toBeGreaterThanOrEqual(0);
     expect((snapshot.variables.story as Record<string, unknown>).player).toEqual({ health: 100, stats: { strength: 10 } });
 
-    // The cache must retain a clone, not the mutable live object.
+    // The synchronized state must retain a clone, not a mutable live object.
     const updated = applyWatchPatches(snapshot.variables, response.changes);
     expect(((updated.story as Record<string, unknown>).player as { health: number }).health).toBe(75);
     expect(service.poll(request(generation), stores).changes).toEqual([]);
@@ -55,7 +55,7 @@ describe("two-layer selective watch service", () => {
     }]);
   });
 
-  it("keeps separate path baselines when snapshot paths alias the same object", () => {
+  it("preserves path independence when snapshot paths alias the same object", () => {
     const shared = { health: 100 };
     const stores = { story: { player: shared, character: shared }, temporary: {} };
     const { service, generation } = setup(stores.story);
@@ -149,7 +149,7 @@ describe("two-layer selective watch service", () => {
     ]);
   });
 
-  it("clears watch overrides with each new full snapshot and ignores stale generations", () => {
+  it("replaces synchronized state with each new full snapshot and ignores stale generations", () => {
     const stores = { story: { player: { health: 100 } }, temporary: {} };
     const { service, generation } = setup(stores.story);
     stores.story.player.health = 20;
@@ -182,6 +182,84 @@ describe("two-layer selective watch service", () => {
       { scope: "story", path: [{ type: "property", key: "flags" }] },
     ]);
     expect(minimizeWatchTargets([player, health])).toEqual([player]);
+  });
+
+  it("retains synchronized changes across watch removal and a different path reactivation", () => {
+    const stores = { story: { player: { health: 10 } }, temporary: {} };
+    const { service, generation, snapshot } = setup(stores.story);
+    let displayed = snapshot.variables;
+
+    stores.story.player.health = 20;
+    const changed = service.poll(request(generation, [player]), stores).changes;
+    expect(changed).toEqual([{
+      op: "set", scope: "story", path: player.path, value: { health: 20 },
+    }]);
+    displayed = applyWatchPatches(displayed, changed);
+
+    // No active watches, and a value returns to its original snapshot value.
+    expect(service.poll(request(generation, []), stores).changes).toEqual([]);
+    stores.story.player.health = 10;
+
+    // The newly watched descendant must compare with the already synchronized
+    // hp=20, not the full snapshot's hp=10.
+    const restored = service.poll(request(generation, [health]), stores).changes;
+    expect(restored).toEqual([{
+      op: "set", scope: "story", path: health.path, value: 10,
+    }]);
+    displayed = applyWatchPatches(displayed, restored);
+    expect((displayed.story as { player: { health: number } }).player.health).toBe(10);
+    expect(service.poll(request(generation, [health]), stores).changes).toEqual([]);
+  });
+
+  it("keeps synchronized parent structure across periods without visible watches", () => {
+    const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
+      { story: { player: { health: 10 } }, temporary: {} };
+    const { service, generation, snapshot } = setup(stores.story);
+    const visibleHealth: WatchRequest = {
+      generation, favorites: [], visible: [{ target: health, expanded: false }],
+    };
+    const idle = { generation, favorites: [], visible: [] };
+    const poll = () => service.poll(visibleHealth, stores).changes;
+    expect(poll()).toEqual([]);
+
+    (stores.story.player as Record<string, unknown>).mana = 5;
+    const added = poll();
+    expect(added).toEqual([{
+      op: "set", scope: "story", path: [...player.path, { type: "property", key: "mana" }],
+      value: 5,
+    }]);
+    let displayed = applyWatchPatches(snapshot.variables, added);
+    expect(service.poll(idle, stores).changes).toEqual([]);
+
+    delete (stores.story.player as Record<string, unknown>).mana;
+    const removed = poll();
+    expect(removed).toEqual([{
+      op: "delete", scope: "story", path: [...player.path, { type: "property", key: "mana" }],
+    }]);
+    displayed = applyWatchPatches(displayed, removed);
+    expect((displayed.story as { player: unknown }).player).toEqual({ health: 10 });
+  });
+
+  it("updates synchronized aliases immutably and detects a sibling when watched later", () => {
+    const shared = { health: 10 };
+    const stores = { story: { left: shared, right: shared }, temporary: {} };
+    const left: WatchTarget = {
+      scope: "story", path: [{ type: "property", key: "left" }],
+    };
+    const right: WatchTarget = {
+      scope: "story", path: [{ type: "property", key: "right" }],
+    };
+    const { service, generation, snapshot } = setup(stores.story);
+    shared.health = 20;
+    const first = service.poll(request(generation, [left]), stores).changes;
+    expect(first).toEqual([{ op: "set", scope: "story", path: left.path, value: { health: 20 } }]);
+    const displayed = applyWatchPatches(snapshot.variables, first);
+    expect((displayed.story as { left: { health: number } }).left.health).toBe(20);
+    expect((displayed.story as { right: { health: number } }).right.health).toBe(10);
+
+    const second = service.poll(request(generation, [right]), stores).changes;
+    expect(second).toEqual([{ op: "set", scope: "story", path: right.path, value: { health: 20 } }]);
+    expect(service.poll(request(generation, [right]), stores).changes).toEqual([]);
   });
 
   it("does not advance any watch baseline when cloning a changed path fails", () => {

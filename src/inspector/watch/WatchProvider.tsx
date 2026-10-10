@@ -27,7 +27,6 @@ interface WatchContextValue {
   watchedTargets: readonly WatchTarget[];
   toggleFavorite: (target: WatchTarget, favorite: boolean) => void;
   setVisible: (target: WatchTarget, visible: boolean, expanded?: boolean) => void;
-  setExpanded: (target: WatchTarget, expanded: boolean) => void;
 }
 
 const WatchContext = createContext<WatchContextValue | null>(null);
@@ -71,14 +70,6 @@ export function WatchProvider({
     const old = visibleRef.current.get(key);
     visibleRef.current.set(key, { target, expanded });
     if (expanded && !old?.expanded) wakeRef.current?.();
-  }, []);
-
-  const setExpanded = useCallback((target: WatchTarget, expanded: boolean) => {
-    const key = watchKey(target);
-    const current = visibleRef.current.get(key);
-    if (!current || current.expanded === expanded) return;
-    visibleRef.current.set(key, { target, expanded });
-    if (expanded) wakeRef.current?.();
   }, []);
 
   // Explicit desired state is idempotent, even with repeated requests.
@@ -184,8 +175,7 @@ export function WatchProvider({
     watchedTargets: [...favorites.values()],
     toggleFavorite,
     setVisible,
-    setExpanded,
-  }), [currentVariables, favorites, setVisible, setExpanded, toggleFavorite]);
+  }), [currentVariables, favorites, setVisible, toggleFavorite]);
 
   return <WatchContext value={value}>{children}</WatchContext>;
 }

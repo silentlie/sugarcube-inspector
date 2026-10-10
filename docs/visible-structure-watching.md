@@ -5,9 +5,10 @@
 ## Two lists
 
 - **Favorites** contain explicit watch targets, independent of visibility.
-- **Visible** contains the paths currently represented by visible rows with
-  an `expanded` flag. The selected scope registers its empty-path root
-  only if it contains no child rows.
+- **Visible** contains visible scalar/opaque leaves and expanded containers.
+  Collapsed containers are omitted unless independently favorited. Entries
+  carry an `expanded` flag, and the active scope registers an empty-path root
+  only if the scope has no child rows.
 
 The visible map lives in a ref because IntersectionObserver changes do not
 need to rerender the UI. Favorites live in React state so the star buttons
@@ -15,13 +16,14 @@ and missing-favorite placeholders update.
 
 ## Poll rules
 
-1. Watch favorite paths using the existing deep-equality and clone-on-change
-   cache, even when they are not visible.
+1. Watch favorite paths using deep equality and clone-on-change,
+   even when they are not visible.
 2. Watch visible scalar/opaque leaf values.
 3. For a visible, **expanded** container, compare the whole container and
    clone it only when changed. Minimize overlapping value watch targets.
-4. A visible **collapsed** container has no content watch unless favorited.
-   Its preview can therefore remain stale while collapsed.
+4. A **collapsed** container has no visible-watch registration at all.
+   Favorites remain active independently. Its preview can remain stale while
+   collapsed.
 5. Check immediate child structures of visible rows' parents. A visible
    top-level row therefore implicitly watches the root structure. Register
    the active scope root explicitly only while it has no child rows, so
@@ -42,21 +44,30 @@ users to explicitly inspect them and trigger immediate refresh.
 
 ## Cache consistency
 
-The full snapshot is a read-only baseline. The service maintains separate
-per-target value overrides and observed child structure; both are cleared
-on a new full snapshot. Patch changes are staged and committed atomically
-so a clone failure cannot advance one cache without the other. Parent
-replacement patches supersede their descendant changes.
+MAIN maintains one synchronized variable snapshot, initialized by a full
+snapshot and updated immutably using the exact patches returned to the
+inspector. Watch registrations determine what to compare, not what cached
+knowledge to retain. Both value comparisons and immediate-child structural
+comparisons use that latest synchronized state, including all prior patches.
+No separate per-target value or structure caches are maintained.
+
+Patch changes are staged before committing, so clone failures cannot partly
+advance MAIN's synchronized state. Parent replacement patches supersede
+descendant changes. When a fresh full snapshot is captured, MAIN replaces its
+synchronized state and increments the generation; the inspector similarly
+switches to the new snapshot. A lost reply or generation mismatch triggers a
+full resync instead of silently diverging.
 
 The RPC response retains MAIN-world processing duration for diagnostics
 but displays no performance warnings.
 
 ## Trade-offs
 
-Collapsed containers are intentionally not kept fully synchronized. The
-current UI can show stale child counts and types until expansion or a full
-snapshot refresh. Parents of visible rows still receive shallow structure
-checks, so new siblings can appear while the parent itself is offscreen.
+Collapsed containers intentionally leave the visible watch list. Their
+current UI previews can remain stale until expansion or a full snapshot.
+Any already synchronized values remain in the evolving snapshot during this
+pause. Parents of active visible rows still receive shallow structure checks,
+so new siblings can appear even when their parent tile is offscreen.
 Ordinary array positions are tracked by path; Map/Set positional entries
 are unstable, so the containing collection is the replacement unit.
 

@@ -32,31 +32,39 @@ export default function VariableNode({
   const expandable = !circular && isExpandable(value);
   const expanded = expandable && expandedPaths.has(id);
   const expandedRef = useRef(expanded);
+  const expandableRef = useRef(expandable);
+  const intersectsRef = useRef(false);
+  const setVisible = watch.setVisible;
 
-  const setExpanded = watch.setExpanded;
+  // Collapsed containers are not active watches. A visible primitive or an
+  // expanded visible container is; favorites are registered separately.
   useEffect(() => {
     expandedRef.current = expanded;
-    setExpanded(target, expanded);
-  }, [target, expanded, setExpanded]);
+    expandableRef.current = expandable;
+    if (intersectsRef.current) setVisible(target, !expandable || expanded, expanded);
+  }, [target, expandable, expanded, setVisible]);
 
-  const setVisible = watch.setVisible;
   useEffect(() => {
     const element = rowRef.current;
     if (!element) return;
 
-    const watched = target;
+    const observe = (isIntersecting: boolean) => {
+      intersectsRef.current = isIntersecting;
+      setVisible(target, isIntersecting && (!expandableRef.current ||
+        expandedRef.current), expandedRef.current);
+    };
     if (typeof IntersectionObserver === "undefined") {
-      setVisible(watched, true, expandedRef.current);
-      return () => setVisible(watched, false);
+      observe(true);
+      return () => observe(false);
     }
 
     const observer = new IntersectionObserver(([entry]) => {
-      setVisible(watched, entry?.isIntersecting ?? false, expandedRef.current);
+      observe(entry?.isIntersecting ?? false);
     });
     observer.observe(element);
     return () => {
       observer.disconnect();
-      setVisible(watched, false);
+      observe(false);
     };
   }, [target, setVisible]);
 
@@ -75,9 +83,10 @@ export default function VariableNode({
           expandable={expandable}
           expanded={expanded}
           onToggle={() => {
-            // A clicked row is visible even if IntersectionObserver has not
-            // delivered its first notification yet.
-            if (!expanded) setVisible(target, true, true);
+            // A click proves visibility even before IntersectionObserver
+            // reports it. Expansion starts watching and polls immediately.
+            intersectsRef.current = true;
+            setVisible(target, !expanded, !expanded);
             onToggle(id);
           }}
           favorite={watch.favorites.has(id)}

@@ -1,6 +1,7 @@
 import { circularDeepEqual, deepEqual } from "fast-equals";
 import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, WatchTarget, VisibleWatch } from "./watch";
 import { minimizeWatchTargets, watchKey } from "./watch";
+import { applyWatchPatches } from "./applyWatchPatches";
 import type { SugarCubeSnapshot } from "./types";
 
 interface Entry {
@@ -157,28 +158,25 @@ function ancestorOrSelf(parent: WatchPatch, child: WatchPatch): boolean {
 }
 
 /**
- * MAIN-world watch state: a read-only full-snapshot baseline plus independent
- * overrides for watched paths changed since that snapshot.
+ * MAIN holds one immutable-by-update representation of what the inspector
+ * last received. Watch registration affects polling, never cache lifetime.
  */
 export class WatchService {
-  private snapshot: SugarCubeSnapshot | null = null;
+  private synchronized: Stores | null = null;
   private generation = 0;
-  private watchCache = new Map<string, Entry>();
-  private structureCache = new Map<string, Structure | null>();
   private circularPaths = new Set<string>();
 
   capture(snapshot: SugarCubeSnapshot): number {
-    this.snapshot = snapshot;
+    this.synchronized = snapshot.variables;
     this.generation++;
-    this.watchCache.clear();
-    this.structureCache.clear();
     this.circularPaths.clear();
     return this.generation;
   }
 
   poll(request: WatchRequest, stores: Stores): WatchResponse {
     const started = performance.now();
-    if (!this.snapshot || request.generation !== this.generation) {
+    const baseline = this.synchronized;
+    if (!baseline || request.generation !== this.generation) {
       return {
         generation: this.generation,
         changes: [],
@@ -188,16 +186,13 @@ export class WatchService {
 
     const structs = structureTargets(request.visible);
     const structuralChanges: WatchPatch[] = [];
-    const structureNext = new Map<string, Structure | null>();
 
-    // Stage structural patches without cloning unchanged child values.
+    // Compare against the last synchronized state, including earlier patches.
     for (const target of structs) {
       const key = watchKey(target);
-      const oldEntry = resolve(this.snapshot.variables, target);
+      const oldEntry = resolve(baseline, target);
       const liveEntry = resolve(stores, target);
-      const previous = this.structureCache.has(key)
-        ? this.structureCache.get(key)!
-        : structureOf(oldEntry.exists ? oldEntry.value : undefined);
+      const previous = structureOf(oldEntry.exists ? oldEntry.value : undefined);
       const current = structureOf(liveEntry.exists ? liveEntry.value : undefined);
       if (!previous && !current) continue;
       const path = target.path;
@@ -209,7 +204,6 @@ export class WatchService {
       if (!previous || !current || previous.kind !== current.kind) {
         if (liveEntry.exists) add(liveEntry.value);
         else structuralChanges.push({ op: "delete", scope: target.scope, path });
-        structureNext.set(key, current);
         continue;
       }
       if (current.kind === "map" || current.kind === "set") {
@@ -218,21 +212,18 @@ export class WatchService {
         if (oldKeys.length !== newKeys.length ||
             oldKeys.some((old, i) => !sameValue(old, newKeys[i], key, this.circularPaths))) {
           add(liveEntry.value);
-          structureNext.set(key, current);
         }
         continue;
       }
       const before = new Set(previous.keys as string[]);
       const after = new Set(current.keys as string[]);
       const isArray = current.kind === "array";
-      let changed = false;
       for (const childKey of before) {
         if (!after.has(childKey)) {
           structuralChanges.push({
             op: "delete", scope: target.scope,
             path: [...path, segmentForKey(childKey, isArray)],
           });
-          changed = true;
         }
       }
       for (const childKey of after) {
@@ -244,7 +235,6 @@ export class WatchService {
             op: "set", scope: target.scope, path: childPath,
             value: structuredClone(added.value),
           });
-          changed = true;
         }
       }
       if (current.kind === "array" && previous.kind === "array" &&
@@ -254,9 +244,8 @@ export class WatchService {
           path: [...path, { type: "property", key: "length" }],
           value: current.length,
         });
-        changed = true;
       }
-      if (changed) structureNext.set(key, current);
+      // A future poll reads the resulting structure from synchronized state.
     }
 
     // Expanded visible containers are deep-watched as a whole, while
@@ -265,21 +254,17 @@ export class WatchService {
     const valueVisible = request.visible.filter(({ target, expanded }) => {
       if (target.path.length === 0) return false;
       if (expanded) return true;
-      const key = watchKey(target);
-      const previous = this.watchCache.get(key) ??
-        resolve(this.snapshot!.variables, target);
+      const previous = resolve(baseline, target);
       const current = resolve(stores, target);
       return !structureOf(previous.value) || !structureOf(current.value);
     }).map(({ target }) => target);
     const targets = minimizeWatchTargets([...request.favorites, ...valueVisible]);
-    const active = new Set(targets.map(watchKey));
-    const next = new Map<string, Entry>();
     const valueChanges: WatchPatch[] = [];
 
-    // Stage all changes first: a clone failure cannot partially advance either cache.
+    // Stage all patches before advancing the synchronized snapshot.
     for (const target of targets) {
       const key = watchKey(target);
-      const previous = this.watchCache.get(key) ?? resolve(this.snapshot.variables, target);
+      const previous = resolve(baseline, target);
       const current = resolve(stores, target);
       if (sameEntry(previous, current, key, this.circularPaths)) continue;
 
@@ -291,16 +276,6 @@ export class WatchService {
         const patchPath = restorePrevious ? previous.missingPath! : current.missingPath ?? target.path;
         const parent = resolve(stores, { scope: target.scope, path: patchPath });
         const copy = parent.exists ? structuredClone(parent.value) : undefined;
-        next.set(key, {
-          exists: false,
-          missingPath: current.missingPath,
-          blockedExists: current.blockedExists,
-          blocked: current.blockedExists
-            ? (restorePrevious || !parent.exists
-                ? structuredClone(current.blocked)
-                : copy)
-            : undefined,
-        });
         valueChanges.push(parent.exists
           ? { op: "set", scope: target.scope, path: patchPath, value: copy }
           : { op: "delete", scope: target.scope, path: patchPath });
@@ -316,24 +291,10 @@ export class WatchService {
       const restored = resolve(stores, { scope: target.scope, path: restorePath });
       if (!restored.exists) throw new Error("Watch path disappeared during polling.");
       const cloned = structuredClone(restored.value);
-      const watched = resolveValue(cloned, target.path.slice(restorePath.length));
-      if (!watched.exists) throw new Error("Cloned watch path is missing.");
-
-      next.set(key, { exists: true, value: watched.value });
+      if (!resolveValue(cloned, target.path.slice(restorePath.length)).exists) {
+        throw new Error("Cloned watch path is missing.");
+      }
       valueChanges.push({ op: "set", scope: target.scope, path: restorePath, value: cloned });
-    }
-
-    const structuralActive = new Set(structs.map(watchKey));
-    for (const key of this.structureCache.keys()) {
-      if (!structuralActive.has(key)) this.structureCache.delete(key);
-    }
-    for (const [key, entry] of structureNext) this.structureCache.set(key, entry);
-    for (const key of this.watchCache.keys()) {
-      if (!active.has(key)) this.watchCache.delete(key);
-    }
-    for (const [key, entry] of next) this.watchCache.set(key, entry);
-    for (const key of this.circularPaths) {
-      if (!active.has(key) && !structuralActive.has(key)) this.circularPaths.delete(key);
     }
 
     // A whole-parent patch supersedes descendant patches. Both lists can
@@ -345,6 +306,11 @@ export class WatchService {
         (other.path.length < patch.path.length || otherIndex < index),
       ),
     );
+
+    // Apply exactly the same patches sent to the inspector. This creates
+    // new ancestors along changed paths, preserving independent aliases.
+    // Keep the prior synchronized state intact if comparison or cloning fails.
+    if (changes.length) this.synchronized = applyWatchPatches(baseline, changes);
 
     return {
       generation: this.generation,

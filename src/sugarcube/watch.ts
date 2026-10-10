@@ -18,7 +18,7 @@ export type WatchPatch =
 
 export interface VisibleWatch {
   target: WatchTarget;
-  /** Expanded containers receive full value watches; collapsed ones do not. */
+  /** Containers enter the visible list only while expanded. */
   expanded: boolean;
 }
 

@@ -59,23 +59,24 @@ automatically; use **Refresh** to capture changes made without passage
 navigation. If a snapshot request fails, the drawer shows the error and a
 **Retry** button.
 
-Visible variables are watched between passage events, with separate lists for
-favorites and visible rows. Watches poll every 250 ms and pause while the page
-is hidden. Visible scalar values and expanded visible containers are compared
-for changes; the entire expanded container is cloned only when its value
-changes. Collapsed containers are not deep-watched unless favorited, so their
-preview may be stale until expanded. Expanding a visible container triggers an
-immediate poll. Empty objects, arrays, Maps, and Sets can be expanded.
+Variable watches use separate favorite and visible lists. The visible list
+contains scalar/opaque leaves and expanded containers only; collapsed
+containers are absent unless explicitly favorited. Watches poll every 250 ms
+and pause while the page is hidden. Expanded visible containers are compared
+as a whole and cloned only when changed. Expanding a visible container
+triggers an immediate poll. Empty objects, arrays, Maps, and Sets can expand.
 
 The active scope root is structurally watched through visible top-level rows,
 or registered directly when it has no children. A nonempty root with no visible
 top-level rows is not watched. Immediate child structures of visible rows'
 parents are checked to discover additions and removals without cloning
 unchanged child values.
-Favorites remain value-watched when hidden; only missing favorites retain
-read-only placeholders. MAIN keeps an immutable full-snapshot baseline with
-independent per-path watch overrides, and full snapshots reset both value
-and structure caches. See [visible structure watching](docs/visible-structure-watching.md).
+Favorites remain value-watched when hidden; missing favorites retain read-only
+placeholders. MAIN maintains a single evolving synchronized snapshot of what
+the inspector knows. After each poll, the same patches are applied immutably
+in MAIN and in the inspector. Unwatching does not discard past changes.
+Only a fresh full snapshot replaces the synchronized baseline.
+See [visible structure watching](docs/visible-structure-watching.md).
 Watch-performance notifications are deferred pending a redesign; see
 [deferred watch-performance notifications](docs/deferred-watch-performance-notices.md).
 Favorites currently last for the lifetime of the inspector.

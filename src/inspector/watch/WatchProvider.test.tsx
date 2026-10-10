@@ -187,6 +187,51 @@ it("polls empty story roots even when no variable tiles exist", async () => {
   });
 });
 
+it("omits collapsed containers from visible watches unless favorited", async () => {
+  const requested: Array<{
+    favorites: unknown[];
+    visible: Array<{ target: unknown; expanded: boolean }>;
+  }> = [];
+  rpc.sendMessage.mockImplementation(async (_type, data) => {
+    const request = data as {
+      generation: number;
+      favorites: unknown[];
+      visible: Array<{ target: unknown; expanded: boolean }>;
+    };
+    requested.push({ favorites: request.favorites, visible: request.visible });
+    return { generation: request.generation, changes: [], mainDurationMs: 1 };
+  });
+
+  render(<WatchProvider snapshot={snapshot()}><Variables /></WatchProvider>);
+  const inventory = {
+    scope: "story",
+    path: [{ type: "property", key: "inventory" }],
+  };
+
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(requested[0]!.visible).not.toContainEqual({ target: inventory, expanded: false });
+  expect(requested[0]!.favorites).toEqual([]);
+
+  fireEvent.click(screen.getByRole("button", { name: "Expand inventory" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(requested[1]!.visible).toContainEqual({ target: inventory, expanded: true });
+
+  fireEvent.click(screen.getByRole("button", { name: "Collapse inventory" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(requested[2]!.visible).not.toContainEqual({ target: inventory, expanded: false });
+  expect(requested[2]!.visible).not.toContainEqual({ target: inventory, expanded: true });
+
+  fireEvent.click(screen.getByRole("button", { name: "Favorite inventory" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(requested[3]!.visible).not.toContainEqual({ target: inventory, expanded: false });
+  expect(requested[3]!.favorites).toContainEqual(inventory);
+
+  fireEvent.click(screen.getByRole("button", { name: "Unfavorite inventory" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(requested[4]!.favorites).not.toContainEqual(inventory);
+  expect(requested[4]!.visible).not.toContainEqual({ target: inventory, expanded: false });
+});
+
 it("polls immediately after expanding a visible container", async () => {
   const requests: Array<{ visible: Array<{ target: unknown; expanded: boolean }> }> = [];
   rpc.sendMessage.mockImplementation(async (_type, data) => {
