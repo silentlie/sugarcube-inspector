@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import VariableTree from "./variable-tree/VariableTree";
 import { useWatch } from "./watch/WatchProvider";
-import { watchPathExists, type WatchTarget } from "../sugarcube/watch";
+import { isPrimitiveValue, watchPathExists, type WatchTarget } from "../sugarcube/watch";
 import { useAnyVariableVersion, useVariableVersion } from "./watch/VariableStore";
 
 type Tab = "story" | "temporary";
@@ -12,15 +12,16 @@ export default function Variables() {
   const variables = watch.variables;
   useVariableVersion(watch.store, { scope: activeTab, path: [] });
   const setVisible = watch.setVisible;
-  // Top-level visible rows already cause the root structure to be watched
-  // through their parent. Register the root directly only when it has no rows.
-  const rootIsEmpty = Object.keys(variables[activeTab]).length === 0;
+  // Visible top-level leaves implicitly register their parent's structure.
+  // Also register the root when it has no immediate primitive properties,
+  // including when it contains only collapsed objects/arrays.
+  const rootHasNoPrimitives = !Object.values(variables[activeTab]).some(isPrimitiveValue);
   useEffect(() => {
-    if (!rootIsEmpty) return;
+    if (!rootHasNoPrimitives) return;
     const root: WatchTarget = { scope: activeTab, path: [] };
     setVisible(root, true);
     return () => setVisible(root, false);
-  }, [activeTab, rootIsEmpty, setVisible]);
+  }, [activeTab, rootHasNoPrimitives, setVisible]);
 
   const id = useId();
 
