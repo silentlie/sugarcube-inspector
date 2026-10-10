@@ -29,7 +29,9 @@ npm run bench:watch:variants -- worker.json
 npm run bench:watch:chromium -- chromium.json
 ```
 
-Benchmark-only packages are not production dependencies. The Chromium runner
+The extra benchmark comparator and bundler packages are not part of the
+production watch logic; `fast-equals` itself **is** a production dependency.
+The Chromium runner
 bundles the real `@webext-core/messaging/page` library into synthetic MAIN
 and isolated execution worlds on `about:blank`. It excludes CDP control
 latency and uses synthetic SugarCube-style state, **not a live story**.
