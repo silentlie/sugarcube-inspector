@@ -42,10 +42,6 @@ implied by visible child rows are deduplicated with the explicit root check.
 Polling pauses while the page is hidden. See
 [visible structure watching](../docs/visible-structure-watching.md).
 
-The production comparator uses `fast-equals`. The custom comparator and
-polling-variant tests cover benchmark-only implementations; passing them does
-not mean those experimental strategies run in production.
-
 
 ## Browser smoke tests
 
