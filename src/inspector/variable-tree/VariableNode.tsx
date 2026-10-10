@@ -2,9 +2,10 @@ import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 import { memo, useEffect, useRef, useState } from "react";
 import VariableTile from "./VariableTile";
 import type { PathSegment, VariableAncestor, VariableScope } from "./types";
-import { formatVariablePath, getChildren, isExpandable } from "./valueUtils";
+import { getChildren, isExpandable } from "./valueChildren";
+import { formatVariablePath } from "./formatVariablePath";
 import { useWatch } from "../watch/WatchProvider";
-import { useVariableVersion } from "../watch/VariableStore";
+import { useVariableVersion } from "../watch/useVariableVersion";
 import { pathToKey } from "../../sugarcube/variables/path";
 import type { VariablePath } from "../../sugarcube/watch/types";
 

@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight, Star } from "lucide-react";
 import ValuePreview from "./ValuePreview";
-import { getValueType } from "./valueUtils";
+import { getValueType } from "./valueTypes";
 
 interface VariableTileProps {
   name: string;

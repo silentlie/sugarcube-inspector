@@ -3,9 +3,9 @@ import { useCallback, useRef, useState } from "react";
 import VariableNode from "./VariableNode";
 import type { PathSegment, VariableAncestor, VariableScope } from "./types";
 import { pathToKey } from "../../sugarcube/variables/path";
-import { getChildren } from "./valueUtils";
+import { getChildren } from "./valueChildren";
 import { useWatch } from "../watch/WatchProvider";
-import { useVariableVersion } from "../watch/VariableStore";
+import { useVariableVersion } from "../watch/useVariableVersion";
 
 interface VariableTreeProps {
   scope: VariableScope;

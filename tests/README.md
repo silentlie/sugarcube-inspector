@@ -21,11 +21,11 @@ named properties, type labels, special numeric values, and preview tooltips.
 
 ## Live watch coverage
 
-- `src/sugarcube/watchService.test.ts`: incremental value patches, structural
+- `src/sugarcube/watch/WatchService.test.ts`: incremental value patches, structural
   discovery, nested additions/removals, generation mismatches, missing-path
   restoration, watched aliases and circular values, array lengths, and Map/Set
   handling.
-- `src/sugarcube/applyWatchPatches.test.ts`: in-place mutation, sparse arrays,
+- `src/sugarcube/variables/applyWatchPatches.test.ts`: in-place mutation, sparse arrays,
   special property names, and explicit nonconfigurable-property failures.
 - `src/inspector/watch/VariableStore.test.ts`: path-version notifications
   and updates to shared aliases without unnecessary root/sibling notifications.

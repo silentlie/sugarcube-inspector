@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useEffect } from "react";
 import { createSnapshotFixture } from "../../../tests/fixtures";
 import { WatchProvider, useWatch } from "./WatchProvider";
-import { useVariableVersion } from "./VariableStore";
+import { useVariableVersion } from "./useVariableVersion";
 import Variables from "../Variables";
 import type { VariablePath } from "../../sugarcube/watch/types";
 

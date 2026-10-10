@@ -204,11 +204,12 @@ or generation mismatch.
 | `entrypoints/sugarcube.content.ts` | MAIN-world bridge: snapshots, watch polling, and passage-change messages. |
 | `entrypoints/background.ts` | Open the extension side panel from the toolbar. |
 | `entrypoints/sidepanel/` | Detect the active local story and display metadata. |
-| `src/inspector/variable-tree/` | Render variable nodes, expand/collapse, favorites, and circular navigation. |
-| `src/inspector/watch/` | Poll scheduling, visibility/favorites, mutable store, and path subscriptions. |
-| `src/sugarcube/watchService.ts` | Compare live values and structures to MAIN's synchronized baseline. |
-| `src/sugarcube/applyWatchPatches.ts` | Shared in-place patch application in MAIN and inspector. |
-| `src/sugarcube/watch.ts` | Watch targets, paths, patches, and ancestor pruning. |
+| `src/sidepanel/` | Read SugarCube metadata from the active tab; side-panel entrypoint owns display. |
+| `src/inspector/variable-tree/` | Variable tree, value formatting, expansion, and missing favorites. |
+| `src/inspector/watch/` | Watch registration, polling lifecycle, mutable UI store, and React subscriptions. |
+| `src/sugarcube/watch/` | Watch coordinator, contracts, path discovery, structural comparison, and equality. |
+| `src/sugarcube/variables/` | Live variable access, collection identity tracking, synchronized snapshot, and patch/path operations. |
+| `src/sugarcube/rpc.ts` | Typed communication contract between page bridge and inspector. |
 | `src/sugarcube/types.ts` | Snapshot validation schema. |
 | `tests/` and colocated `*.test.ts(x)` | Browser, bridge, startup, watch, and component tests. |
 | `docs/` | Watch architecture and deferred feature designs. |
