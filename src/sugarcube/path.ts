@@ -65,7 +65,7 @@ export function resolvePath(root: unknown, path: readonly PathSegment[]): PathRe
 }
 
 /** A stable, serializable key for the tagged path segments. */
-export function pathKey(path: readonly PathSegment[]): string {
+export function pathToKey(path: readonly PathSegment[]): string {
   return JSON.stringify(path);
 }
 
