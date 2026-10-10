@@ -80,7 +80,6 @@ export class VariableStore {
       const target: WatchTarget = { scope: patch.scope, path: patch.path };
       const parent: WatchTarget = { scope: patch.scope, path: patch.path.slice(0, -1) };
       const parentValue = this.getValue(parent);
-      const prior = this.getValue(target);
       const lastPart = patch.path.at(-1);
       const hadKey = lastPart && (lastPart.type === "property" || lastPart.type === "index")
         && parentValue != null && typeof parentValue === "object"
@@ -107,9 +106,11 @@ export class VariableStore {
         // Only traverse registered paths, never the whole SugarCube graph.
         let value: unknown = this.variables[watched.scope];
         for (let i = 0; i <= watched.path.length; i++) {
-          if (i > 0 && typeof value === "object" && value !== null &&
-              ((patch.path.length > 0 && parent.path.length > 0 && value === parentValue) ||
-               (typeof prior === "object" && prior !== null && value === prior))) {
+          // Whole-value replacement only changes the patched path. Notify
+          // aliases when a nested patch actually mutates their shared parent.
+          if (i > 0 && parent.path.length > 0 &&
+              typeof parentValue === "object" && parentValue !== null &&
+              value === parentValue) {
             changed.add(key);
             break;
           }

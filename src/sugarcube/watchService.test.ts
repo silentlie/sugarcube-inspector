@@ -241,7 +241,7 @@ describe("synchronized snapshot watch service", () => {
     expect((displayed.story as { player: unknown }).player).toEqual({ health: 10 });
   });
 
-  it("updates synchronized aliases in place without redundant sibling patches", () => {
+  it("keeps aliased paths independently stale until each one is polled", () => {
     const shared = { health: 10 };
     const stores = { story: { left: shared, right: shared }, temporary: {} };
     const left: WatchTarget = {
@@ -255,13 +255,31 @@ describe("synchronized snapshot watch service", () => {
     const first = service.poll(request(generation, [left]), stores).changes;
     expect(first).toEqual([{ op: "set", scope: "story", path: left.path, value: { health: 20 } }]);
     const displayed = applyWatchPatches(snapshot.variables, first);
-    expect((displayed.story as { left: { health: number } }).left.health).toBe(20);
-    expect((displayed.story as { right: { health: number } }).right.health).toBe(20);
-    expect((displayed.story as { left: unknown }).left).toBe((displayed.story as { right: unknown }).right);
+    const copied = displayed.story as { left: { health: number }; right: { health: number } };
+    expect(copied.left.health).toBe(20);
+    expect(copied.right.health).toBe(10);
+    expect(copied.left).not.toBe(copied.right);
 
     const second = service.poll(request(generation, [right]), stores).changes;
-    expect(second).toEqual([]);
+    expect(second).toEqual([{ op: "set", scope: "story", path: right.path, value: { health: 20 } }]);
+    applyWatchPatches(displayed, second);
+    expect(copied.right.health).toBe(20);
     expect(service.poll(request(generation, [right]), stores).changes).toEqual([]);
+  });
+
+  it("does not mutate another alias when a watched path is reassigned", () => {
+    const shared = { health: 10 };
+    const stores = { story: { left: shared, right: shared }, temporary: {} };
+    const { service, generation, snapshot } = setup(stores.story);
+    const left: WatchTarget = { scope: "story", path: [{ type: "property", key: "left" }] };
+    stores.story.left = { health: 90 };
+    const changed = service.poll(request(generation, [left]), stores).changes;
+    expect(changed).toEqual([{ op: "set", scope: "story", path: left.path, value: { health: 90 } }]);
+    const displayed = applyWatchPatches(snapshot.variables, changed);
+    const copied = displayed.story as { left: { health: number }; right: { health: number } };
+    expect(copied.left.health).toBe(90);
+    expect(copied.right.health).toBe(10);
+    expect(copied.left).not.toBe(copied.right);
   });
 
   it("does not advance any watch baseline when cloning a changed path fails", () => {

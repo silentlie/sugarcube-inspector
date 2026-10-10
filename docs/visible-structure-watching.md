@@ -42,24 +42,25 @@ and missing-favorite placeholders update.
 Empty objects, arrays, Maps and Sets remain expandable in the UI, allowing
 users to explicitly inspect them and trigger immediate refresh.
 
-## Circular references and immutable patching
+## Circular references and path replacement
 
 The tree renders circular references as links to the corresponding ancestor
 row, including the scope root. Activating a link scrolls to and focuses its
 target rather than recursively rendering the same object. Whole-container
 updates use structured cloning to preserve object cycles.
 
-The shared immutable patch applicator shallow-copies ordinary objects and
-arrays with own property descriptors. This preserves sparse-array holes, custom
-array properties, symbol properties, and nonenumerable metadata; unlike
-`Object.assign`, it safely copies own `__proto__` properties without altering
-the prototype. It preserves untouched property flags and refuses operations
-on nonconfigurable properties that cannot be represented as a valid patch.
+The shared mutable patch applicator modifies the existing path's parent and
+replaces whole watched values with their incoming clones. It does not reconcile
+objects recursively or preserve aliases to the replaced value. Unchanged parent
+containers keep their identities, along with sparse-array holes, custom and
+symbol properties, and nonenumerable metadata. Own `__proto__` keys are written
+as data properties without altering prototypes; invalid nonconfigurable
+property deletions fail explicitly.
 
 ## Cache consistency
 
 MAIN maintains one synchronized variable snapshot, initialized by a full
-snapshot and updated immutably using the exact patches returned to the
+snapshot and updated in place using the exact patches returned to the
 inspector. Watch registrations determine what to compare, not what cached
 knowledge to retain. Both value comparisons and immediate-child structural
 comparisons use that latest synchronized state, including all prior patches.
@@ -76,6 +77,14 @@ The RPC response retains MAIN-world processing duration for diagnostics
 but displays no performance warnings.
 
 ## Trade-offs
+
+Synchronization guarantees value updates for actively watched paths, not
+preservation of JavaScript object identity across paths. Two synchronized
+paths that originally alias the same object may diverge when only one is
+watched; each catches up when watched again. Clones preserve cycles within
+the cloned value, but aliases outside that value need not be retained.
+Replacing an object with a different object of deeply equal contents is not
+observable through deep comparison, which is acceptable for value inspection.
 
 Collapsed containers intentionally leave the visible watch list. Their
 current UI previews can remain stale until expansion or a full snapshot.

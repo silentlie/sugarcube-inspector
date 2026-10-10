@@ -38,6 +38,26 @@ describe("path subscriptions", () => {
     expect(sibling).toHaveBeenCalledTimes(1);
   });
 
+  it("does not notify an unchanged alias when another path replaces its object", () => {
+    const shared = { hp: 10 };
+    const store = new VariableStore({
+      story: { left: shared, right: shared }, temporary: {},
+    });
+    const left = vi.fn();
+    const right = vi.fn();
+    store.subscribe(target("left", "hp"), left);
+    store.subscribe(target("right", "hp"), right);
+
+    store.apply([{ op: "set", scope: "story", path: target("left").path, value: { hp: 30 } }]);
+
+    const story = store.variables.story as { left: { hp: number }; right: { hp: number } };
+    expect(story.left.hp).toBe(30);
+    expect(story.right.hp).toBe(10);
+    expect(story.left).not.toBe(story.right);
+    expect(left).toHaveBeenCalledTimes(1);
+    expect(right).not.toHaveBeenCalled();
+  });
+
   it("notifies container structure on array-length and child-membership changes", () => {
     const store = new VariableStore({
       story: { inventory: ["map"] }, temporary: {},
@@ -56,7 +76,7 @@ describe("path subscriptions", () => {
     expect(root).toHaveBeenCalledTimes(1);
   });
 
-  it("notifies descendants when an ancestor container is replaced or reconciled", () => {
+  it("notifies descendants when an ancestor container is replaced", () => {
     const store = new VariableStore({
       story: { player: { hp: 10 } }, temporary: {},
     });

@@ -75,8 +75,11 @@ parents are checked to discover additions and removals without cloning
 unchanged child values.
 Favorites remain value-watched when hidden; missing favorites retain read-only
 placeholders. MAIN maintains a single evolving synchronized snapshot of what
-the inspector knows. After each poll, the same patches are applied immutably
-in MAIN and in the inspector. Unwatching does not discard past changes.
+the inspector knows. After each poll, the same patches are applied in place to the MAIN and
+inspector snapshots, replacing changed values at their paths. Unwatching does
+not discard past changes. Aliases may diverge because independent watched
+paths need not preserve JavaScript object identity; stale values update when
+watched again or after a full snapshot.
 Only a fresh full snapshot replaces the synchronized baseline.
 See [visible structure watching](docs/visible-structure-watching.md).
 Watch-performance notifications are deferred pending a redesign; see

@@ -130,26 +130,51 @@ describe("in-place watch patches", () => {
     expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
   });
 
-  it("mutates aliases and cycles without replacing their identities", () => {
+  it("replaces a whole watched object, breaking old aliases but retaining cloned cycles", () => {
     const player: Record<string, unknown> = { health: 10 };
     player.self = player;
     const initial = snapshot({ player, alias: player });
-    const returned = applyWatchPatches(initial, [
-      change([prop("player"), prop("health")], 20),
-    ]);
-    expect(returned).toBe(initial);
-    expect((initial.story as Record<string, unknown>).player).toBe(player);
-    expect((initial.story as Record<string, unknown>).alias).toBe(player);
-    expect(player.self).toBe(player);
-    expect(player.health).toBe(20);
 
-    const newCycle: Record<string, unknown> = { health: 30, mp: 5 };
-    newCycle.self = newCycle;
-    applyWatchPatches(initial, [change([prop("player")], structuredClone(newCycle))]);
-    expect((initial.story as Record<string, unknown>).player).toBe(player);
+    // A nested property patch still updates its existing parent in place.
+    expect(applyWatchPatches(initial, [
+      change([prop("player"), prop("health")], 20),
+    ])).toBe(initial);
+    expect(player.health).toBe(20);
     expect((initial.story as Record<string, unknown>).alias).toBe(player);
+
+    const replacement: Record<string, unknown> = { health: 30, mp: 5 };
+    replacement.self = replacement;
+    const cloned = structuredClone(replacement);
+    applyWatchPatches(initial, [change([prop("player")], cloned)]);
+
+    const story = initial.story as Record<string, unknown>;
+    expect(story.player).toBe(cloned);
+    expect(story.player).not.toBe(player);
+    expect(story.alias).toBe(player);
+    expect(player.health).toBe(20);
+    expect((story.player as Record<string, unknown>).self).toBe(story.player);
     expect(player.self).toBe(player);
-    expect(player).toMatchObject({ health: 30, mp: 5 });
+  });
+
+  it("replaces whole Map and Set values without mutating their previous aliases", () => {
+    const oldMap = new Map([["one", 1]]);
+    const oldSet = new Set(["one"]);
+    const initial = snapshot({
+      map: oldMap, mapAlias: oldMap, set: oldSet, setAlias: oldSet,
+    });
+    const newMap = new Map([["two", 2]]);
+    const newSet = new Set(["two"]);
+    applyWatchPatches(initial, [
+      change([prop("map")], newMap),
+      change([prop("set")], newSet),
+    ]);
+    const story = initial.story as Record<string, unknown>;
+    expect(story.map).toBe(newMap);
+    expect(story.mapAlias).toBe(oldMap);
+    expect(story.set).toBe(newSet);
+    expect(story.setAlias).toBe(oldSet);
+    expect(oldMap).toEqual(new Map([["one", 1]]));
+    expect(oldSet).toEqual(new Set(["one"]));
   });
 
   it("writes a new __proto__ property without modifying Object.prototype", () => {
