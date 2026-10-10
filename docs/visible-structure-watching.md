@@ -49,6 +49,33 @@ and missing-favorite placeholders update.
 Empty objects, arrays, Maps and Sets remain expandable in the UI, allowing
 users to explicitly inspect them and trigger immediate refresh.
 
+## Root coverage and polling cost
+
+The current root rule is **based on visible registrations**: an active scope
+supplies a candidate empty-path structural watch, and `WatchProvider` omits
+that candidate only when a direct child of the root (`path.length === 1`)
+is both visibly watched and primitive-valued in the inspector's current copy.
+In that case, MAIN still checks the same root through the visible child's
+parent. Expanded object rows, opaque object leaves, and nested primitive
+rows do not suppress the explicit fallback.
+
+As a result, the active scope's root receives **one deduplicated structural
+check per successful poll** with this provider in place, whether or not its
+top-level primitives are on screen. Checking whether the fallback is needed
+does not scan the whole root, but the actual MAIN structural comparison does:
+it enumerates `Object.keys` on live and synchronized roots and compares the
+resulting property sets. Its cost grows with the number of enumerable
+top-level keys, even though unchanged nested values are not deep-cloned.
+The cadence is scheduled 250 ms after a poll completes (not overlapping
+requests); the service pauses while the document is hidden.
+
+Structural discovery and tree rendering cover **own enumerable string-keyed
+properties** (`Object.keys` / `Object.entries`). Nonenumerable and
+symbol-keyed additions are not discovered as new rows by this structural
+polling mechanism. Ordinary SugarCube story/temporary variable names are
+represented by string keys. A fresh full snapshot still provides a new
+baseline if unwatched state needs to be recaptured.
+
 ## Circular references and path replacement
 
 The tree renders circular references as links to the corresponding ancestor
@@ -168,5 +195,6 @@ than the number of top-level root properties.
 In either case, MAIN performs one deduplicated **shallow** root structural
 comparison during a successful active-scope poll. This discovers new/deleted
 top-level variables but does not deep-compare or clone unchanged nested values.
-The number of root keys still affects the cost of that structural check.
-No separate timing interval, identity registry, or structural cache is added.
+The number of enumerable root keys still affects the cost of that structural
+check, as described above. No separate timing interval, identity registry,
+or structural cache is added.
