@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { applyWatchPatches } from "../../sugarcube/applyWatchPatches";
 import type { SugarCubeSnapshot } from "../../sugarcube/types";
 import { watchKey, type PathSegment, type WatchPatch, type WatchTarget } from "../../sugarcube/watch";
@@ -65,10 +65,10 @@ export class VariableStore {
     };
   }
 
-  subscribeAny(listener: Listener): () => void {
+  subscribeAny = (listener: Listener): (() => void) => {
     this.anyListeners.add(listener);
     return () => { this.anyListeners.delete(listener); };
-  }
+  };
 
   getAnyVersion = (): number => this.anyVersion;
 
@@ -130,12 +130,10 @@ export class VariableStore {
 /** Subscribe to an individual node without depending on the root React state. */
 export function useVariableVersion(store: VariableStore, target: WatchTarget): number {
   const key = watchKey(target);
+  const stableTarget = useMemo(() => target, [key]);
   const subscribe = useCallback(
-    (listener: Listener) => store.subscribe(target, listener),
-    // The key captures the value identity of the path, even when callers
-    // construct a fresh target array during a parent render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [store, key],
+    (listener: Listener) => store.subscribe(stableTarget, listener),
+    [store, stableTarget],
   );
   const getVersion = useCallback(() => store.getVersion(key), [store, key]);
   return useSyncExternalStore(subscribe, getVersion, getVersion);
@@ -143,7 +141,7 @@ export function useVariableVersion(store: VariableStore, target: WatchTarget): n
 
 export function useAnyVariableVersion(store: VariableStore): number {
   return useSyncExternalStore(
-    store.subscribeAny.bind(store),
+    store.subscribeAny,
     store.getAnyVersion,
     store.getAnyVersion,
   );
