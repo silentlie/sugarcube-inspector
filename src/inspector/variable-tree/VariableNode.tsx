@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import VariableTile from "./VariableTile";
 import type { PathSegment, VariableScope } from "./types";
 import { getChildren, isCircular, isExpandable } from "./valueUtils";
-import { useOptionalWatch } from "../watch/WatchProvider";
+import { useWatch } from "../watch/WatchProvider";
 import { watchKey, type WatchTarget } from "../../sugarcube/watch";
 
 interface VariableNodeProps {
@@ -24,15 +24,15 @@ export default function VariableNode({
   onToggle,
   ancestors = [],
 }: VariableNodeProps) {
-  const watch = useOptionalWatch();
+  const watch = useWatch();
   const rowRef = useRef<HTMLDivElement>(null);
   const [target] = useState<WatchTarget>(() => ({ scope, path: [...path] }));
   const id = watchKey(target);
 
-  const setVisible = watch?.setVisible;
+  const setVisible = watch.setVisible;
   useEffect(() => {
     const element = rowRef.current;
-    if (!setVisible || !element) return;
+    if (!element) return;
 
     const watched = target;
     if (typeof IntersectionObserver === "undefined") {
@@ -68,8 +68,8 @@ export default function VariableNode({
           expandable={expandable}
           expanded={expanded}
           onToggle={() => onToggle(id)}
-          favorite={watch?.favorites.has(id) ?? false}
-          onToggleFavorite={watch ? () => watch.toggleFavorite(target) : undefined}
+          favorite={watch.favorites.has(id)}
+          onToggleFavorite={() => watch.toggleFavorite(target)}
         />
       </div>
 

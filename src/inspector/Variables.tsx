@@ -1,16 +1,15 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import VariableTree from "./variable-tree/VariableTree";
-import { useOptionalWatch } from "./watch/WatchProvider";
-import type { SugarCubeSnapshot } from "../sugarcube/types";
+import { useWatch } from "./watch/WatchProvider";
 import type { WatchTarget } from "../sugarcube/watch";
 
 type Tab = "story" | "temporary";
 
-export default function Variables({ snapshot }: { snapshot: SugarCubeSnapshot }) {
+export default function Variables() {
   const [activeTab, setActiveTab] = useState<Tab>("story");
-  const watch = useOptionalWatch();
-  const variables = watch?.variables ?? snapshot.variables;
-  const missing = watch?.missingTargets ?? [];
+  const watch = useWatch();
+  const variables = watch.variables;
+  const missing = watch.missingTargets;
   const id = useId();
 
   const storyTabRef = useRef<HTMLButtonElement>(null);

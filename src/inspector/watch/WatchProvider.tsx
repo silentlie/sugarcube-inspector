@@ -223,6 +223,8 @@ export function WatchProvider({
   );
 }
 
-export function useOptionalWatch(): WatchContextValue | null {
-  return use(WatchContext);
+export function useWatch(): WatchContextValue {
+  const context = use(WatchContext);
+  if (!context) throw new Error("useWatch must be used within WatchProvider");
+  return context;
 }
