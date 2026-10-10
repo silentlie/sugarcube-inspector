@@ -4,12 +4,9 @@ import { minimizeWatchPaths } from "./watch";
 import { isPathPrefix, pathKey } from "./path";
 import { applyWatchPatches } from "./applyWatchPatches";
 import { resolvePath, type PathResolution } from "./path";
-import type { SugarCubeSnapshot } from "./types";
+import type { SugarCubeSnapshot, SugarCubeVariables } from "./types";
 
-type Entry = PathResolution;
-type Stores = SugarCubeSnapshot["variables"];
-
-function resolve(stores: Stores, path: VariablePath): Entry {
+function resolve(stores: SugarCubeVariables, path: VariablePath): PathResolution {
   return resolvePath(stores, path);
 }
 
@@ -39,8 +36,8 @@ function sameValue(
 }
 
 function sameEntry(
-  previous: Entry,
-  current: Entry,
+  previous: PathResolution,
+  current: PathResolution,
   key: string,
   circularPaths: Set<string>,
 ): boolean {
@@ -117,7 +114,7 @@ function structurePaths(visible: readonly VariablePath[]): VariablePath[] {
  * Watch registration affects polling, never the lifetime of this graph.
  */
 export class WatchService {
-  private synchronized: Stores | null = null;
+  private synchronized: SugarCubeVariables | null = null;
   private generation = 0;
   private circularPaths = new Set<string>();
   // MAIN-only live references, kept just for collection paths being watched.
@@ -133,7 +130,7 @@ export class WatchService {
     return this.generation;
   }
 
-  poll(request: WatchRequest, stores: Stores): WatchResponse {
+  poll(request: WatchRequest, stores: SugarCubeVariables): WatchResponse {
     const started = performance.now();
     const baseline = this.synchronized;
     if (!baseline || request.generation !== this.generation) {
