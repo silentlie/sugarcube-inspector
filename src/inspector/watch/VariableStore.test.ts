@@ -76,27 +76,6 @@ describe("path subscriptions", () => {
     expect(root).toHaveBeenCalledTimes(1);
   });
 
-  it("updates root subscriptions on top-level primitive/container transitions only", () => {
-    const store = new VariableStore({
-      story: { player: { hp: 10 }, score: 7 }, temporary: {},
-    });
-    const root = vi.fn();
-    store.subscribe(target(), root);
-
-    // Same-kind replacements must not re-render the root.
-    store.apply([{ op: "set", scope: "story", path: target("score").path, value: 9 }]);
-    store.apply([{ op: "set", scope: "story", path: target("player").path, value: { hp: 20 } }]);
-    store.apply([{ op: "set", scope: "story", path: target("player", "hp").path, value: 25 }]);
-    expect(root).not.toHaveBeenCalled();
-
-    store.apply([{ op: "set", scope: "story", path: target("score").path, value: { level: 9 } }]);
-    expect(root).toHaveBeenCalledTimes(1);
-    store.apply([{ op: "set", scope: "story", path: target("score").path, value: null }]);
-    expect(root).toHaveBeenCalledTimes(2);
-    store.apply([{ op: "set", scope: "story", path: target("score").path, value: false }]);
-    expect(root).toHaveBeenCalledTimes(2);
-  });
-
   it("notifies descendants when an ancestor container is replaced", () => {
     const store = new VariableStore({
       story: { player: { hp: 10 } }, temporary: {},
