@@ -69,12 +69,12 @@ and pause while the page is hidden. Expanded visible containers are compared
 as a whole and cloned only when changed. Expanding a visible container
 triggers an immediate poll. Empty objects, arrays, Maps, and Sets can expand.
 
-The active scope root is structurally checked through a visible top-level
-primitive row, or through a structure-only fallback when **no immediate
-primitive-valued property is registered in the visible watch list**. A
-primitive can exist but be offscreen; the fallback still applies. This is a
-shallow scan of root property names, not a deep comparison of root values.
-Parents of other visible rows are also checked for added/removed children.
+On every active poll, the selected variable scope's root is checked for
+**top-level additions and removals**, even when all variable rows are offscreen
+or collapsed. This is a shallow scan of root property names, not a deep
+comparison of root values. MAIN deduplicates root checks inferred from other
+visible rows. Parents of nested visible rows are also checked for added/removed
+children. Polling still pauses when the page is hidden.
 
 Favorites remain value-watched when hidden; missing favorites retain read-only
 placeholders. MAIN and the inspector each maintain a mutable synchronized
