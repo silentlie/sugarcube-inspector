@@ -362,7 +362,6 @@ it("omits collapsed containers from visible watches unless favorited", async () 
   fireEvent.click(screen.getByRole("button", { name: "Collapse inventory" }));
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(requested[2]!.visible).not.toContainEqual(inventory);
-  expect(requested[2]!.visible).not.toContainEqual(inventory);
 
   fireEvent.click(screen.getByRole("button", { name: "Favorite inventory" }));
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
