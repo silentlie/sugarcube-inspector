@@ -19,6 +19,33 @@ containers, circular and shared references, literal property paths, and retained
 expansion after snapshot updates. Value helpers also cover sparse array indices,
 named properties, type labels, special numeric values, and preview tooltips.
 
+## Live watch coverage
+
+- `src/sugarcube/watchService.test.ts`: incremental value patches, structural
+  discovery, nested additions/removals, generation mismatches, missing-path
+  restoration, watched aliases and circular values, array lengths, and Map/Set
+  handling.
+- `src/sugarcube/applyWatchPatches.test.ts`: in-place mutation, sparse arrays,
+  special property names, and explicit nonconfigurable-property failures.
+- `src/inspector/watch/VariableStore.test.ts`: path-version notifications
+  and updates to shared aliases without unnecessary root/sibling notifications.
+- `src/inspector/watch/WatchProvider.test.tsx`: independent visible/favorite
+  registrations, 250 ms polling, recovery, scope-root structural fallback,
+  and immediate polling when expanding visible containers.
+
+**Root fallback contract:** The *active* scope has an explicit structure-only
+root watch when its visible registration list has no immediate
+primitive-valued property. A visible top-level primitive already implies a
+root structure check through its parent, so the explicit fallback is omitted.
+This is decided from actual visible watches, **not** by scanning all current
+root values. Offscreen primitives do not suppress the fallback. See
+[visible structure watching](../docs/visible-structure-watching.md).
+
+The production comparator uses `fast-equals`. The custom comparator and
+polling-variant tests cover benchmark-only implementations; passing them does
+not mean those experimental strategies run in production.
+
+
 ## Browser smoke tests
 
 Install the browser once:
@@ -44,7 +71,8 @@ Each browser test uses a temporary profile and closes its browser context in
 variable updates after a real passage change, and five consecutive reloads with
 one inspector and a working manual refresh. They also exercise keyboard scope
 navigation, independent tree expansion across refreshes and passage changes,
-and recovery through Retry after the real bridge rejects uncloneable data.
+live polling of a visible scalar without a passage change, and recovery through
+Retry after the real bridge rejects uncloneable data.
 Generated stories and browser results are ignored by Git. Failed runs retain
 Playwright traces under `test-results`.
 
@@ -62,9 +90,9 @@ The [CI workflow](../.github/workflows/ci.yml) runs on pushes to `main`, pull
 requests targeting `main`, and manual runs from the Actions tab. It uses Node.js
 24 on Ubuntu 24.04 and installs the locked dependencies with `npm ci`.
 
-Each run checks TypeScript, runs the unit and RPC integration tests, installs
-Playwright's Chromium and its Linux dependencies, then builds the extension and
-runs the browser smoke tests. Superseded runs on the same branch are cancelled.
+Each run checks ESLint and TypeScript, runs the unit and RPC integration
+tests, installs Playwright's Chromium and its Linux dependencies, then builds
+the extension and runs the browser smoke tests. Superseded runs on the same branch are cancelled.
 Failed browser runs upload `test-results` as the `browser-test-results` artifact
 and retain it for seven days. Download the artifact and open a trace with
 `npx playwright show-trace path/to/trace.zip` to inspect the failure.
