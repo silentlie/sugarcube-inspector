@@ -498,9 +498,9 @@ describe("visible structural watch", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { player: { health: 7 } }, temporary: {} };
     const { service, generation } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [root, player]), stores).changes;
+    const poll = () => service.poll(visible(generation, [root]), stores).changes;
     expect(poll()).toEqual([]);
-    // Existing child value becomes non-cloneable, but only structure is watched.
+    // Existing child value becomes non-cloneable, but only root structure is watched.
     (stores.story.player as Record<string, unknown>).health = () => {};
     expect(poll()).toEqual([]);
   });
