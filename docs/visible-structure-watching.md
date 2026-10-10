@@ -7,7 +7,8 @@
 - **Favorites** contain explicit watch targets, independent of visibility.
 - **Visible** contains visible scalar/opaque leaves and expanded containers.
   Collapsed containers are omitted unless independently favorited. Each entry
-  is a scope-prefixed watch target path; expansion state stays in React. The active scope
+  is a scope-prefixed watch target path whose first segment is a property
+  named `story` or `temporary`; expansion state stays in React. The active scope
   always registers its scope-only root for structure-only comparison
   on every active poll,
   regardless of which variable rows are visible.
@@ -47,7 +48,7 @@ users to explicitly inspect them and trigger immediate refresh.
 
 ## Root coverage and polling cost
 
-The active variable scope always registers a root with `path: ["story"]` or `path: ["temporary"]`.
+The active variable scope always registers a root with `path: [{ type: "property", key: "story" }]` or `path: [{ type: "property", key: "temporary" }]`.
 `WatchProvider` forwards this root unconditionally with the visible
 registrations on every poll while the page is visible. It no longer checks
 whether a visible top-level primitive already implies root monitoring.

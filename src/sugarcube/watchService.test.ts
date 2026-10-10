@@ -5,7 +5,7 @@ import { minimizeWatchTargets, watchPathExists, type WatchRequest, type WatchTar
 import type { SugarCubeSnapshot } from "./types";
 
 const player: WatchTarget = {
-  path: ["story", { type: "property", key: "player" }],
+  path: [{ type: "property", key: "story" }, { type: "property", key: "player" }],
 };
 const health: WatchTarget = {
   path: [...player.path, { type: "property", key: "health" }],
@@ -61,7 +61,7 @@ describe("synchronized snapshot watch service", () => {
     const stores = { story: { player: shared, character: shared }, temporary: {} };
     const { service, generation } = setup(stores.story);
     shared.health = 75;
-    const other: WatchTarget = { path: ["story", { type: "property", key: "character" }, { type: "property", key: "health" }] };
+    const other: WatchTarget = { path: [{ type: "property", key: "story" }, { type: "property", key: "character" }, { type: "property", key: "health" }] };
     const response = service.poll(request(generation, [health, other]), stores);
     expect(response.changes).toHaveLength(2);
     expect(response.changes.map((change) => change.op === "set" ? change.value : null)).toEqual([75, 75]);
@@ -173,9 +173,9 @@ describe("synchronized snapshot watch service", () => {
   });
 
   it("keeps paths in different scopes independent when minimizing watches", () => {
-    const storyRoot: WatchTarget = { path: ["story"] };
+    const storyRoot: WatchTarget = { path: [{ type: "property", key: "story" }] };
     const temporaryScore: WatchTarget = {
-      path: ["temporary", { type: "property", key: "score" }],
+      path: [{ type: "property", key: "temporary" }, { type: "property", key: "score" }],
     };
     expect(minimizeWatchTargets([player, storyRoot, temporaryScore])).toEqual([
       storyRoot, temporaryScore,
@@ -186,13 +186,13 @@ describe("synchronized snapshot watch service", () => {
 
   it("watches whole Map/Set collections rather than unstable positional entries", () => {
     const targets: WatchTarget[] = [
-      { path: ["story", { type: "property", key: "items" }, { type: "mapValue", index: 1 }] },
-      { path: ["story", { type: "property", key: "items" }, { type: "mapKey", index: 0 }] },
-      { path: ["story", { type: "property", key: "flags" }, { type: "setValue", index: 0 }] },
+      { path: [{ type: "property", key: "story" }, { type: "property", key: "items" }, { type: "mapValue", index: 1 }] },
+      { path: [{ type: "property", key: "story" }, { type: "property", key: "items" }, { type: "mapKey", index: 0 }] },
+      { path: [{ type: "property", key: "story" }, { type: "property", key: "flags" }, { type: "setValue", index: 0 }] },
     ];
     expect(minimizeWatchTargets(targets)).toEqual([
-      { path: ["story", { type: "property", key: "items" }] },
-      { path: ["story", { type: "property", key: "flags" }] },
+      { path: [{ type: "property", key: "story" }, { type: "property", key: "items" }] },
+      { path: [{ type: "property", key: "story" }, { type: "property", key: "flags" }] },
     ]);
     expect(minimizeWatchTargets([player, health])).toEqual([player]);
   });
@@ -257,10 +257,10 @@ describe("synchronized snapshot watch service", () => {
     const shared = { health: 10 };
     const stores = { story: { left: shared, right: shared }, temporary: {} };
     const left: WatchTarget = {
-      path: ["story", { type: "property", key: "left" }],
+      path: [{ type: "property", key: "story" }, { type: "property", key: "left" }],
     };
     const right: WatchTarget = {
-      path: ["story", { type: "property", key: "right" }],
+      path: [{ type: "property", key: "story" }, { type: "property", key: "right" }],
     };
     const { service, generation, snapshot } = setup(stores.story);
     shared.health = 20;
@@ -283,7 +283,7 @@ describe("synchronized snapshot watch service", () => {
     const shared = { health: 10 };
     const stores = { story: { left: shared, right: shared }, temporary: {} };
     const { service, generation, snapshot } = setup(stores.story);
-    const left: WatchTarget = { path: ["story", { type: "property", key: "left" }] };
+    const left: WatchTarget = { path: [{ type: "property", key: "story" }, { type: "property", key: "left" }] };
     stores.story.left = { health: 90 };
     const changed = service.poll(request(generation, [left]), stores).changes;
     expect(changed).toEqual([{ op: "set", path: left.path, value: { health: 90 } }]);
@@ -302,7 +302,7 @@ describe("synchronized snapshot watch service", () => {
     stores.story.a = 3;
     stores.story.b = () => undefined;
     const targets: WatchTarget[] = ["a", "b"].map((key) => ({
-      path: ["story", { type: "property", key }],
+      path: [{ type: "property", key: "story" }, { type: "property", key }],
     }));
     expect(() => service.poll(request(generation, targets), stores)).toThrow();
     stores.story.b = 4;
@@ -314,14 +314,14 @@ describe("synchronized snapshot watch service", () => {
 });
 
 describe("visible structural watch", () => {
-  const root: WatchTarget = { path: ["story"] };
+  const root: WatchTarget = { path: [{ type: "property", key: "story" }] };
   function visible(generation: number, entries: WatchTarget[]): WatchRequest {
     return { generation, favorites: [], visible: entries };
   }
 
   it("derives root structure from a visible top-level child", () => {
     const score: WatchTarget = {
-      path: ["story", { type: "property", key: "score" }],
+      path: [{ type: "property", key: "story" }, { type: "property", key: "score" }],
     };
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { score: 7 }, temporary: {} };
@@ -331,12 +331,12 @@ describe("visible structural watch", () => {
     expect(poll()).toEqual([]);
     stores.story.newVariable = 15;
     expect(poll()).toEqual([{
-      op: "set", path: ["story", { type: "property", key: "newVariable" }],
+      op: "set", path: [{ type: "property", key: "story" }, { type: "property", key: "newVariable" }],
       value: 15,
     }]);
     delete stores.story.newVariable;
     expect(poll()).toEqual([{
-      op: "delete", path: ["story", { type: "property", key: "newVariable" }],
+      op: "delete", path: [{ type: "property", key: "story" }, { type: "property", key: "newVariable" }],
     }]);
     // Without any visible rows or an explicit empty-root registration,
     // the service does not keep polling the nonempty root.
@@ -355,7 +355,7 @@ describe("visible structural watch", () => {
 
     stores.story.newQuest = true;
     expect(poll()).toEqual([{
-      op: "set", path: ["story", { type: "property", key: "newQuest" }],
+      op: "set", path: [{ type: "property", key: "story" }, { type: "property", key: "newQuest" }],
       value: true,
     }]);
     delete stores.story.player;
@@ -366,7 +366,7 @@ describe("visible structural watch", () => {
 
   it("deduplicates explicit root structure and structure inferred from a visible child", () => {
     const score: WatchTarget = {
-      path: ["story", { type: "property", key: "score" }],
+      path: [{ type: "property", key: "story" }, { type: "property", key: "score" }],
     };
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { score: 7 }, temporary: {} };
@@ -376,7 +376,7 @@ describe("visible structural watch", () => {
     expect(poll()).toEqual([]);
     stores.story.newQuest = 1;
     expect(poll()).toEqual([{
-      op: "set", path: ["story", { type: "property", key: "newQuest" }],
+      op: "set", path: [{ type: "property", key: "story" }, { type: "property", key: "newQuest" }],
       value: 1,
     }]);
     expect(poll()).toEqual([]);
@@ -391,13 +391,13 @@ describe("visible structural watch", () => {
     stores.story.score = 7;
     const added = poll();
     expect(added).toEqual([{
-      op: "set", path: ["story", { type: "property", key: "score" }], value: 7,
+      op: "set", path: [{ type: "property", key: "story" }, { type: "property", key: "score" }], value: 7,
     }]);
     let displayed = applyWatchPatches(snapshot.variables, added);
     expect(displayed.story).toEqual({ score: 7 });
     delete stores.story.score;
     const removed = poll();
-    expect(removed).toEqual([{ op: "delete", path: ["story", { type: "property", key: "score" }] }]);
+    expect(removed).toEqual([{ op: "delete", path: [{ type: "property", key: "story" }, { type: "property", key: "score" }] }]);
     displayed = applyWatchPatches(displayed, removed);
     expect(displayed.story).toEqual({});
     stores.story.score = 9;
@@ -457,7 +457,7 @@ describe("visible structural watch", () => {
 
   it("updates array lengths and new indices when visible, including empty arrays", () => {
     const stores = { story: { items: [] as number[] }, temporary: {} };
-    const item: WatchTarget = { path: ["story", { type: "property", key: "items" }] };
+    const item: WatchTarget = { path: [{ type: "property", key: "story" }, { type: "property", key: "items" }] };
     const { service, generation, snapshot } = setup(stores.story);
     const poll = () => service.poll(visible(generation, [item]), stores).changes;
     expect(poll()).toEqual([]);
@@ -475,7 +475,7 @@ describe("visible structural watch", () => {
 
   it("replaces a Map when keys are inserted rather than tracking unstable indices", () => {
     const stores = { story: { items: new Map<string, number>() }, temporary: {} };
-    const item: WatchTarget = { path: ["story", { type: "property", key: "items" }] };
+    const item: WatchTarget = { path: [{ type: "property", key: "story" }, { type: "property", key: "items" }] };
     const { service, generation } = setup(stores.story);
     const poll = () => service.poll(visible(generation, [item]), stores).changes;
     expect(poll()).toEqual([]);
@@ -536,7 +536,7 @@ describe("watchPathExists", () => {
       flags: new Set(["seen"]),
       list: [undefined],
     }, temporary: {} };
-    const key = (segments: PathSegment[]): WatchTarget => ({ path: ["story", ...segments] });
+    const key = (segments: PathSegment[]): WatchTarget => ({ path: [{ type: "property", key: "story" }, ...segments] });
     expect(watchPathExists(stores, key([{ type: "property", key: "items" }, { type: "mapValue", index: 0 }]))).toBe(true);
     expect(watchPathExists(stores, key([{ type: "property", key: "items" }, { type: "mapKey", index: 1 }]))).toBe(false);
     expect(watchPathExists(stores, key([{ type: "property", key: "flags" }, { type: "setValue", index: 0 }]))).toBe(true);

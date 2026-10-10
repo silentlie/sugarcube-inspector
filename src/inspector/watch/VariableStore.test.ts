@@ -4,7 +4,7 @@ import type { WatchTarget } from "../../sugarcube/watch";
 
 const prop = (key: string) => ({ type: "property" as const, key });
 const target = (...names: string[]): WatchTarget => ({
-  path: ["story", ...names.map(prop)],
+  path: [{ type: "property", key: "story" }, ...names.map(prop)],
 });
 
 describe("path subscriptions", () => {
@@ -15,13 +15,13 @@ describe("path subscriptions", () => {
     });
     const storyListener = vi.fn();
     const temporaryListener = vi.fn();
-    store.subscribe({ path: ["story", prop("score")] }, storyListener);
-    store.subscribe({ path: ["temporary", prop("score")] }, temporaryListener);
+    store.subscribe({ path: [{ type: "property", key: "story" }, prop("score")] }, storyListener);
+    store.subscribe({ path: [{ type: "property", key: "temporary" }, prop("score")] }, temporaryListener);
 
-    store.apply([{ op: "set", path: ["temporary", prop("score")], value: 3 }]);
+    store.apply([{ op: "set", path: [{ type: "property", key: "temporary" }, prop("score")], value: 3 }]);
 
-    expect(store.getValue({ path: ["story", prop("score")] })).toBe(1);
-    expect(store.getValue({ path: ["temporary", prop("score")] })).toBe(3);
+    expect(store.getValue({ path: [{ type: "property", key: "story" }, prop("score")] })).toBe(1);
+    expect(store.getValue({ path: [{ type: "property", key: "temporary" }, prop("score")] })).toBe(3);
     expect(storyListener).not.toHaveBeenCalled();
     expect(temporaryListener).toHaveBeenCalledTimes(1);
   });
