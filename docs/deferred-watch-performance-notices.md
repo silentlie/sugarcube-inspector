@@ -27,8 +27,10 @@ Do not re-enable these notices solely on the strength of synthetic benchmarks.
   separately for each notice level.
 
 These were UI-only performance heuristics, not conditions for stopping
-polling, pruning targets, invalidating the two-layer cache, or resynchronizing
-snapshots.
+polling, pruning targets, discarding synchronized graph state, or
+resynchronizing snapshots. The "two-layer cache" language in earlier
+experiments refers historically to the two independent synchronized copies
+(MAIN and inspector); production does not maintain separate per-watch caches.
 
 ## Behaviour while deferred
 
@@ -56,6 +58,6 @@ but the inspector does not currently consume it to display notifications.
    and hidden-tab behaviour, plus profiling of real SugarCube stories before
    enabling UI notifications again.
 
-Do not change the 250 ms polling cadence or the existing two-layer cache
-solely to reintroduce notifications; treat that as a separate performance
-decision.
+Do not change the 250 ms polling cadence, mutable synchronized graphs, or
+path-watch architecture solely to reintroduce notifications; treat those as
+separate performance and correctness decisions.
