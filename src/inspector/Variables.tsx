@@ -3,14 +3,12 @@ import { Star } from "lucide-react";
 import VariableTree from "./variable-tree/VariableTree";
 import { formatVariablePath } from "./variable-tree/valueUtils";
 import { useWatch } from "./watch/WatchProvider";
-import { pathToKey } from "../sugarcube/path";
-import { watchPathExists, type VariablePath } from "../sugarcube/watch";
+import { pathToKey, resolvePath } from "../sugarcube/path";
+import type { VariablePath, VariableScope } from "../sugarcube/watch";
 import { useAnyVariableVersion } from "./watch/VariableStore";
 
-type Tab = "story" | "temporary";
-
 export default function Variables() {
-  const [activeTab, setActiveTab] = useState<Tab>("story");
+  const [activeTab, setActiveTab] = useState<VariableScope>("story");
   const watch = useWatch();
   const setVisible = watch.setVisible;
   // Watch the active scope's root structure on every poll, even when empty,
@@ -36,7 +34,7 @@ export default function Variables() {
   ] as const;
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    let nextTab: Tab;
+    let nextTab: VariableScope;
 
     switch (event.key) {
       case "ArrowLeft":
@@ -122,11 +120,11 @@ export default function Variables() {
   );
 }
 
-function MissingWatches({ scope }: { scope: Tab }) {
+function MissingWatches({ scope }: { scope: VariableScope }) {
   const watch = useWatch();
   useAnyVariableVersion(watch.store);
   const targets = watch.watchedPaths.filter((path) =>
-    path[0].key === scope && !watchPathExists(watch.variables, path),
+    path[0].key === scope && !resolvePath(watch.variables, path).exists,
   );
   if (targets.length === 0) return null;
   return (
