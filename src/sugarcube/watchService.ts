@@ -128,13 +128,11 @@ export class WatchService {
   }
 
   poll(request: WatchRequest, stores: SugarCubeVariables): WatchResponse {
-    const started = performance.now();
     const baseline = this.synchronized;
     if (!baseline || request.generation !== this.generation) {
       return {
         generation: this.generation,
         changes: [],
-        mainDurationMs: performance.now() - started,
       };
     }
 
@@ -308,7 +306,6 @@ export class WatchService {
     return {
       generation: this.generation,
       changes,
-      mainDurationMs: performance.now() - started,
     };
   }
 }
