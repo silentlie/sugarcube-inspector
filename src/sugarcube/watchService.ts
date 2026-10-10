@@ -158,8 +158,8 @@ function ancestorOrSelf(parent: WatchPatch, child: WatchPatch): boolean {
 }
 
 /**
- * MAIN holds one immutable-by-update representation of what the inspector
- * last received. Watch registration affects polling, never cache lifetime.
+ * MAIN holds one mutable synchronized graph mirroring the inspector copy.
+ * Watch registration affects polling, never the lifetime of this graph.
  */
 export class WatchService {
   private synchronized: Stores | null = null;
@@ -307,10 +307,9 @@ export class WatchService {
       ),
     );
 
-    // Apply exactly the same patches sent to the inspector. This creates
-    // new ancestors along changed paths, preserving independent aliases.
-    // Keep the prior synchronized state intact if comparison or cloning fails.
-    if (changes.length) this.synchronized = applyWatchPatches(baseline, changes);
+    // Apply exactly the same patches sent to the inspector, in place.
+    // Patch values were cloned before any mutation of the synchronized graph.
+    if (changes.length) applyWatchPatches(baseline, changes);
 
     return {
       generation: this.generation,
