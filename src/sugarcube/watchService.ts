@@ -1,7 +1,7 @@
 import { circularDeepEqual, deepEqual } from "fast-equals";
 import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./watch";
 import { minimizeWatchPaths } from "./watch";
-import { isPathPrefix, pathKey } from "./path";
+import { isPathPrefix, pathToKey } from "./path";
 import { applyWatchPatches } from "./applyWatchPatches";
 import { resolvePath, type PathResolution } from "./path";
 import type { SugarCubeSnapshot, SugarCubeVariables } from "./types";
@@ -41,7 +41,7 @@ function sameEntry(
     return current.exists && sameValue(previous.value, current.value, key, circularPaths);
   }
   if (current.exists) return false;
-  if (JSON.stringify(previous.missingPath) !== JSON.stringify(current.missingPath) ||
+  if (pathToKey(previous.missingPath) !== pathToKey(current.missingPath) ||
       Boolean(previous.blockedExists) !== Boolean(current.blockedExists)) return false;
   return !previous.blockedExists || !current.blockedExists ||
     sameValue(previous.blocked, current.blocked, key, circularPaths);
@@ -81,7 +81,7 @@ function collectionPaths(paths: readonly VariablePath[]): VariablePath[] {
       const part = path[index]!;
       if (part.type !== "mapKey" && part.type !== "mapValue" && part.type !== "setValue") continue;
       const collection = path.slice(0, index) as VariablePath;
-      collections.set(pathKey(collection), collection);
+      collections.set(pathToKey(collection), collection);
     }
   }
   // An outer collection replacement supersedes all its descendant updates.
@@ -93,14 +93,14 @@ function structurePaths(visible: readonly VariablePath[]): VariablePath[] {
   for (const path of visible) {
     // Explicit root registrations are structure-only, including when empty.
     if (path.length === 1) {
-      paths.set(pathKey(path), path);
+      paths.set(pathToKey(path), path);
       continue;
     }
 
     // A visible child's parent discovers its siblings, including children
     // of Map/Set entries when their positions are still stable.
     const parent = path.slice(0, -1) as VariablePath;
-    paths.set(pathKey(parent), parent);
+    paths.set(pathToKey(parent), parent);
   }
   return [...paths.values()];
 }
@@ -142,14 +142,14 @@ export class WatchService {
     // has observed a collection, compare its live entry identities; mutations
     // *inside* an existing Set member must not look like a new Set entry.
     const collections = collectionPaths([...request.favorites, ...request.visible]);
-    const collectionKeys = new Set(collections.map(pathKey));
+    const collectionKeys = new Set(collections.map(pathToKey));
     const nextLiveCollections = new Map<string, CollectionMembers>();
     const collectionChanges: WatchPatch[] = [];
     const replacedCollections: VariablePath[] = [];
 
     for (const path of collections) {
       if (replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
-      const key = pathKey(path);
+      const key = pathToKey(path);
       const previous = resolvePath(baseline, path);
       const current = resolvePath(stores, path);
       const oldMembers = previous.exists ? collectionMembers(previous.value) : null;
@@ -188,7 +188,7 @@ export class WatchService {
 
     // Compare against the last synchronized state, including earlier patches.
     for (const path of structs) {
-      const key = pathKey(path);
+      const key = pathToKey(path);
       if (collectionKeys.has(key) ||
           replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
       const oldEntry = resolvePath(baseline, path);
@@ -254,7 +254,7 @@ export class WatchService {
     // Stage all patches before advancing the synchronized snapshot.
     for (const path of paths) {
       if (replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
-      const key = pathKey(path);
+      const key = pathToKey(path);
       const previous = resolvePath(baseline, path);
       const current = resolvePath(stores, path);
       if (sameEntry(previous, current, key, this.circularPaths)) continue;
