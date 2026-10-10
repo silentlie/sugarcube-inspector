@@ -27,6 +27,7 @@
     "bench:watch:chromium": "node scripts/bench-watch-chromium.mjs"
   },
   "dependencies": {
+    "@sindresorhus/is": "^8.1.0",
     "@tailwindcss/vite": "^4.3.3",
     "@webext-core/messaging": "^4.0.0",
     "lucide-react": "^1.54.0",
