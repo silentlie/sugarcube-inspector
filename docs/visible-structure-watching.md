@@ -97,3 +97,68 @@ are unstable, so the containing collection is the replacement unit.
 Watching a very large expanded object can be expensive, even with
 compare-before-clone. Changing the 250 ms polling interval or introducing
 performance notices remains a separate design decision.
+
+## Accepted design decisions (2026-10-10)
+
+These are deliberate, reviewed trade-offs, not unresolved implementation questions.
+Do not repeatedly reopen them without a new correctness issue, measured performance
+problem, or changed requirement:
+
+- **Stale collapsed previews are acceptable.** Polling is every 250 ms for
+  *registered* paths; expanding a visible container triggers an immediate poll.
+  A collapsed, unfavorited container is **not** polled simply because the
+  interval is short. Its preview may remain stale until it is watched again
+  (for example, after expansion) or a full snapshot is captured.
+- **Shared aliases may diverge temporarily, and exact identity preservation
+  across paths is not required.** Whole-value patches can break sharing
+  between independent synchronized paths. A path catches up when it is
+  actively watched again; a short interval does not repair an unregistered
+  alias. Do not introduce a global reference registry just for this.
+- **Circular nodes should navigate to their ancestors, not recursively
+  expand.** Preserve cycles inside an individually structured-cloned value,
+  but do not require all sharing across independent clones to survive.
+  On mounting and registering an eligible visible watch, current values are
+  polled; expanding a container requests an immediate poll. This is not
+  a guarantee that every mounted, collapsed container is polled.
+- **Deep equality intentionally suppresses same-content identity changes.**
+  Reassigning a live object to a different object with deeply equal contents
+  should not produce a patch. The inspector tracks values, not live object
+  identity. No special identity-change detection is needed.
+- **Path-based arrays and whole-collection Map/Set watches are acceptable.**
+  Ordinary array indices use paths; Map/Set positional entries are unstable,
+  so the containing collection is the replacement unit.
+- **Large expanded objects may be expensive to compare in MAIN.** This
+  performance cost is accepted for now; do not change the 250 ms interval
+  solely on speculation. Keep timing diagnostics available for real-world
+  profiling.
+- **Full-snapshot recovery is acceptable.** A failed, lost, or generation-
+  mismatched watch response triggers a new full snapshot instead of a more
+  complicated acknowledgment/replay protocol.
+
+### Root structural-watch edge case (documented; no redesign decision)
+
+A visible top-level row implicitly registers the parent (the scope root)
+for *structural* comparison, allowing the inspector to discover new sibling
+variables even if their values are not independently watched. An empty active
+scope explicitly registers its root, so the first new variable can appear.
+
+However, if the scope root already has children and **none of its top-level
+rows are visible**, neither mechanism registers the root structurally. This
+can occur when the list is offscreen or its tab is hidden. For example:
+
+```js
+// Existing root with two rows, neither currently visible.
+State.variables = { mc: { hp: 100 }, gold: 50 };
+// The game adds a sibling while no top-level row is visible.
+State.variables.newQuest = true;
+```
+
+The inspector may not discover `newQuest` until a top-level row becomes
+visible again, a relevant watch happens to deliver a patch, or a full
+snapshot is requested. Polling every 250 ms **does not** discover a path
+that was never registered for comparison. This is separate from an
+existing, actively watched value changing.
+
+This behaviour is currently implemented and documented, not an agreed
+requirement to redesign. Revisit it only if automatic discovery while
+all root rows are offscreen becomes an explicit goal.
