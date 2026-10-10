@@ -9,14 +9,12 @@ import { useVariableVersion } from "../watch/VariableStore";
 
 interface VariableTreeProps {
   scope: VariableScope;
-  value?: unknown;
 }
 
-export default function VariableTree({ scope, value }: VariableTreeProps) {
+export default function VariableTree({ scope }: VariableTreeProps) {
   const watch = useWatch();
   useVariableVersion(watch.store, [{ type: "property", key: scope }]);
-  const fromStore = value === undefined;
-  const rootValue = fromStore ? watch.store.getValue([{ type: "property", key: scope }]) : value;
+  const rootValue = watch.store.getValue([{ type: "property", key: scope }]);
   const [expandedPaths, setExpandedPaths] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -65,8 +63,6 @@ export default function VariableTree({ scope, value }: VariableTreeProps) {
         <VariableNode
           key={pathToKey([child.segment])}
           name={child.name}
-          value={child.value}
-          fromStore={fromStore}
           scope={scope}
           path={[child.segment]}
           expandedPaths={expandedPaths}
