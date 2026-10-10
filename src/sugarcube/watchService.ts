@@ -6,10 +6,6 @@ import { applyWatchPatches } from "./applyWatchPatches";
 import { resolvePath, type PathResolution } from "./path";
 import type { SugarCubeSnapshot, SugarCubeVariables } from "./types";
 
-function resolve(stores: SugarCubeVariables, path: VariablePath): PathResolution {
-  return resolvePath(stores, path);
-}
-
 /**
  * Use the fast non-circular comparator for ordinary state. Remember paths that
  * contain cycles so subsequent polls do not repeatedly exhaust the stack.
@@ -154,8 +150,8 @@ export class WatchService {
     for (const path of collections) {
       if (replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
       const key = pathKey(path);
-      const previous = resolve(baseline, path);
-      const current = resolve(stores, path);
+      const previous = resolvePath(baseline, path);
+      const current = resolvePath(stores, path);
       const oldMembers = previous.exists ? collectionMembers(previous.value) : null;
       const newMembers = current.exists ? collectionMembers(current.value) : null;
 
@@ -167,7 +163,7 @@ export class WatchService {
       if (!oldMembers || !newMembers || oldMembers.kind !== newMembers.kind) {
         const restorePath = (!previous.exists ? previous.missingPath
           : !current.exists ? current.missingPath : path) as VariablePath;
-        const restored = resolve(stores, restorePath);
+        const restored = resolvePath(stores, restorePath);
         collectionChanges.push(restored.exists
           ? { op: "set", path: restorePath, value: structuredClone(restored.value) }
           : { op: "delete", path: restorePath });
@@ -195,8 +191,8 @@ export class WatchService {
       const key = pathKey(path);
       if (collectionKeys.has(key) ||
           replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
-      const oldEntry = resolve(baseline, path);
-      const liveEntry = resolve(stores, path);
+      const oldEntry = resolvePath(baseline, path);
+      const liveEntry = resolvePath(stores, path);
       const previous = structureOf(oldEntry.exists ? oldEntry.value : undefined);
       const current = structureOf(liveEntry.exists ? liveEntry.value : undefined);
       if (!previous && !current) continue;
@@ -231,7 +227,7 @@ export class WatchService {
       for (const childKey of after) {
         if (!before.has(childKey)) {
           const childPath: VariablePath = [...path, { type: "property", key: childKey }];
-          const added = resolve(stores, childPath);
+          const added = resolvePath(stores, childPath);
           if (!added.exists) throw new Error("Added watch child disappeared during polling.");
           structuralChanges.push({
             op: "set", path: childPath,
@@ -259,8 +255,8 @@ export class WatchService {
     for (const path of paths) {
       if (replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
       const key = pathKey(path);
-      const previous = resolve(baseline, path);
-      const current = resolve(stores, path);
+      const previous = resolvePath(baseline, path);
+      const current = resolvePath(stores, path);
       if (sameEntry(previous, current, key, this.circularPaths)) continue;
 
       if (!current.exists) {
@@ -269,7 +265,7 @@ export class WatchService {
         const restorePrevious = !previous.exists &&
           previous.missingPath.length < current.missingPath.length;
         const patchPath = (restorePrevious ? previous.missingPath : current.missingPath) as VariablePath;
-        const parent = resolve(stores, patchPath);
+        const parent = resolvePath(stores, patchPath);
         const copy = parent.exists ? structuredClone(parent.value) : undefined;
         valueChanges.push(parent.exists
           ? { op: "set", path: patchPath, value: copy }
@@ -282,7 +278,7 @@ export class WatchService {
       const restorePath = (!previous.exists && previous.missingPath.length < path.length
         ? previous.missingPath
         : path) as VariablePath;
-      const restored = resolve(stores, restorePath);
+      const restored = resolvePath(stores, restorePath);
       if (!restored.exists) throw new Error("Watch path disappeared during polling.");
       const cloned = structuredClone(restored.value);
       if (!resolvePath(cloned, path.slice(restorePath.length)).exists) {
