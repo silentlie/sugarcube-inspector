@@ -1,8 +1,6 @@
 import type { PathSegment, WatchPatch } from "./watch";
-import type { SugarCubeSnapshot } from "./types";
+import type { SugarCubeVariables } from "./types";
 import { readPathChild } from "./path";
-
-type Stores = SugarCubeSnapshot["variables"];
 
 function writeProperty(target: object, key: string | number, value: unknown) {
   const descriptor = Object.getOwnPropertyDescriptor(target, key);
@@ -88,9 +86,9 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
 /**
  * Apply patches to the synchronized graph by replacing values at their paths.
  * Ancestor containers remain mutable; a whole-value set replaces that value
- * without reconciling its former aliases. The Stores object stays stable.
+ * without reconciling its former aliases. The variables object stays stable.
  */
-export function applyWatchPatches(variables: Stores, patches: WatchPatch[]): Stores {
+export function applyWatchPatches(variables: SugarCubeVariables, patches: WatchPatch[]): SugarCubeVariables {
   for (const patch of patches) {
     mutate(variables, patch.path, patch);
   }
