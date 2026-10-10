@@ -77,7 +77,6 @@ export class VariableStore {
     const changed = new Set<string>();
 
     for (const patch of patches) {
-      const target: WatchTarget = { scope: patch.scope, path: patch.path };
       const parent: WatchTarget = { scope: patch.scope, path: patch.path.slice(0, -1) };
       const parentValue = this.getValue(parent);
       const lastPart = patch.path.at(-1);
