@@ -14,6 +14,7 @@ import type { SugarCubeSnapshot } from "../../sugarcube/types";
 import {
   minimizeWatchTargets,
   watchKey,
+  watchPathExists,
   type WatchTarget,
 } from "../../sugarcube/watch";
 import { withTimeout } from "../../utils/withTimeout";
@@ -26,10 +27,16 @@ const WATCH_SAMPLE_COUNT = 20;
 type Variables = SugarCubeSnapshot["variables"];
 type Notice = { level: "recommendation" | "warning"; durationMs: number };
 
+interface WatchRegistration {
+  target: WatchTarget;
+  visible: boolean;
+  favorite: boolean;
+}
+
 interface WatchContextValue {
   variables: Variables;
   favorites: ReadonlyMap<string, WatchTarget>;
-  missingTargets: readonly WatchTarget[];
+  watchedTargets: readonly WatchTarget[];
   toggleFavorite: (target: WatchTarget) => void;
   setVisible: (target: WatchTarget, visible: boolean) => void;
 }
@@ -54,34 +61,44 @@ export function WatchProvider({
     source: snapshot,
     variables: snapshot.variables,
   });
-  const [favorites, setFavorites] = useState<ReadonlyMap<string, WatchTarget>>(
-    () => new Map(),
-  );
-  const [missingTargets, setMissingTargets] = useState<readonly WatchTarget[]>([]);
-  const visibleRef = useRef(new Map<string, WatchTarget>());
-  const missingRef = useRef(new Map<string, WatchTarget>());
-  const favoritesRef = useRef(favorites);
+  // One registry holds active visible and favorite watches. Missing paths
+  // stay registered when their variable row unmounts.
+  const registrationsRef = useRef(new Map<string, WatchRegistration>());
+  const [favoritesVersion, setFavoritesVersion] = useState(0);
+  const currentVariables = view.source === snapshot ? view.variables : snapshot.variables;
+  const variablesRef = useRef(currentVariables);
+  variablesRef.current = currentVariables;
   const [notice, setNotice] = useState<Notice | null>(null);
   const dismissedRef = useRef(new Set<Notice["level"]>());
 
-  useEffect(() => {
-    favoritesRef.current = favorites;
-  }, [favorites]);
-
   const setVisible = useCallback((target: WatchTarget, visible: boolean) => {
     const key = watchKey(target);
-    if (visible) visibleRef.current.set(key, target);
-    else visibleRef.current.delete(key);
+    const registration = registrationsRef.current.get(key);
+    if (visible) {
+      if (registration) registration.visible = true;
+      else registrationsRef.current.set(key, { target, visible: true, favorite: false });
+    } else if (registration) {
+      registration.visible = false;
+      // Keep a missing watched path even after its row unmounts.
+      if (!registration.favorite && watchPathExists(variablesRef.current, target)) {
+        registrationsRef.current.delete(key);
+      }
+    }
   }, []);
 
   const toggleFavorite = useCallback((target: WatchTarget) => {
-    setFavorites((current) => {
-      const next = new Map(current);
-      const key = watchKey(target);
-      if (next.has(key)) next.delete(key);
-      else next.set(key, target);
-      return next;
-    });
+    const key = watchKey(target);
+    const registration = registrationsRef.current.get(key);
+    if (!registration) {
+      registrationsRef.current.set(key, { target, visible: false, favorite: true });
+    } else {
+      registration.favorite = !registration.favorite;
+      if (!registration.favorite && !registration.visible &&
+          watchPathExists(variablesRef.current, target)) {
+        registrationsRef.current.delete(key);
+      }
+    }
+    setFavoritesVersion((version) => version + 1);
   }, []);
 
   useEffect(() => {
@@ -121,11 +138,9 @@ export function WatchProvider({
         return;
       }
 
-      const targets = minimizeWatchTargets([
-        ...favoritesRef.current.values(),
-        ...visibleRef.current.values(),
-        ...missingRef.current.values(),
-      ]);
+      const targets = minimizeWatchTargets(
+        [...registrationsRef.current.values()].map(({ target }) => target),
+      );
       if (targets.length === 0) {
         schedule(WATCH_INTERVAL_MS);
         return;
@@ -143,24 +158,19 @@ export function WatchProvider({
 
         recordDuration(response.mainDurationMs);
         if (response.changes.length > 0) {
-          setView((current) => ({
-            source: snapshot,
-            variables: applyWatchPatches(
-              current.source === snapshot ? current.variables : snapshot.variables,
-              response.changes,
-            ),
-          }));
+          const updated = applyWatchPatches(variablesRef.current, response.changes);
+          variablesRef.current = updated;
+          setView({ source: snapshot, variables: updated });
         }
 
-        const nextMissing = new Map(missingRef.current);
-        for (const target of targets) nextMissing.delete(watchKey(target));
-        for (const target of response.missingTargets) {
-          nextMissing.set(watchKey(target), target);
+        // Retain only registrations still visible, favorited, or missing.
+        // When a missing path returns outside the viewport, it can be released.
+        for (const [key, registration] of registrationsRef.current) {
+          if (!registration.visible && !registration.favorite &&
+              watchPathExists(variablesRef.current, registration.target)) {
+            registrationsRef.current.delete(key);
+          }
         }
-        const changed = nextMissing.size !== missingRef.current.size ||
-          [...nextMissing.keys()].some((key) => !missingRef.current.has(key));
-        missingRef.current = nextMissing;
-        if (changed) setMissingTargets([...nextMissing.values()]);
       } catch (error) {
         if (active) {
           console.error("[SugarCube Inspector] Watch poll failed:", error);
@@ -192,12 +202,16 @@ export function WatchProvider({
   }, [snapshot, onResync]);
 
   const value = useMemo<WatchContextValue>(() => ({
-    variables: view.source === snapshot ? view.variables : snapshot.variables,
-    favorites,
-    missingTargets,
+    variables: currentVariables,
+    favorites: new Map(
+      [...registrationsRef.current.entries()]
+        .filter(([, registration]) => registration.favorite)
+        .map(([key, registration]) => [key, registration.target]),
+    ),
+    watchedTargets: [...registrationsRef.current.values()].map(({ target }) => target),
     toggleFavorite,
     setVisible,
-  }), [favorites, missingTargets, setVisible, snapshot, toggleFavorite, view]);
+  }), [currentVariables, favoritesVersion, setVisible, toggleFavorite]);
 
   return (
     <WatchContext value={value}>

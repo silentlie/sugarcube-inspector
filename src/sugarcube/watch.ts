@@ -59,3 +59,30 @@ export function minimizeWatchTargets(targets: WatchTarget[]): WatchTarget[] {
     (target) => !unique.some((other) => other !== target && isAncestor(other, target)),
   );
 }
+
+/** Presence is independent of the value: an existing undefined is not missing. */
+export function watchPathExists(
+  stores: { story: unknown; temporary: unknown },
+  target: WatchTarget,
+): boolean {
+  let value: unknown = stores[target.scope];
+  for (const part of target.path) {
+    if (part.type === "property" || part.type === "index") {
+      if (value === null || typeof value !== "object") return false;
+      const key = part.type === "property" ? part.key : part.index;
+      if (!Object.hasOwn(value, key)) return false;
+      value = (value as Record<string | number, unknown>)[key];
+    } else if (part.type === "mapKey" || part.type === "mapValue") {
+      if (!(value instanceof Map)) return false;
+      const entry = [...value.entries()][part.index];
+      if (!entry) return false;
+      value = entry[part.type === "mapKey" ? 0 : 1];
+    } else {
+      if (!(value instanceof Set)) return false;
+      const values = [...value.values()];
+      if (part.index < 0 || part.index >= values.length) return false;
+      value = values[part.index];
+    }
+  }
+  return true;
+}

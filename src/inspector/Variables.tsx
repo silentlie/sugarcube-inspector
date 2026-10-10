@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import VariableTree from "./variable-tree/VariableTree";
 import { useWatch } from "./watch/WatchProvider";
-import type { WatchTarget } from "../sugarcube/watch";
+import { watchPathExists, type WatchTarget } from "../sugarcube/watch";
 
 type Tab = "story" | "temporary";
 
@@ -9,7 +9,7 @@ export default function Variables() {
   const [activeTab, setActiveTab] = useState<Tab>("story");
   const watch = useWatch();
   const variables = watch.variables;
-  const missing = watch.missingTargets;
+  const missing = watch.watchedTargets.filter((target) => !watchPathExists(variables, target));
   const id = useId();
 
   const storyTabRef = useRef<HTMLButtonElement>(null);
