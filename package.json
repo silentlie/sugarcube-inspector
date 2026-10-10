@@ -1,16 +1,13 @@
 {
-  "name": "wxt-react-starter",
-  "description": "manifest.json description",
+  "name": "sugarcube-inspector",
+  "description": "Chromium extension for inspecting SugarCube story and temporary variables",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
-    "dev:firefox": "wxt -b firefox",
     "build": "wxt build",
-    "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
-    "zip:firefox": "wxt zip -b firefox",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:browser": "npm run build && node tests/browser/prepare-story.mjs && playwright test",
@@ -19,12 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "compile": "tsc --noEmit",
-    "postinstall": "wxt prepare",
-    "bench:watch": "node scripts/bench-watch.cjs",
-    "bench:watch:roundtrip": "node scripts/bench-watch-roundtrip.cjs",
-    "bench:watch:equality": "node scripts/bench-watch-equality.cjs",
-    "bench:watch:variants": "node scripts/bench-watch-variants.cjs",
-    "bench:watch:chromium": "node scripts/bench-watch-chromium.mjs"
+    "postinstall": "wxt prepare"
   },
   "dependencies": {
     "@sindresorhus/is": "^8.1.0",
