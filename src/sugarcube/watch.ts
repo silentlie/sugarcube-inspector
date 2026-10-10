@@ -1,5 +1,11 @@
 export type VariableScope = "story" | "temporary";
 
+/** JavaScript primitives (including null and undefined), not object-like values. */
+export function isPrimitiveValue(value: unknown): boolean {
+  return value === null ||
+    (typeof value !== "object" && typeof value !== "function");
+}
+
 export type PathSegment =
   | { type: "property"; key: string }
   | { type: "index"; index: number }
