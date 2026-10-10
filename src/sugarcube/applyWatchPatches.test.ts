@@ -146,8 +146,8 @@ describe("in-place watch patches", () => {
     const newCycle: Record<string, unknown> = { health: 30, mp: 5 };
     newCycle.self = newCycle;
     applyWatchPatches(initial, [change([prop("player")], structuredClone(newCycle))]);
-    expect(initial.story.player).toBe(player);
-    expect(initial.story.alias).toBe(player);
+    expect((initial.story as Record<string, unknown>).player).toBe(player);
+    expect((initial.story as Record<string, unknown>).alias).toBe(player);
     expect(player.self).toBe(player);
     expect(player).toMatchObject({ health: 30, mp: 5 });
   });
