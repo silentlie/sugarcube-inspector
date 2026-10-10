@@ -197,7 +197,7 @@ describe("variable tree", () => {
     expect(screen.queryByRole("button", { name: "Expand self" })).toBeNull();
     expect(screen.getByTitle("7")).toBeDefined();
 
-    const ancestorRow = screen.getByRole("button", { name: "Collapse loop" }).parentElement!;
+    const ancestorRow = screen.getByRole("button", { name: "Collapse loop" }).parentElement!.parentElement!;
     fireEvent.click(link);
     expect(document.activeElement).toBe(ancestorRow);
   });
@@ -225,7 +225,7 @@ describe("variable tree", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand inventory" }));
 
     const link = screen.getByRole("button", { name: "Go to $player" });
-    const playerRow = screen.getByRole("button", { name: "Collapse player" }).parentElement!;
+    const playerRow = screen.getByRole("button", { name: "Collapse player" }).parentElement!.parentElement!;
     fireEvent.click(link);
     expect(document.activeElement).toBe(playerRow);
   });
