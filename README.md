@@ -13,7 +13,7 @@ RPC bridge between the page's SugarCube runtime and the inspector.
 - Automatic snapshot refresh after SugarCube passage changes, plus a manual
   **Refresh** button.
 - Live polling of visible variable rows and favorited paths, with batched,
-  incremental updates and a warning for slow watch requests.
+  incremental updates.
 - A drawer that opens on hover, supports resizing by dragging its edge, and has
   keyboard controls.
 - Snapshot validation, request timeouts, and a **Retry** button for snapshot
@@ -65,11 +65,10 @@ in an inactive scope tab. Watches poll every 250 ms (and pause while the page is
 an immutable full-snapshot baseline plus independent cached overrides for watched
 paths. Each poll compares live values first and only clones changed values;
 changes replace whole watched subtrees. Missing paths remain watched and are
-shown as read-only placeholders until they reappear. A dismissible recommendation
-appears when the last 20 MAIN-world poll durations have p95 above 10 ms; a
-single poll above 50 ms triggers a warning. RPC latency is not counted as
-MAIN-world processing time. Complex values such as Maps and Sets are replaced
-in full when changed.
+shown as read-only placeholders until they reappear. Complex values such as
+Maps and Sets are replaced in full when changed. Watch-performance notifications
+are deferred pending a redesign; see
+[deferred watch-performance notifications](docs/deferred-watch-performance-notices.md).
 Favorites currently last for the lifetime of the inspector.
 
 Select the extension's toolbar icon to open the side panel. Its **Refresh**

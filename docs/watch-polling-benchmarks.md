@@ -100,9 +100,11 @@ Unsupported opaque types are also considered changed.
 
 **Compare-before-clone** is the best simple default to explore for large,
 mostly unchanged watched values. Directly return or clone small primitives.
-Always-clone may win for values that change every poll. Preserve the separate
-250 ms slow-request warning, but also measure synchronous MAIN-world CPU,
-since 10–20 ms of page work may cause frame drops.
+Always-clone may win for values that change every poll. If performance
+notifications are reintroduced, measure synchronous MAIN-world CPU rather than
+just RPC round-trip latency, since page work can cause frame drops. The earlier
+notification design is recorded in
+[deferred watch-performance notifications](deferred-watch-performance-notices.md).
 
 Do not switch production to these variants based on this one synthetic
 benchmark. Test realistic game objects, UI visibility, actual polling

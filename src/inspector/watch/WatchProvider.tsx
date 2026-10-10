@@ -20,12 +20,7 @@ import {
 import { withTimeout } from "../../utils/withTimeout";
 
 export const WATCH_INTERVAL_MS = 250;
-export const WATCH_RECOMMENDATION_MS = 10;
-export const WATCH_WARNING_MS = 50;
-const WATCH_SAMPLE_COUNT = 20;
-
 type Variables = SugarCubeSnapshot["variables"];
-type Notice = { level: "recommendation" | "warning"; durationMs: number };
 
 interface WatchRegistration {
   target: WatchTarget;
@@ -42,11 +37,6 @@ interface WatchContextValue {
 }
 
 const WatchContext = createContext<WatchContextValue | null>(null);
-
-function p95(samples: readonly number[]): number {
-  const sorted = [...samples].sort((a, b) => a - b);
-  return sorted[Math.ceil(0.95 * sorted.length) - 1] ?? 0;
-}
 
 export function WatchProvider({
   snapshot,
@@ -77,9 +67,6 @@ export function WatchProvider({
   useEffect(() => {
     variablesRef.current = currentVariables;
   }, [currentVariables]);
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const dismissedRef = useRef(new Set<Notice["level"]>());
-
   const setVisible = useCallback((target: WatchTarget, visible: boolean) => {
     setRegistrations((current) => {
       const key = watchKey(target);
@@ -115,30 +102,10 @@ export function WatchProvider({
     let active = true;
     let busy = false;
     let timer: number | undefined;
-    const durations: number[] = [];
     const generation = snapshot.watchGeneration ?? 0;
 
     function schedule(delay: number) {
       if (active) timer = window.setTimeout(() => void poll(), delay);
-    }
-
-    function recordDuration(ms: number) {
-      if (!Number.isFinite(ms) || ms < 0) return;
-      durations.push(ms);
-      if (durations.length > WATCH_SAMPLE_COUNT) durations.shift();
-
-      if (ms > WATCH_WARNING_MS) {
-        if (!dismissedRef.current.has("warning")) {
-          setNotice({ level: "warning", durationMs: Math.round(ms) });
-        }
-      } else if (durations.length === WATCH_SAMPLE_COUNT &&
-                 p95(durations) > WATCH_RECOMMENDATION_MS &&
-                 !dismissedRef.current.has("recommendation")) {
-        setNotice((old) => old?.level === "warning" ? old :
-          { level: "recommendation", durationMs: Math.round(p95(durations)) });
-      } else if (durations.length === WATCH_SAMPLE_COUNT && p95(durations) <= 8) {
-        setNotice((old) => old?.level === "recommendation" ? null : old);
-      }
     }
 
     async function poll() {
@@ -177,7 +144,6 @@ export function WatchProvider({
           throw new Error("Watch snapshot generation mismatch.");
         }
 
-        recordDuration(response.mainDurationMs);
         if (response.changes.length > 0) {
           const updated = applyWatchPatches(variablesRef.current, response.changes);
           variablesRef.current = updated;
@@ -238,28 +204,7 @@ export function WatchProvider({
     setVisible,
   }), [currentVariables, registrations, setVisible, toggleFavorite]);
 
-  return (
-    <WatchContext value={value}>
-      {notice !== null && (
-        <div role="status" className="mt-2 flex items-start gap-2 rounded border border-amber-700/60 bg-amber-950/40 p-2 text-xs text-amber-200">
-          <span className="min-w-0 flex-1">
-            {notice.level === "warning"
-              ? `Variable watching took ${notice.durationMs} ms in the game page and may cause stuttering.`
-              : `Variable watching is taking about ${notice.durationMs} ms per poll in the game page and may affect responsiveness.`}
-            {" "}Consider reducing watched variables.
-          </span>
-          <button type="button" onClick={() => {
-            dismissedRef.current.add(notice.level);
-            setNotice(null);
-          }}
-            aria-label="Dismiss watch warning" className="shrink-0 text-amber-300 hover:text-white">
-            Dismiss
-          </button>
-        </div>
-      )}
-      {children}
-    </WatchContext>
-  );
+  return <WatchContext value={value}>{children}</WatchContext>;
 }
 
 export function useWatch(): WatchContextValue {

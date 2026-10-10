@@ -38,41 +38,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("warns immediately on one MAIN-world poll over 50ms", async () => {
+it("continues polling after slow MAIN-world work without showing a notice", async () => {
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
     changes: [], mainDurationMs: 58,
   }));
   render(<WatchProvider snapshot={snapshot()}><RegisterWatch /></WatchProvider>);
-  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(screen.getByRole("status").textContent).toContain("58 ms");
-  expect(screen.getByRole("status").textContent).toContain("stuttering");
-  await act(async () => { screen.getByRole("button", { name: "Dismiss watch warning" }).click(); });
-  expect(screen.queryByRole("status")).toBeNull();
-  await act(async () => { await vi.advanceTimersByTimeAsync(500); });
-  expect(screen.queryByRole("status")).toBeNull();
-});
-
-it("recommends reducing watches after sustained p95 over 10ms", async () => {
-  rpc.sendMessage.mockImplementation(async (_type, data) => ({
-    generation: (data as { generation: number }).generation,
-    changes: [], mainDurationMs: 12,
-  }));
-  render(<WatchProvider snapshot={snapshot()}><RegisterWatch /></WatchProvider>);
-  await act(async () => { await vi.advanceTimersByTimeAsync(5_050); });
-  expect(screen.getByRole("status").textContent).toContain("12 ms");
-  expect(screen.getByRole("status").textContent).toContain("responsiveness");
-});
-
-it("ignores long RPC round trips when MAIN processing is fast", async () => {
-  rpc.sendMessage.mockImplementation((_type, data) =>
-    new Promise((resolve) => window.setTimeout(() => resolve({
-      generation: (data as { generation: number }).generation,
-      changes: [], mainDurationMs: 1,
-    }), 310)),
-  );
-  render(<WatchProvider snapshot={snapshot()}><RegisterWatch /></WatchProvider>);
-  await act(async () => { await vi.advanceTimersByTimeAsync(1_100); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(760); });
+  expect(rpc.sendMessage).toHaveBeenCalledTimes(3);
   expect(screen.queryByRole("status")).toBeNull();
 });
 
