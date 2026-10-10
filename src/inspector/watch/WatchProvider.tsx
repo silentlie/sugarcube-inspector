@@ -11,10 +11,8 @@ import {
 import { sugarcubeRPC } from "../../sugarcube/rpc";
 import { VariableStore } from "./VariableStore";
 import type { SugarCubeSnapshot } from "../../sugarcube/types";
-import {
-  watchKey,
-  type WatchTarget,
-} from "../../sugarcube/watch";
+import { pathKey } from "../../sugarcube/path";
+import type { VariablePath } from "../../sugarcube/watch";
 import { withTimeout } from "../../utils/withTimeout";
 
 export const WATCH_INTERVAL_MS = 250;
@@ -22,10 +20,10 @@ export const WATCH_INTERVAL_MS = 250;
 interface WatchContextValue {
   variables: SugarCubeSnapshot["variables"];
   store: VariableStore;
-  favorites: ReadonlyMap<string, WatchTarget>;
-  watchedTargets: readonly WatchTarget[];
-  toggleFavorite: (target: WatchTarget, favorite: boolean) => void;
-  setVisible: (target: WatchTarget, visible: boolean) => void;
+  favorites: ReadonlyMap<string, VariablePath>;
+  watchedPaths: readonly VariablePath[];
+  toggleFavorite: (path: VariablePath, favorite: boolean) => void;
+  setVisible: (path: VariablePath, visible: boolean) => void;
   pollNow: () => void;
 }
 
@@ -41,20 +39,20 @@ export function WatchProvider({
   children: ReactNode;
 }) {
   const store = useMemo(() => new VariableStore(snapshot.variables), [snapshot]);
-  const [favorites, setFavorites] = useState<ReadonlyMap<string, WatchTarget>>(
+  const [favorites, setFavorites] = useState<ReadonlyMap<string, VariablePath>>(
     () => new Map(),
   );
   const favoritesRef = useRef(favorites);
-  const visibleRef = useRef(new Map<string, WatchTarget>());
+  const visibleRef = useRef(new Map<string, VariablePath>());
   const wakeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     favoritesRef.current = favorites;
   }, [favorites]);
 
-  const setVisible = useCallback((target: WatchTarget, isVisible: boolean) => {
-    const key = watchKey(target);
-    if (isVisible) visibleRef.current.set(key, target);
+  const setVisible = useCallback((path: VariablePath, isVisible: boolean) => {
+    const key = pathKey(path);
+    if (isVisible) visibleRef.current.set(key, path);
     else visibleRef.current.delete(key);
   }, []);
 
@@ -62,12 +60,12 @@ export function WatchProvider({
   const pollNow = useCallback(() => wakeRef.current?.(), []);
 
   // Explicit desired state is idempotent, even with repeated requests.
-  const toggleFavorite = useCallback((target: WatchTarget, favorite: boolean) => {
+  const toggleFavorite = useCallback((path: VariablePath, favorite: boolean) => {
     setFavorites((current) => {
-      const key = watchKey(target);
+      const key = pathKey(path);
       if (favorite === current.has(key)) return current;
       const next = new Map(current);
-      if (favorite) next.set(key, target);
+      if (favorite) next.set(key, path);
       else next.delete(key);
       return next;
     });
@@ -104,11 +102,11 @@ export function WatchProvider({
         return;
       }
 
-      const favoriteTargets = [...favoritesRef.current.values()];
+      const favoritePaths = [...favoritesRef.current.values()];
       // Include the active scope root on every poll for shallow structural
       // discovery, independently of visible scalar and expanded value watches.
-      const visibleTargets = [...visibleRef.current.values()];
-      if (favoriteTargets.length === 0 && visibleTargets.length === 0) {
+      const visiblePaths = [...visibleRef.current.values()];
+      if (favoritePaths.length === 0 && visiblePaths.length === 0) {
         schedule(WATCH_INTERVAL_MS);
         return;
       }
@@ -117,7 +115,7 @@ export function WatchProvider({
       try {
         const response = await withTimeout(
           sugarcubeRPC.sendMessage("getWatchChanges", {
-            generation, favorites: favoriteTargets, visible: visibleTargets,
+            generation, favorites: favoritePaths, visible: visiblePaths,
           }),
         );
         if (!active) return;
@@ -162,7 +160,7 @@ export function WatchProvider({
     store,
     favorites,
     // Only favorited missing paths remain watched when their rows unmount.
-    watchedTargets: [...favorites.values()],
+    watchedPaths: [...favorites.values()],
     toggleFavorite,
     setVisible,
     pollNow,

@@ -1,6 +1,7 @@
 import { circularDeepEqual, deepEqual } from "fast-equals";
-import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, WatchTarget, VariablePath } from "./watch";
-import { minimizeWatchTargets, watchKey } from "./watch";
+import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./watch";
+import { minimizeWatchPaths } from "./watch";
+import { pathKey } from "./path";
 import { applyWatchPatches } from "./applyWatchPatches";
 import { resolvePath, type PathResolution } from "./path";
 import type { SugarCubeSnapshot } from "./types";
@@ -8,8 +9,8 @@ import type { SugarCubeSnapshot } from "./types";
 type Entry = PathResolution;
 type Stores = SugarCubeSnapshot["variables"];
 
-function resolve(stores: Stores, target: WatchTarget): Entry {
-  return resolvePath(stores, target.path);
+function resolve(stores: Stores, path: VariablePath): Entry {
+  return resolvePath(stores, path);
 }
 
 /**
@@ -78,25 +79,25 @@ function segmentForKey(key: string, array: boolean): PathSegment {
     : { type: "property", key };
 }
 
-function structureTargets(visible: readonly WatchTarget[]): WatchTarget[] {
-  const targets = new Map<string, WatchTarget>();
-  for (const target of visible) {
+function structurePaths(visible: readonly VariablePath[]): VariablePath[] {
+  const paths = new Map<string, VariablePath>();
+  for (const path of visible) {
     // Explicit root registrations are structure-only, including when empty.
-    if (target.path.length === 1) {
-      targets.set(watchKey(target), target);
+    if (path.length === 1) {
+      paths.set(pathKey(path), path);
       continue;
     }
 
     // Parent structures discover siblings. Do not inspect a collapsed
     // container's own children. Collection entries use unstable indices,
     // so check the containing Map/Set as a single structure.
-    const normalized = minimizeWatchTargets([target])[0]!;
-    const parent = normalized.path.length < target.path.length
+    const normalized = minimizeWatchPaths([path])[0]!;
+    const parent = normalized.length < path.length
       ? normalized
-      : { path: target.path.slice(0, -1) as VariablePath };
-    targets.set(watchKey(parent), parent);
+      : path.slice(0, -1) as VariablePath;
+    paths.set(pathKey(parent), parent);
   }
-  return [...targets.values()];
+  return [...paths.values()];
 }
 
 function ancestorOrSelf(parent: WatchPatch, child: WatchPatch): boolean {
@@ -131,18 +132,17 @@ export class WatchService {
       };
     }
 
-    const structs = structureTargets(request.visible);
+    const structs = structurePaths(request.visible);
     const structuralChanges: WatchPatch[] = [];
 
     // Compare against the last synchronized state, including earlier patches.
-    for (const target of structs) {
-      const key = watchKey(target);
-      const oldEntry = resolve(baseline, target);
-      const liveEntry = resolve(stores, target);
+    for (const path of structs) {
+      const key = pathKey(path);
+      const oldEntry = resolve(baseline, path);
+      const liveEntry = resolve(stores, path);
       const previous = structureOf(oldEntry.exists ? oldEntry.value : undefined);
       const current = structureOf(liveEntry.exists ? liveEntry.value : undefined);
       if (!previous && !current) continue;
-      const path = target.path;
       const add = (value: unknown) => {
         structuralChanges.push({
           op: "set", path, value: structuredClone(value),
@@ -195,23 +195,23 @@ export class WatchService {
 
     // Only eligible visible leaves and expanded containers are registered.
     // The scope root is structure-only, never a whole-value watch.
-    const valueVisible = request.visible.filter((target) => target.path.length > 1);
-    const targets = minimizeWatchTargets([...request.favorites, ...valueVisible]);
+    const valueVisible = request.visible.filter((path) => path.length > 1);
+    const paths = minimizeWatchPaths([...request.favorites, ...valueVisible]);
     const valueChanges: WatchPatch[] = [];
 
     // Stage all patches before advancing the synchronized snapshot.
-    for (const target of targets) {
-      const key = watchKey(target);
-      const previous = resolve(baseline, target);
-      const current = resolve(stores, target);
+    for (const path of paths) {
+      const key = pathKey(path);
+      const previous = resolve(baseline, path);
+      const current = resolve(stores, path);
       if (sameEntry(previous, current, key, this.circularPaths)) continue;
 
       if (!current.exists) {
         // A previously absent/blocked parent may now be present, even when
         // the leaf remains missing. Replace that parent to repair the tree.
         const restorePrevious = !previous.exists && previous.missingPath &&
-          previous.missingPath.length < (current.missingPath?.length ?? target.path.length);
-        const patchPath = (restorePrevious ? previous.missingPath! : current.missingPath ?? target.path) as VariablePath;
+          previous.missingPath.length < (current.missingPath?.length ?? path.length);
+        const patchPath = (restorePrevious ? previous.missingPath! : current.missingPath ?? path) as VariablePath;
         const parent = resolve(stores, { path: patchPath });
         const copy = parent.exists ? structuredClone(parent.value) : undefined;
         valueChanges.push(parent.exists
@@ -223,13 +223,13 @@ export class WatchService {
       // If an ancestor was deleted, restore the whole ancestor, not just a
       // leaf that would leave an incomplete, invented object in the UI.
       const restorePath = (!previous.exists && previous.missingPath &&
-        previous.missingPath.length < target.path.length
+        previous.missingPath.length < path.length
         ? previous.missingPath
-        : target.path) as VariablePath;
+        : path) as VariablePath;
       const restored = resolve(stores, { path: restorePath });
       if (!restored.exists) throw new Error("Watch path disappeared during polling.");
       const cloned = structuredClone(restored.value);
-      if (!resolvePath(cloned, target.path.slice(restorePath.length)).exists) {
+      if (!resolvePath(cloned, path.slice(restorePath.length)).exists) {
         throw new Error("Cloned watch path is missing.");
       }
       valueChanges.push({ op: "set", path: restorePath, value: cloned });

@@ -1,15 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { WatchService } from "./watchService";
 import { applyWatchPatches } from "./applyWatchPatches";
-import { minimizeWatchTargets, watchPathExists, type WatchRequest, type WatchTarget, type PathSegment } from "./watch";
+import { minimizeVariablePaths, watchPathExists, type WatchRequest, type VariablePath, type PathSegment } from "./watch";
 import type { SugarCubeSnapshot } from "./types";
 
-const player: WatchTarget = {
-  path: [{ type: "property", key: "story" }, { type: "property", key: "player" }],
-};
-const health: WatchTarget = {
-  path: [...player.path, { type: "property", key: "health" }],
-};
+const player: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "player" }];
+const health: VariablePath = [...player, { type: "property", key: "health" }];
 function baseline(story: Record<string, unknown>): SugarCubeSnapshot {
   return {
     story: { name: "Test", ifId: "test" },
@@ -26,7 +22,7 @@ function setup(story: Record<string, unknown>) {
   // Inspector and MAIN each hold an independent synchronized graph.
   return { service, generation, snapshot: structuredClone(snapshot) };
 }
-function request(generation: number, targets: WatchTarget[] = [player]): WatchRequest {
+function request(generation: number, targets: VariablePath[] = [player]): WatchRequest {
   return { generation, favorites: targets, visible: [] };
 }
 
@@ -39,7 +35,7 @@ describe("synchronized snapshot watch service", () => {
     stores.story.player.health = 75;
     const response = service.poll(request(generation), stores);
     expect(response.changes).toEqual([{
-      op: "set", path: player.path,
+      op: "set", path: player,
       value: { health: 75, stats: { strength: 10 } },
     }]);
     expect(response.mainDurationMs).toBeGreaterThanOrEqual(0);
@@ -51,7 +47,7 @@ describe("synchronized snapshot watch service", () => {
     expect(service.poll(request(generation), stores).changes).toEqual([]);
     stores.story.player.stats.strength = 12;
     expect(service.poll(request(generation), stores).changes).toEqual([{
-      op: "set", path: player.path,
+      op: "set", path: player,
       value: { health: 75, stats: { strength: 12 } },
     }]);
   });
@@ -61,7 +57,7 @@ describe("synchronized snapshot watch service", () => {
     const stores = { story: { player: shared, character: shared }, temporary: {} };
     const { service, generation } = setup(stores.story);
     shared.health = 75;
-    const other: WatchTarget = { path: [{ type: "property", key: "story" }, { type: "property", key: "character" }, { type: "property", key: "health" }] };
+    const other: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "character" }, { type: "property", key: "health" }];
     const response = service.poll(request(generation, [health, other]), stores);
     expect(response.changes).toHaveLength(2);
     expect(response.changes.map((change) => change.op === "set" ? change.value : null)).toEqual([75, 75]);
@@ -79,12 +75,12 @@ describe("synchronized snapshot watch service", () => {
 
     delete (stores.story.player as Record<string, unknown>).health;
     const missing = service.poll(request(generation, [health]), stores);
-    expect(missing.changes).toEqual([{ op: "delete", path: health.path }]);
+    expect(missing.changes).toEqual([{ op: "delete", path: health }]);
     expect(service.poll(request(generation, [health]), stores).changes).toEqual([]);
 
     (stores.story.player as Record<string, unknown>).health = undefined;
     expect(service.poll(request(generation, [health]), stores).changes).toEqual([
-      { op: "set", path: health.path, value: undefined },
+      { op: "set", path: health, value: undefined },
     ]);
   });
 
@@ -96,7 +92,7 @@ describe("synchronized snapshot watch service", () => {
     const { service, generation, snapshot } = setup(stores.story);
     delete stores.story.player;
     const deleted = service.poll(request(generation, [health]), stores);
-    expect(deleted.changes).toEqual([{ op: "delete", path: player.path }]);
+    expect(deleted.changes).toEqual([{ op: "delete", path: player }]);
 
     const removed = applyWatchPatches(snapshot.variables, deleted.changes);
     expect(Object.hasOwn(removed.story, "player")).toBe(false);
@@ -104,7 +100,7 @@ describe("synchronized snapshot watch service", () => {
     stores.story.player = { health: 75, mana: 50 };
     const restored = service.poll(request(generation, [health]), stores);
     expect(restored.changes).toEqual([{
-      op: "set", path: player.path, value: { health: 75, mana: 50 },
+      op: "set", path: player, value: { health: 75, mana: 50 },
     }]);
     expect((applyWatchPatches(removed, restored.changes).story as Record<string, unknown>).player).toEqual(stores.story.player);
   });
@@ -116,25 +112,25 @@ describe("synchronized snapshot watch service", () => {
     const { service, generation, snapshot } = setup(stores.story);
     stores.story.player = null;
     const nullValue = service.poll(request(generation, [health]), stores);
-    expect(nullValue.changes).toEqual([{ op: "set", path: player.path, value: null }]);
+    expect(nullValue.changes).toEqual([{ op: "set", path: player, value: null }]);
     let displayed = applyWatchPatches(snapshot.variables, nullValue.changes);
     expect((displayed.story as Record<string, unknown>).player).toBeNull();
 
     stores.story.player = 123;
     const primitive = service.poll(request(generation, [health]), stores);
-    expect(primitive.changes).toEqual([{ op: "set", path: player.path, value: 123 }]);
+    expect(primitive.changes).toEqual([{ op: "set", path: player, value: 123 }]);
     displayed = applyWatchPatches(displayed, primitive.changes);
 
     stores.story.player = {};
     const emptyParent = service.poll(request(generation, [health]), stores);
-    expect(emptyParent.changes).toEqual([{ op: "set", path: player.path, value: {} }]);
+    expect(emptyParent.changes).toEqual([{ op: "set", path: player, value: {} }]);
     displayed = applyWatchPatches(displayed, emptyParent.changes);
     expect((displayed.story as Record<string, unknown>).player).toEqual({});
 
     stores.story.player = { health: 99, mana: 40 };
     const restored = service.poll(request(generation, [health]), stores);
     expect(restored.changes).toEqual([{
-      op: "set", path: health.path, value: 99,
+      op: "set", path: health, value: 99,
     }]);
   });
 
@@ -146,7 +142,7 @@ describe("synchronized snapshot watch service", () => {
     expect(service.poll(request(generation, [health]), stores).changes).toEqual([]);
     delete stores.story.player;
     expect(service.poll(request(generation, [health]), stores).changes).toEqual([
-      { op: "delete", path: player.path },
+      { op: "delete", path: player },
     ]);
   });
 
@@ -173,11 +169,9 @@ describe("synchronized snapshot watch service", () => {
   });
 
   it("keeps paths in different scopes independent when minimizing watches", () => {
-    const storyRoot: WatchTarget = { path: [{ type: "property", key: "story" }] };
-    const temporaryScore: WatchTarget = {
-      path: [{ type: "property", key: "temporary" }, { type: "property", key: "score" }],
-    };
-    expect(minimizeWatchTargets([player, storyRoot, temporaryScore])).toEqual([
+    const storyRoot: VariablePath = [{ type: "property", key: "story" }];
+    const temporaryScore: VariablePath = [{ type: "property", key: "temporary" }, { type: "property", key: "score" }];
+    expect(minimizeVariablePaths([player, storyRoot, temporaryScore])).toEqual([
       storyRoot, temporaryScore,
     ]);
     expect(watchPathExists({ story: {}, temporary: { score: 5 } }, temporaryScore)).toBe(true);
@@ -185,16 +179,16 @@ describe("synchronized snapshot watch service", () => {
   });
 
   it("watches whole Map/Set collections rather than unstable positional entries", () => {
-    const targets: WatchTarget[] = [
-      { path: [{ type: "property", key: "story" }, { type: "property", key: "items" }, { type: "mapValue", index: 1 }] },
-      { path: [{ type: "property", key: "story" }, { type: "property", key: "items" }, { type: "mapKey", index: 0 }] },
-      { path: [{ type: "property", key: "story" }, { type: "property", key: "flags" }, { type: "setValue", index: 0 }] },
+    const targets: VariablePath[] = [
+      [{ type: "property", key: "story" }, { type: "property", key: "items" }, { type: "mapValue", index: 1 }],
+      [{ type: "property", key: "story" }, { type: "property", key: "items" }, { type: "mapKey", index: 0 }],
+      [{ type: "property", key: "story" }, { type: "property", key: "flags" }, { type: "setValue", index: 0 }],
     ];
-    expect(minimizeWatchTargets(targets)).toEqual([
-      { path: [{ type: "property", key: "story" }, { type: "property", key: "items" }] },
-      { path: [{ type: "property", key: "story" }, { type: "property", key: "flags" }] },
+    expect(minimizeVariablePaths(targets)).toEqual([
+      [{ type: "property", key: "story" }, { type: "property", key: "items" }],
+      [{ type: "property", key: "story" }, { type: "property", key: "flags" }],
     ]);
-    expect(minimizeWatchTargets([player, health])).toEqual([player]);
+    expect(minimizeVariablePaths([player, health])).toEqual([player]);
   });
 
   it("retains synchronized changes across watch removal and a different path reactivation", () => {
@@ -205,7 +199,7 @@ describe("synchronized snapshot watch service", () => {
     stores.story.player.health = 20;
     const changed = service.poll(request(generation, [player]), stores).changes;
     expect(changed).toEqual([{
-      op: "set", path: player.path, value: { health: 20 },
+      op: "set", path: player, value: { health: 20 },
     }]);
     displayed = applyWatchPatches(displayed, changed);
 
@@ -217,7 +211,7 @@ describe("synchronized snapshot watch service", () => {
     // hp=20, not the full snapshot's hp=10.
     const restored = service.poll(request(generation, [health]), stores).changes;
     expect(restored).toEqual([{
-      op: "set", path: health.path, value: 10,
+      op: "set", path: health, value: 10,
     }]);
     displayed = applyWatchPatches(displayed, restored);
     expect((displayed.story as { player: { health: number } }).player.health).toBe(10);
@@ -238,7 +232,7 @@ describe("synchronized snapshot watch service", () => {
     (stores.story.player as Record<string, unknown>).mana = 5;
     const added = poll();
     expect(added).toEqual([{
-      op: "set", path: [...player.path, { type: "property", key: "mana" }],
+      op: "set", path: [...player, { type: "property", key: "mana" }],
       value: 5,
     }]);
     let displayed = applyWatchPatches(snapshot.variables, added);
@@ -247,7 +241,7 @@ describe("synchronized snapshot watch service", () => {
     delete (stores.story.player as Record<string, unknown>).mana;
     const removed = poll();
     expect(removed).toEqual([{
-      op: "delete", path: [...player.path, { type: "property", key: "mana" }],
+      op: "delete", path: [...player, { type: "property", key: "mana" }],
     }]);
     displayed = applyWatchPatches(displayed, removed);
     expect((displayed.story as { player: unknown }).player).toEqual({ health: 10 });
@@ -256,16 +250,12 @@ describe("synchronized snapshot watch service", () => {
   it("keeps aliased paths independently stale until each one is polled", () => {
     const shared = { health: 10 };
     const stores = { story: { left: shared, right: shared }, temporary: {} };
-    const left: WatchTarget = {
-      path: [{ type: "property", key: "story" }, { type: "property", key: "left" }],
-    };
-    const right: WatchTarget = {
-      path: [{ type: "property", key: "story" }, { type: "property", key: "right" }],
-    };
+    const left: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "left" }];
+    const right: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "right" }];
     const { service, generation, snapshot } = setup(stores.story);
     shared.health = 20;
     const first = service.poll(request(generation, [left]), stores).changes;
-    expect(first).toEqual([{ op: "set", path: left.path, value: { health: 20 } }]);
+    expect(first).toEqual([{ op: "set", path: left, value: { health: 20 } }]);
     const displayed = applyWatchPatches(snapshot.variables, first);
     const copied = displayed.story as { left: { health: number }; right: { health: number } };
     expect(copied.left.health).toBe(20);
@@ -273,7 +263,7 @@ describe("synchronized snapshot watch service", () => {
     expect(copied.left).not.toBe(copied.right);
 
     const second = service.poll(request(generation, [right]), stores).changes;
-    expect(second).toEqual([{ op: "set", path: right.path, value: { health: 20 } }]);
+    expect(second).toEqual([{ op: "set", path: right, value: { health: 20 } }]);
     applyWatchPatches(displayed, second);
     expect(copied.right.health).toBe(20);
     expect(service.poll(request(generation, [right]), stores).changes).toEqual([]);
@@ -283,10 +273,10 @@ describe("synchronized snapshot watch service", () => {
     const shared = { health: 10 };
     const stores = { story: { left: shared, right: shared }, temporary: {} };
     const { service, generation, snapshot } = setup(stores.story);
-    const left: WatchTarget = { path: [{ type: "property", key: "story" }, { type: "property", key: "left" }] };
+    const left: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "left" }];
     stores.story.left = { health: 90 };
     const changed = service.poll(request(generation, [left]), stores).changes;
-    expect(changed).toEqual([{ op: "set", path: left.path, value: { health: 90 } }]);
+    expect(changed).toEqual([{ op: "set", path: left, value: { health: 90 } }]);
     const displayed = applyWatchPatches(snapshot.variables, changed);
     const copied = displayed.story as { left: { health: number }; right: { health: number } };
     expect(copied.left.health).toBe(90);
@@ -301,28 +291,24 @@ describe("synchronized snapshot watch service", () => {
     const { service, generation } = setup(stores.story);
     stores.story.a = 3;
     stores.story.b = () => undefined;
-    const targets: WatchTarget[] = ["a", "b"].map((key) => ({
-      path: [{ type: "property", key: "story" }, { type: "property", key }],
-    }));
+    const targets: VariablePath[] = ["a", "b"].map((key): VariablePath => ([{ type: "property", key: "story" }, { type: "property", key }]));
     expect(() => service.poll(request(generation, targets), stores)).toThrow();
     stores.story.b = 4;
     expect(service.poll(request(generation, targets), stores).changes).toEqual([
-      { op: "set", path: targets[0]!.path, value: 3 },
-      { op: "set", path: targets[1]!.path, value: 4 },
+      { op: "set", path: targets[0]!, value: 3 },
+      { op: "set", path: targets[1]!, value: 4 },
     ]);
   });
 });
 
 describe("visible structural watch", () => {
-  const root: WatchTarget = { path: [{ type: "property", key: "story" }] };
-  function visible(generation: number, entries: WatchTarget[]): WatchRequest {
+  const root: VariablePath = [{ type: "property", key: "story" }];
+  function visible(generation: number, entries: VariablePath[]): WatchRequest {
     return { generation, favorites: [], visible: entries };
   }
 
   it("derives root structure from a visible top-level child", () => {
-    const score: WatchTarget = {
-      path: [{ type: "property", key: "story" }, { type: "property", key: "score" }],
-    };
+    const score: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "score" }];
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { score: 7 }, temporary: {} };
     const { service, generation } = setup(stores.story);
@@ -360,14 +346,12 @@ describe("visible structural watch", () => {
     }]);
     delete stores.story.player;
     expect(poll()).toEqual([{
-      op: "delete", path: player.path,
+      op: "delete", path: player,
     }]);
   });
 
   it("deduplicates explicit root structure and structure inferred from a visible child", () => {
-    const score: WatchTarget = {
-      path: [{ type: "property", key: "story" }, { type: "property", key: "score" }],
-    };
+    const score: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "score" }];
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { score: 7 }, temporary: {} };
     const { service, generation } = setup(stores.story);
@@ -414,15 +398,15 @@ describe("visible structural watch", () => {
     expect(poll()).toEqual([]);
     (stores.story.player as Record<string, unknown>).hp = 100;
     expect(poll()).toEqual([{
-      op: "set", path: player.path, value: { hp: 100 },
+      op: "set", path: player, value: { hp: 100 },
     }]);
     delete (stores.story.player as Record<string, unknown>).hp;
     expect(poll()).toEqual([{
-      op: "set", path: player.path, value: {},
+      op: "set", path: player, value: {},
     }]);
     (stores.story.player as Record<string, unknown>).mp = 50;
     expect(poll()).toEqual([{
-      op: "set", path: player.path, value: { mp: 50 },
+      op: "set", path: player, value: { mp: 50 },
     }]);
   });
 
@@ -433,12 +417,12 @@ describe("visible structural watch", () => {
     expect(poll()).toEqual([]);
     stores.story.player.mana = { max: 50 };
     expect(poll()).toEqual([{
-      op: "set", path: [...player.path, { type: "property", key: "mana" }],
+      op: "set", path: [...player, { type: "property", key: "mana" }],
       value: { max: 50 },
     }]);
     stores.story.player.health = 75;
     expect(poll()).toEqual([{
-      op: "set", path: health.path, value: 75,
+      op: "set", path: health, value: 75,
     }]);
   });
 
@@ -449,22 +433,22 @@ describe("visible structural watch", () => {
     const poll = () => service.poll(visible(generation, [player]), stores).changes;
     expect(poll()).toEqual([]);
     stores.story.player = 10;
-    expect(poll()).toEqual([{ op: "set", path: player.path, value: 10 }]);
+    expect(poll()).toEqual([{ op: "set", path: player, value: 10 }]);
     stores.story.player = 20;
-    expect(poll()).toEqual([{ op: "set", path: player.path, value: 20 }]);
+    expect(poll()).toEqual([{ op: "set", path: player, value: 20 }]);
     expect(poll()).toEqual([]);
   });
 
   it("updates array lengths and new indices when visible, including empty arrays", () => {
     const stores = { story: { items: [] as number[] }, temporary: {} };
-    const item: WatchTarget = { path: [{ type: "property", key: "story" }, { type: "property", key: "items" }] };
+    const item: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "items" }];
     const { service, generation, snapshot } = setup(stores.story);
     const poll = () => service.poll(visible(generation, [item]), stores).changes;
     expect(poll()).toEqual([]);
     stores.story.items.push(4);
     const added = poll();
     expect(added).toEqual([{
-      op: "set", path: item.path, value: [4],
+      op: "set", path: item, value: [4],
     }]);
     let displayed = applyWatchPatches(snapshot.variables, added);
     expect((displayed.story as Record<string, unknown>).items).toEqual([4]);
@@ -475,13 +459,13 @@ describe("visible structural watch", () => {
 
   it("replaces a Map when keys are inserted rather than tracking unstable indices", () => {
     const stores = { story: { items: new Map<string, number>() }, temporary: {} };
-    const item: WatchTarget = { path: [{ type: "property", key: "story" }, { type: "property", key: "items" }] };
+    const item: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "items" }];
     const { service, generation } = setup(stores.story);
     const poll = () => service.poll(visible(generation, [item]), stores).changes;
     expect(poll()).toEqual([]);
     stores.story.items.set("key", 1);
     expect(poll()).toEqual([{
-      op: "set", path: item.path, value: new Map([["key", 1]]),
+      op: "set", path: item, value: new Map([["key", 1]]),
     }]);
   });
 
@@ -496,12 +480,12 @@ describe("visible structural watch", () => {
     expect(poll(false)).toEqual([]);
     // The first expanded poll compares the whole object to its baseline.
     expect(poll(true)).toEqual([
-      { op: "set", path: player.path, value: { hp: 20 } },
+      { op: "set", path: player, value: { hp: 20 } },
     ]);
     expect(poll(true)).toEqual([]);
     stores.story.player.hp = 30;
     expect(poll(true)).toEqual([
-      { op: "set", path: player.path, value: { hp: 30 } },
+      { op: "set", path: player, value: { hp: 30 } },
     ]);
     expect(poll(false)).toEqual([]);
   });
@@ -536,7 +520,7 @@ describe("watchPathExists", () => {
       flags: new Set(["seen"]),
       list: [undefined],
     }, temporary: {} };
-    const key = (segments: PathSegment[]): WatchTarget => ({ path: [{ type: "property", key: "story" }, ...segments] });
+    const key = (segments: PathSegment[]): VariablePath => ([{ type: "property", key: "story" }, ...segments]);
     expect(watchPathExists(stores, key([{ type: "property", key: "items" }, { type: "mapValue", index: 0 }]))).toBe(true);
     expect(watchPathExists(stores, key([{ type: "property", key: "items" }, { type: "mapKey", index: 1 }]))).toBe(false);
     expect(watchPathExists(stores, key([{ type: "property", key: "flags" }, { type: "setValue", index: 0 }]))).toBe(true);

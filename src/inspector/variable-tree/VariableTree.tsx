@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import VariableNode from "./VariableNode";
 import type { PathSegment, VariableAncestor, VariableScope } from "./types";
-import { watchKey } from "../../sugarcube/watch";
+import { pathKey } from "../../sugarcube/path";
 import { getChildren } from "./valueUtils";
 import { useWatch } from "../watch/WatchProvider";
 import { useVariableVersion } from "../watch/VariableStore";
@@ -13,9 +13,9 @@ interface VariableTreeProps {
 
 export default function VariableTree({ scope, value }: VariableTreeProps) {
   const watch = useWatch();
-  useVariableVersion(watch.store, { path: [{ type: "property", key: scope }] });
+  useVariableVersion(watch.store, [{ type: "property", key: scope }]);
   const fromStore = value === undefined;
-  const rootValue = fromStore ? watch.store.getValue({ path: [{ type: "property", key: scope }] }) : value;
+  const rootValue = fromStore ? watch.store.getValue([{ type: "property", key: scope }]) : value;
   const [expandedPaths, setExpandedPaths] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -28,7 +28,7 @@ export default function VariableTree({ scope, value }: VariableTreeProps) {
   const onNavigate = useCallback((path: readonly PathSegment[]) => {
     const node = path.length === 0
       ? rootRef.current
-      : rowRefs.current.get(watchKey({ path: [{ type: "property", key: scope }, ...path] }));
+      : rowRefs.current.get(pathKey([{ type: "property", key: scope }, ...path]));
     node?.scrollIntoView?.({ block: "nearest" });
     node?.focus();
   }, [scope]);

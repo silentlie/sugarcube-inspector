@@ -4,7 +4,8 @@ import type { PathSegment, VariableAncestor, VariableScope } from "./types";
 import { formatVariablePath, getChildren, isExpandable } from "./valueUtils";
 import { useWatch } from "../watch/WatchProvider";
 import { useVariableVersion } from "../watch/VariableStore";
-import { watchKey, type WatchTarget } from "../../sugarcube/watch";
+import { pathKey } from "../../sugarcube/path";
+import type { VariablePath } from "../../sugarcube/watch";
 
 interface VariableNodeProps {
   name: string;
@@ -33,10 +34,10 @@ function VariableNode({
 }: VariableNodeProps) {
   const watch = useWatch();
   const rowRef = useRef<HTMLDivElement>(null);
-  const [target] = useState<WatchTarget>(() => ({ path: [{ type: "property", key: scope }, ...path] }));
-  useVariableVersion(watch.store, target);
-  const value = fromStore ? watch.store.getValue(target) : initialValue;
-  const id = watchKey(target);
+  const [watchPath] = useState<VariablePath>(() => [{ type: "property", key: scope }, ...path]);
+  useVariableVersion(watch.store, watchPath);
+  const value = fromStore ? watch.store.getValue(watchPath) : initialValue;
+  const id = pathKey(watchPath);
   const circularAncestor = value !== null && typeof value === "object"
     ? ancestors.find((ancestor) => ancestor.value === value)
     : undefined;
@@ -60,8 +61,8 @@ function VariableNode({
   useEffect(() => {
     expandedRef.current = expanded;
     expandableRef.current = expandable;
-    if (intersectsRef.current) setVisible(target, !expandable || expanded);
-  }, [target, expandable, expanded, setVisible]);
+    if (intersectsRef.current) setVisible(watchPath, !expandable || expanded);
+  }, [watchPath, expandable, expanded, setVisible]);
 
   useEffect(() => {
     const element = rowRef.current;
@@ -69,7 +70,7 @@ function VariableNode({
 
     const observe = (isIntersecting: boolean) => {
       intersectsRef.current = isIntersecting;
-      setVisible(target, isIntersecting && (!expandableRef.current ||
+      setVisible(watchPath, isIntersecting && (!expandableRef.current ||
         expandedRef.current));
     };
     if (typeof IntersectionObserver === "undefined") {
@@ -85,7 +86,7 @@ function VariableNode({
       observer.disconnect();
       observe(false);
     };
-  }, [target, setVisible]);
+  }, [watchPath, setVisible]);
 
   const nextAncestors: readonly VariableAncestor[] =
     value !== null && typeof value === "object"
@@ -112,12 +113,12 @@ function VariableNode({
             // A click proves visibility even before IntersectionObserver
             // reports it. Expansion starts watching and polls immediately.
             intersectsRef.current = true;
-            setVisible(target, !expanded);
+            setVisible(watchPath, !expanded);
             if (!expanded) watch.pollNow();
             onToggle(id);
           }}
           favorite={watch.favorites.has(id)}
-          onToggleFavorite={() => watch.toggleFavorite(target, !watch.favorites.has(id))}
+          onToggleFavorite={() => watch.toggleFavorite(watchPath, !watch.favorites.has(id))}
         />
       </div>
 

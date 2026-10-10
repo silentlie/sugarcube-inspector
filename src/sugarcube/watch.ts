@@ -21,19 +21,15 @@ export type VariablePath = [
   ...PathSegment[],
 ];
 
-export interface WatchTarget {
-  path: VariablePath;
-}
-
 export type WatchPatch =
   | { op: "set"; path: VariablePath; value: unknown }
   | { op: "delete"; path: VariablePath };
 
 export interface WatchRequest {
   generation: number;
-  favorites: WatchTarget[];
+  favorites: VariablePath[];
   /** Includes the active-scope root for structure-only checking on every poll. */
-  visible: WatchTarget[];
+  visible: VariablePath[];
 }
 
 export interface WatchResponse {
@@ -41,10 +37,6 @@ export interface WatchResponse {
   changes: WatchPatch[];
   /** Synchronous MAIN-world compare and clone time, excluding RPC latency. */
   mainDurationMs: number;
-}
-
-export function watchKey(target: WatchTarget): string {
-  return pathKey(target.path);
 }
 
 /**
@@ -56,18 +48,18 @@ export function watchKey(target: WatchTarget): string {
  * later indexes, while new or reinserted entries append at the end.
  * To avoid stale entry paths, watch/copy the whole Map/Set on any change.
  */
-export function minimizeWatchTargets(targets: WatchTarget[]): WatchTarget[] {
-  const normalized = targets.map((target) => ({ path: normalizeCollectionPath(target.path) }));
-  const unique = [...new Map(normalized.map((target) => [watchKey(target), target])).values()];
+export function minimizeWatchPaths(paths: VariablePath[]): VariablePath[] {
+  const normalized = paths.map(normalizeCollectionPath);
+  const unique = [...new Map(normalized.map((path) => [pathKey(path), path])).values()];
   return unique.filter(
-    (target) => !unique.some((other) => other !== target && isPathPrefix(other.path, target.path)),
+    (path) => !unique.some((other) => other !== path && isPathPrefix(other, path)),
   );
 }
 
 /** Presence is independent of the value: an existing undefined is not missing. */
 export function watchPathExists(
   stores: { story: unknown; temporary: unknown },
-  target: WatchTarget,
+  path: VariablePath,
 ): boolean {
-  return resolvePath(stores, target.path).exists;
+  return resolvePath(stores, path).exists;
 }

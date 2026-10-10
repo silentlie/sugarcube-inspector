@@ -2,7 +2,8 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Star } from "lucide-react";
 import VariableTree from "./variable-tree/VariableTree";
 import { useWatch } from "./watch/WatchProvider";
-import { watchKey, watchPathExists, type WatchTarget } from "../sugarcube/watch";
+import { pathKey } from "../sugarcube/path";
+import { watchPathExists, type VariablePath } from "../sugarcube/watch";
 import { useAnyVariableVersion } from "./watch/VariableStore";
 
 type Tab = "story" | "temporary";
@@ -14,7 +15,7 @@ export default function Variables() {
   // Watch the active scope's root structure on every poll, even when empty,
   // offscreen, or composed entirely of collapsed containers.
   useEffect(() => {
-    const root: WatchTarget = { path: [{ type: "property", key: activeTab }] };
+    const root: VariablePath = [{ type: "property", key: activeTab }];
     setVisible(root, true);
     return () => setVisible(root, false);
   }, [activeTab, setVisible]);
@@ -123,22 +124,22 @@ export default function Variables() {
 function MissingWatches({ scope }: { scope: Tab }) {
   const watch = useWatch();
   useAnyVariableVersion(watch.store);
-  const targets = watch.watchedTargets.filter((target) =>
-    target.path[0].key === scope && !watchPathExists(watch.variables, target),
+  const targets = watch.watchedPaths.filter((path) =>
+    path[0].key === scope && !watchPathExists(watch.variables, path),
   );
   if (targets.length === 0) return null;
   return (
     <section aria-label="Missing watched variables" className="mt-3 border-t border-zinc-800 pt-2">
       <p className="mb-1 text-zinc-500">Missing watched variables (read-only)</p>
-      {targets.map((target) => {
-        const [, ...segments] = target.path;
-        const name = (target.path[0].key === "story" ? "$" : "_") +
+      {targets.map((path) => {
+        const [, ...segments] = path;
+        const name = (path[0].key === "story" ? "$" : "_") +
           segments.map((part, index) =>
             part.type === "property" ? (index === 0 ? part.key : "." + part.key) :
             part.type === "index" ? "[" + part.index + "]" :
             "[" + part.type + " " + part.index + "]",
           ).join("");
-        return <div key={watchKey(target)}
+        return <div key={pathKey(path)}
           className="flex gap-2 px-2 py-1 font-mono text-zinc-500">
           <span className="min-w-0 truncate">{name}</span>
           <span className="ml-auto">Missing</span>
@@ -146,7 +147,7 @@ function MissingWatches({ scope }: { scope: Tab }) {
             type="button"
             aria-label={`Unfavorite ${name}`}
             title="Remove favorite"
-            onClick={() => watch.toggleFavorite(target, false)}
+            onClick={() => watch.toggleFavorite(path, false)}
             className="shrink-0 rounded p-1 text-amber-400 focus-visible:outline-2 focus-visible:outline-zinc-400"
           >
             <Star size={14} fill="currentColor" aria-hidden="true" />
