@@ -4,7 +4,7 @@ import type { PathSegment, VariableAncestor, VariableScope } from "./types";
 import { formatVariablePath, getChildren, isExpandable } from "./valueUtils";
 import { useWatch } from "../watch/WatchProvider";
 import { useVariableVersion } from "../watch/VariableStore";
-import { pathKey } from "../../sugarcube/path";
+import { pathToKey } from "../../sugarcube/path";
 import type { VariablePath } from "../../sugarcube/watch";
 
 interface VariableNodeProps {
@@ -37,7 +37,7 @@ function VariableNode({
   const [watchPath] = useState<VariablePath>(() => [{ type: "property", key: scope }, ...path]);
   useVariableVersion(watch.store, watchPath);
   const value = fromStore ? watch.store.getValue(watchPath) : initialValue;
-  const id = pathKey(watchPath);
+  const id = pathToKey(watchPath);
   const circularAncestor = value !== null && typeof value === "object"
     ? ancestors.find((ancestor) => ancestor.value === value)
     : undefined;
@@ -126,7 +126,7 @@ function VariableNode({
         <div className="ml-3 border-l border-zinc-700 pl-2">
           {getChildren(value).map((child) => (
             <VariableNode
-              key={JSON.stringify(child.segment)}
+              key={pathToKey([child.segment])}
               name={child.name}
               value={child.value}
               fromStore={fromStore}
