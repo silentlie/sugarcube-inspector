@@ -90,7 +90,10 @@ export class VariableStore {
             changed.add(key);
             break;
           }
-          if (i < watched.length) value = readPathChild(value, watched[i] as PathSegment).value;
+          if (i < watched.length) {
+            const child = readPathChild(value, watched[i] as PathSegment);
+            value = child.status === "found" ? child.value : undefined;
+          }
         }
       }
 

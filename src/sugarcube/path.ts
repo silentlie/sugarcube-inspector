@@ -13,36 +13,39 @@ export interface PathResolution extends PathResult {
   blocked?: unknown;
 }
 
-function canTraverse(value: unknown, part: PathSegment): boolean {
-  if (part.type === "property" || part.type === "index") {
-    return value !== null && typeof value === "object";
+/** Reading a path child distinguishes type incompatibility from absence. */
+export type ChildResult =
+  | { status: "found"; value: unknown }
+  | { status: "missing" }
+  | { status: "blocked" };
+
+/** Read one segment, preserving the distinction between missing and undefined. */
+export function readPathChild(value: unknown, part: PathSegment): ChildResult {
+  switch (part.type) {
+    case "property":
+    case "index": {
+      if (value === null || typeof value !== "object") return { status: "blocked" };
+      const key = part.type === "property" ? part.key : part.index;
+      if (!Object.hasOwn(value, key)) return { status: "missing" };
+      return {
+        status: "found",
+        value: (value as Record<string | number, unknown>)[key],
+      };
+    }
+    case "mapKey":
+    case "mapValue": {
+      if (!(value instanceof Map)) return { status: "blocked" };
+      const entry = [...value.entries()][part.index];
+      if (!entry) return { status: "missing" };
+      return { status: "found", value: entry[part.type === "mapKey" ? 0 : 1] };
+    }
+    case "setValue": {
+      if (!(value instanceof Set)) return { status: "blocked" };
+      const values = [...value.values()];
+      if (part.index < 0 || part.index >= values.length) return { status: "missing" };
+      return { status: "found", value: values[part.index] };
+    }
   }
-  if (part.type === "mapKey" || part.type === "mapValue") return value instanceof Map;
-  return value instanceof Set;
-}
-
-/** Read one path segment without confusing undefined with a missing entry. */
-export function readPathChild(value: unknown, part: PathSegment): PathResult {
-  if (!canTraverse(value, part)) return { exists: false };
-
-  if (part.type === "property" || part.type === "index") {
-    const key = part.type === "property" ? part.key : part.index;
-    if (!Object.hasOwn(value as object, key)) return { exists: false };
-    return {
-      exists: true,
-      value: (value as Record<string | number, unknown>)[key],
-    };
-  }
-
-  if (part.type === "mapKey" || part.type === "mapValue") {
-    const entry = [...(value as Map<unknown, unknown>).entries()][part.index];
-    if (!entry) return { exists: false };
-    return { exists: true, value: entry[part.type === "mapKey" ? 0 : 1] };
-  }
-
-  const values = [...(value as Set<unknown>).values()];
-  if (part.index < 0 || part.index >= values.length) return { exists: false };
-  return { exists: true, value: values[part.index] };
 }
 
 /**
@@ -53,19 +56,21 @@ export function resolvePath(root: unknown, path: readonly PathSegment[]): PathRe
   let value = root;
   for (let index = 0; index < path.length; index++) {
     const part = path[index]!;
-    if (!canTraverse(value, part)) {
-      return {
-        exists: false,
-        missingPath: path.slice(0, index),
-        blockedExists: true,
-        blocked: value,
-      };
-    }
     const next = readPathChild(value, part);
-    if (!next.exists) {
-      return { exists: false, missingPath: path.slice(0, index + 1) };
+    switch (next.status) {
+      case "found":
+        value = next.value;
+        break;
+      case "missing":
+        return { exists: false, missingPath: path.slice(0, index + 1) };
+      case "blocked":
+        return {
+          exists: false,
+          missingPath: path.slice(0, index),
+          blockedExists: true,
+          blocked: value,
+        };
     }
-    value = next.value;
   }
   return { exists: true, value };
 }
@@ -91,4 +96,13 @@ export function normalizeCollectionPath(path: VariablePath): VariablePath {
       part.type === "setValue",
   );
   return collectionIndex < 0 ? path : path.slice(0, collectionIndex) as VariablePath;
+}
+
+/** Use array-index segments only for canonical JavaScript array index keys. */
+export function segmentForKey(key: string, isArray: boolean): PathSegment {
+  const index = Number(key);
+  return isArray && Number.isInteger(index) && index >= 0 &&
+    index < 2 ** 32 - 1 && String(index) === key
+    ? { type: "index", index }
+    : { type: "property", key };
 }

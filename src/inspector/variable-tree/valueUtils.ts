@@ -1,4 +1,5 @@
 import type { VariableChild } from "./types";
+import { segmentForKey } from "../../sugarcube/path";
 
 export function isExpandable(value: unknown): value is object {
   if (value === null || typeof value !== "object") {
@@ -65,21 +66,11 @@ export function getChildren(value: unknown): VariableChild[] {
   }
 
   return Object.entries(value).map(([key, item]) => {
-    const index = Number(key);
-
-    const isIndex =
-      Array.isArray(value) &&
-      Number.isInteger(index) &&
-      index >= 0 &&
-      index < 2 ** 32 - 1 &&
-      String(index) === key;
-
+    const segment = segmentForKey(key, Array.isArray(value));
     return {
-      name: isIndex ? `[${index}]` : key,
+      name: segment.type === "index" ? `[${segment.index}]` : key,
       value: item,
-      segment: isIndex
-        ? { type: "index" as const, index }
-        : { type: "property" as const, key },
+      segment,
     };
   });
 }

@@ -72,7 +72,8 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
   } else if (rest.length === 0 && key === "length" && Array.isArray(root)) {
     if (patch.op === "set") root.length = patch.value as number;
   } else {
-    const old = readPathChild(root, part).value;
+    const previous = readPathChild(root, part);
+    const old = previous.status === "found" ? previous.value : undefined;
     const next = rest.length
       ? mutate(old, rest, patch)
       : (patch as Extract<WatchPatch, { op: "set" }>).value;

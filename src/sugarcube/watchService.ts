@@ -1,7 +1,7 @@
 import { circularDeepEqual, deepEqual } from "fast-equals";
-import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./watch";
+import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./watch";
 import { minimizeWatchPaths } from "./watch";
-import { pathKey } from "./path";
+import { pathKey, segmentForKey } from "./path";
 import { applyWatchPatches } from "./applyWatchPatches";
 import { resolvePath, type PathResolution } from "./path";
 import type { SugarCubeSnapshot } from "./types";
@@ -69,14 +69,6 @@ function structureOf(value: unknown): Structure | null {
       value instanceof ArrayBuffer || ArrayBuffer.isView(value) ||
       value instanceof WeakMap || value instanceof WeakSet) return null;
   return { kind: "object", keys: Object.keys(value) };
-}
-
-function segmentForKey(key: string, array: boolean): PathSegment {
-  const index = Number(key);
-  return array && Number.isInteger(index) && index >= 0 &&
-    index < 2 ** 32 - 1 && String(index) === key
-    ? { type: "index", index }
-    : { type: "property", key };
 }
 
 function structurePaths(visible: readonly VariablePath[]): VariablePath[] {
