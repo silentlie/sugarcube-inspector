@@ -1,3 +1,4 @@
+import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 import { memo, useEffect, useRef, useState } from "react";
 import VariableTile from "./VariableTile";
 import type { PathSegment, VariableAncestor, VariableScope } from "./types";
@@ -38,7 +39,7 @@ function VariableNode({
   useVariableVersion(watch.store, watchPath);
   const value = fromStore ? watch.store.getValue(watchPath) : initialValue;
   const id = pathToKey(watchPath);
-  const circularAncestor = value !== null && typeof value === "object"
+  const circularAncestor = isNonFunctionObject(value)
     ? ancestors.find((ancestor) => ancestor.value === value)
     : undefined;
   const circular = circularAncestor !== undefined;
@@ -89,7 +90,7 @@ function VariableNode({
   }, [watchPath, setVisible]);
 
   const nextAncestors: readonly VariableAncestor[] =
-    value !== null && typeof value === "object"
+    isNonFunctionObject(value)
       ? [...ancestors, { value, path }]
       : ancestors;
 
