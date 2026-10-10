@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { applyWatchPatches } from "../../sugarcube/applyWatchPatches";
 import type { SugarCubeSnapshot } from "../../sugarcube/types";
-import { watchKey, type PathSegment, type WatchPatch, type WatchTarget } from "../../sugarcube/watch";
+import { isPrimitiveValue, watchKey, type PathSegment, type WatchPatch, type WatchTarget } from "../../sugarcube/watch";
 
 type Variables = SugarCubeSnapshot["variables"];
 type Listener = () => void;
@@ -85,6 +85,14 @@ export class VariableStore {
         && Object.hasOwn(parentValue, lastPart.type === "property" ? lastPart.key : lastPart.index);
       const arrayLengthChanged = lastPart?.type === "property" &&
         lastPart.key === "length" && Array.isArray(parentValue);
+      // Keep the root's "no immediate primitives" watch decision current
+      // when a top-level property's kind changes without changing its key.
+      const primitiveKindChanged = patch.path.length === 1 &&
+        patch.op === "set" && Boolean(hadKey) &&
+        (lastPart?.type === "property" || lastPart?.type === "index") &&
+        isPrimitiveValue((parentValue as Record<string | number, unknown>)[
+          lastPart.type === "property" ? lastPart.key : lastPart.index
+        ]) !== isPrimitiveValue(patch.value);
       const structureChanged = arrayLengthChanged || patch.path.length === 0 ||
         (lastPart && (lastPart.type === "mapKey" || lastPart.type === "mapValue" || lastPart.type === "setValue")) ||
         (patch.op === "delete" ? Boolean(hadKey) : !hadKey);
@@ -94,7 +102,7 @@ export class VariableStore {
       for (const [key, { target: watched }] of this.subscriptions) {
         if (watched.scope === patch.scope) {
           if (isPrefix(patch.path, watched.path) ||
-              (structureChanged && isPrefix(watched.path, patch.path) &&
+              ((structureChanged || primitiveKindChanged) && isPrefix(watched.path, patch.path) &&
                 watched.path.length === patch.path.length - 1)) {
             changed.add(key);
             continue;
