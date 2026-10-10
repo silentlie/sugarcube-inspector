@@ -24,7 +24,6 @@ export interface WatchRequest {
 export interface WatchResponse {
   generation: number;
   changes: WatchPatch[];
-  missingTargets: WatchTarget[];
   /** Synchronous MAIN-world compare and clone time, excluding RPC latency. */
   mainDurationMs: number;
 }

@@ -129,7 +129,6 @@ export class WatchService {
       return {
         generation: this.generation,
         changes: [],
-        missingTargets: [],
         mainDurationMs: performance.now() - started,
       };
     }
@@ -138,14 +137,12 @@ export class WatchService {
     const active = new Set(targets.map(watchKey));
     const next = new Map<string, Entry>();
     const changes: WatchPatch[] = [];
-    const missingTargets: WatchTarget[] = [];
 
     // Stage all changes first: a clone failure cannot partially advance the cache.
     for (const target of targets) {
       const key = watchKey(target);
       const previous = this.watchCache.get(key) ?? resolve(this.snapshot.variables, target);
       const current = resolve(stores, target);
-      if (!current.exists) missingTargets.push(target);
       if (sameEntry(previous, current, key, this.circularPaths)) continue;
 
       if (!current.exists) {
@@ -199,7 +196,6 @@ export class WatchService {
     return {
       generation: this.generation,
       changes,
-      missingTargets,
       mainDurationMs: performance.now() - started,
     };
   }

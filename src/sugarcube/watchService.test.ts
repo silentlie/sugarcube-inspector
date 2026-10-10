@@ -74,12 +74,10 @@ describe("two-layer selective watch service", () => {
     };
     const { service, generation } = setup(stores.story);
     const absent = service.poll(request(generation, [health]), stores);
-    expect(absent.missingTargets).toEqual([]);
     expect(absent.changes).toEqual([]);
 
     delete (stores.story.player as Record<string, unknown>).health;
     const missing = service.poll(request(generation, [health]), stores);
-    expect(missing.missingTargets).toEqual([health]);
     expect(missing.changes).toEqual([{ op: "delete", scope: "story", path: health.path }]);
     expect(service.poll(request(generation, [health]), stores).changes).toEqual([]);
 
@@ -98,7 +96,6 @@ describe("two-layer selective watch service", () => {
     delete stores.story.player;
     const deleted = service.poll(request(generation, [health]), stores);
     expect(deleted.changes).toEqual([{ op: "delete", scope: "story", path: player.path }]);
-    expect(deleted.missingTargets).toEqual([health]);
 
     const removed = applyWatchPatches(snapshot.variables, deleted.changes);
     expect(Object.hasOwn(removed.story, "player")).toBe(false);
@@ -108,7 +105,6 @@ describe("two-layer selective watch service", () => {
     expect(restored.changes).toEqual([{
       op: "set", scope: "story", path: player.path, value: { health: 75, mana: 50 },
     }]);
-    expect(restored.missingTargets).toEqual([]);
     expect((applyWatchPatches(removed, restored.changes).story as Record<string, unknown>).player).toEqual(stores.story.player);
   });
 
@@ -120,7 +116,6 @@ describe("two-layer selective watch service", () => {
     stores.story.player = null;
     const nullValue = service.poll(request(generation, [health]), stores);
     expect(nullValue.changes).toEqual([{ op: "set", scope: "story", path: player.path, value: null }]);
-    expect(nullValue.missingTargets).toEqual([health]);
     let displayed = applyWatchPatches(snapshot.variables, nullValue.changes);
     expect((displayed.story as Record<string, unknown>).player).toBeNull();
 
@@ -140,7 +135,6 @@ describe("two-layer selective watch service", () => {
     expect(restored.changes).toEqual([{
       op: "set", scope: "story", path: health.path, value: 99,
     }]);
-    expect(restored.missingTargets).toEqual([]);
   });
 
   it("notices when the earliest missing ancestor changes", () => {
