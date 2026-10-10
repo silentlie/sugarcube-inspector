@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { applyWatchPatches } from "../../sugarcube/applyWatchPatches";
-import { isPathPrefix, pathKey, readPathChild, resolvePath } from "../../sugarcube/path";
+import { isPathPrefix, pathToKey, readPathChild, resolvePath } from "../../sugarcube/path";
 import type { SugarCubeVariables } from "../../sugarcube/types";
 import type { PathSegment, VariablePath, WatchPatch } from "../../sugarcube/watch";
 
@@ -29,7 +29,7 @@ export class VariableStore {
   }
 
   subscribe(path: VariablePath, listener: Listener): () => void {
-    const key = pathKey(path);
+    const key = pathToKey(path);
     let entry = this.subscriptions.get(key);
     if (!entry) {
       entry = { path, listeners: new Set() };
@@ -111,7 +111,7 @@ export class VariableStore {
 
 /** Subscribe to an individual node without depending on the root React state. */
 export function useVariableVersion(store: VariableStore, path: VariablePath): number {
-  const key = pathKey(path);
+  const key = pathToKey(path);
   const stablePath = useMemo(() => path, [key]);
   const subscribe = useCallback(
     (listener: Listener) => store.subscribe(stablePath, listener),
