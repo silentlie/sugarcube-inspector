@@ -1,4 +1,4 @@
-import { isPathPrefix, pathKey, resolvePath } from "./path";
+import { isPathPrefix, pathToKey, resolvePath } from "./path";
 
 export type VariableScope = "story" | "temporary";
 
@@ -40,7 +40,7 @@ export interface WatchResponse {
 
 /** Keep requested paths intact, deduplicating them and discarding descendants of watched ancestors. */
 export function minimizeWatchPaths(paths: VariablePath[]): VariablePath[] {
-  const unique = [...new Map(paths.map((path) => [pathKey(path), path])).values()];
+  const unique = [...new Map(paths.map((path) => [pathToKey(path), path])).values()];
   return unique.filter(
     (path) => !unique.some((other) => other !== path && isPathPrefix(other, path)),
   );
