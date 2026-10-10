@@ -102,7 +102,16 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
   });
   const initial = snapshot();
   initial.variables.story = { score: 7 };
-  render(<WatchProvider snapshot={initial}><Variables /></WatchProvider>);
+  // happy-dom doesn't report element intersections; explicitly register the
+  // top-level row while it exists, then unregister it when the row unmounts.
+  function VisibleScore() {
+    const watch = useWatch();
+    return Object.hasOwn(watch.variables.story, "score") ? <RegisterWatch /> : null;
+  }
+  render(<WatchProvider snapshot={initial}>
+    <VisibleScore />
+    <Variables />
+  </WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(screen.queryByText("Missing watched variables (read-only)")).toBeNull();
   expect(screen.queryByText("score")).toBeNull();
