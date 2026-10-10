@@ -7,10 +7,9 @@
 - **Favorites** contain explicit watch targets, independent of visibility.
 - **Visible** contains visible scalar/opaque leaves and expanded containers.
   Collapsed containers are omitted unless independently favorited. Entries
-  carry an `expanded` flag. The active scope also registers its empty-path
-  root as a potential structure-only fallback; WatchProvider includes this
-  fallback in the RPC only if no immediate primitive-valued property is
-  registered in the visible watch list.
+  carry an `expanded` flag. The active scope always registers its
+  empty-path root for structure-only comparison on every active poll,
+  regardless of which variable rows are visible.
 
 The visible map lives in a ref because IntersectionObserver changes do not
 need to rerender the UI. Favorites live in React state so the star buttons
@@ -26,16 +25,12 @@ and missing-favorite placeholders update.
 4. A **collapsed** container has no visible-watch registration at all.
    Favorites remain active independently. Its preview can remain stale while
    collapsed.
-5. Check immediate child structures of visible rows' parents. A registered
-   top-level primitive row therefore implicitly watches its root's structure.
-   The active scope additionally registers an empty-path structural fallback.
-   WatchProvider *omits* this explicit fallback from the RPC only when the
-   visible list contains an immediate, primitive-valued property of that scope.
-   If all such rows are offscreen, or only containers/nested primitive rows
-   are watched, the explicit root fallback is sent regardless of what other
-   primitive properties exist in the root. Primitives include `null`,
-   `undefined`, strings, numbers, booleans, bigints and symbols.
-   A root watch is structure-only, **not** a whole-root deep-value watch.
+5. Always check the active scope root's immediate structure on every active
+   poll. This discovers new/deleted top-level variables even when all rows
+   are offscreen or all containers are collapsed. It is a **shallow**
+   structure check, not a deep comparison of the root's values. Visible
+   rows also trigger immediate-parent structure checks for nested siblings;
+   MAIN deduplicates overlapping targets, including the root.
    New child values are cloned only when first added; removed children use
    delete patches. For Map/Set membership changes, replace the whole
    collection.
@@ -51,31 +46,34 @@ users to explicitly inspect them and trigger immediate refresh.
 
 ## Root coverage and polling cost
 
-The current root rule is **based on visible registrations**: an active scope
-supplies a candidate empty-path structural watch, and `WatchProvider` omits
-that candidate only when a direct child of the root (`path.length === 1`)
-is both visibly watched and primitive-valued in the inspector's current copy.
-In that case, MAIN still checks the same root through the visible child's
-parent. Expanded object rows, opaque object leaves, and nested primitive
-rows do not suppress the explicit fallback.
+The active variable scope always registers a root with `path: []`.
+`WatchProvider` forwards this root unconditionally with the visible
+registrations on every poll while the page is visible. It no longer checks
+whether a visible top-level primitive already implies root monitoring.
+When switching between Story and Temporary Variables, the outgoing
+active-scope root is removed and the newly active root is registered.
 
-As a result, the active scope's root receives **one deduplicated structural
-check per successful poll** with this provider in place, whether or not its
-top-level primitives are on screen. Checking whether the fallback is needed
-does not scan the whole root, but the actual MAIN structural comparison does:
-it enumerates `Object.keys` on live and synchronized roots and compares the
-resulting property sets. Its cost grows with the number of enumerable
-top-level keys, even though unchanged nested values are not deep-cloned.
-The cadence is scheduled 250 ms after a poll completes (not overlapping
-requests); the service pauses while the document is hidden.
+MAIN derives additional structure checks from visible rows' parents and
+deduplicates them with the explicit root. Thus each active poll performs
+**one shallow structural comparison of the selected scope's root**,
+regardless of root emptiness, scroll position, or collapsed containers.
+A new top-level variable is discovered without requiring a visible
+top-level scalar or a manual refresh.
 
-For ordinary object and array properties, structural discovery and tree
-rendering cover **own enumerable string-keyed properties** (`Object.keys` /
+The root check compares `Object.keys` on the live and synchronized roots,
+not their nested values. Its cost grows with the number of enumerable
+top-level keys, but unchanged nested values are not deep-compared or cloned.
+Polls are scheduled 250 ms after the previous one completes (without
+overlap), and polling pauses while `document.hidden` is true. The
+"every poll" guarantee does not mean polling continues in hidden pages.
+
+For ordinary objects and arrays, structural discovery and tree rendering
+cover **own enumerable string-keyed properties** (`Object.keys` /
 `Object.entries`). Nonenumerable and symbol-keyed additions are not
 discovered as new object/array rows through that mechanism. Map/Set
-collections use their entry/membership iteration instead. Ordinary SugarCube
-story/temporary variable names are represented by string keys. A fresh full
-snapshot provides a new baseline if unwatched state needs to be recaptured.
+collections use entry/membership iteration. Ordinary SugarCube variables
+use string keys. A fresh full snapshot provides a new baseline if
+unwatched state needs to be recaptured.
 
 ## Circular references and path replacement
 
@@ -170,32 +168,25 @@ problem, or changed requirement:
   mismatched watch response triggers a new full snapshot instead of a more
   complicated acknowledgment/replay protocol.
 
-### Root structural-watch fallback (2026-10-10, revised)
+### Active root structural watch (2026-10-10, updated)
 
-**The fallback depends on the visible watch list, not on all properties of
-the root.** The active scope registers an empty-path candidate root, and
-WatchProvider sends it as a *structure-only* watch if no visible watch is
-an immediate primitive-valued property of that scope (`path.length === 1`).
+**Decision:** The active scope root is always included as an explicit,
+structure-only target in each poll. No conditional root fallback or
+visible-primitive detection remains in `WatchProvider`.
 
-Examples:
+Examples that all send the root:
 
-- `{ mc: {}, team: [] }`, with both rows collapsed: send root fallback.
-- `{ mc: {}, score: 7 }`, with `score` offscreen: send root fallback.
-- The same root, with `score` in the visible list: omit explicit root.
-  The visible `score` watch already implies root structural checking in MAIN.
-- If `mc.hp` is visibly watched but `mc` is not an immediate primitive,
-  the root fallback remains active.
-- For an empty root, send root fallback so the first added variable appears.
+- `{ mc: {}, team: [] }`, with both rows collapsed.
+- `{ mc: {}, score: 7 }`, whether `score` is onscreen or offscreen.
+- Only `mc.hp` visibly watched; no top-level primitive watch.
+- An empty scope waiting for its first variable.
 
-The fallback re-evaluates from the current visible registrations on each poll,
-including scrolling, collapsing, expanding, and switching the active variable
-scope. It checks only registered immediate paths, not `Object.values(root)`,
-so selecting the fallback has cost proportional to the visible list rather
-than the number of top-level root properties.
+If a visible top-level row also implies a root structure watch, MAIN's
+structural-target map deduplicates the check. This change does **not**
+deep-watch the entire root, and a changed nested value in a collapsed,
+unfavorited object still waits until that path is watched or refreshed.
 
-In either case, MAIN performs one deduplicated **shallow** root structural
-comparison during a successful active-scope poll. This discovers new/deleted
-top-level variables but does not deep-compare or clone unchanged nested values.
-The number of enumerable root keys still affects the cost of that structural
-check, as described above. No separate timing interval, identity registry,
-or structural cache is added.
+The previous visibility-dependent fallback was removed to avoid redundant
+classification logic and simplify the request. The 250 ms cadence,
+favorite/visible value-watch semantics, MAIN/inspector caches,
+generation recovery, and identity trade-offs are unchanged.
