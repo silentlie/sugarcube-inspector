@@ -87,31 +87,104 @@ it("derives root structural watching from visible top-level rows without registe
 });
 
 it.each([
-  { label: "the root is empty", story: {}, registered: true },
-  { label: "all immediate values are containers", story: { mc: { hp: 100 }, inventory: [] }, registered: true },
-  { label: "only opaque objects exist", story: { date: new Date(0) }, registered: true },
-  { label: "a number exists", story: { mc: {}, score: 0 }, registered: false },
-  { label: "a null exists", story: { mc: {}, target: null }, registered: false },
-  { label: "an undefined property exists", story: { mc: {}, target: undefined }, registered: false },
-])("registers an explicit structural root when $label", async ({ story, registered }) => {
+  { label: "the root is empty", story: {}, primitiveVisible: false, registered: true },
+  { label: "all immediate values are containers", story: { mc: { hp: 100 }, inventory: [] }, primitiveVisible: false, registered: true },
+  { label: "only opaque objects exist", story: { date: new Date(0) }, primitiveVisible: false, registered: true },
+  { label: "a number exists but is offscreen", story: { mc: {}, score: 0 }, primitiveVisible: false, registered: true },
+  { label: "a number is visibly watched", story: { mc: {}, score: 0 }, primitiveVisible: true, registered: false },
+  { label: "null exists but is offscreen", story: { mc: {}, score: null }, primitiveVisible: false, registered: true },
+  { label: "null is visibly watched", story: { mc: {}, score: null }, primitiveVisible: true, registered: false },
+  { label: "undefined exists but is offscreen", story: { mc: {}, score: undefined }, primitiveVisible: false, registered: true },
+  { label: "undefined is visibly watched", story: { mc: {}, score: undefined }, primitiveVisible: true, registered: false },
+])("registers root fallback when $label", async ({ story, primitiveVisible, registered }) => {
   rpc.sendMessage.mockImplementation(async (_type, data) => ({
     generation: (data as { generation: number }).generation,
     changes: [], mainDurationMs: 1,
   }));
   const initial = snapshot();
   initial.variables.story = story;
-  render(<WatchProvider snapshot={initial}><Variables /></WatchProvider>);
+  render(<WatchProvider snapshot={initial}>
+    <Variables />
+    {primitiveVisible && <RegisterWatch />}
+  </WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
 
-  // Without an explicit root or another registered visible watch,
-  // WatchProvider correctly skips the RPC entirely.
-  const request = rpc.sendMessage.mock.calls[0]?.[1] as
-    | { visible: Array<{ target: { scope: string; path: unknown[] } }> }
-    | undefined;
-  const hasExplicitRoot = request?.visible.some(({ target }) =>
+  const request = rpc.sendMessage.mock.calls[0]![1] as {
+    visible: Array<{ target: { scope: string; path: unknown[] } }>;
+  };
+  expect(request.visible.some(({ target }) =>
     target.scope === "story" && target.path.length === 0,
-  ) ?? false;
-  expect(hasExplicitRoot).toBe(registered);
+  )).toBe(registered);
+  if (primitiveVisible) {
+    expect(request.visible).toContainEqual({
+      target: { scope: "story", path: [{ type: "property", key: "score" }] },
+      expanded: false,
+    });
+  }
+});
+
+it("reinstates the root fallback when the last visible top-level primitive disappears", async () => {
+  const initial = snapshot();
+  rpc.sendMessage.mockImplementation(async (_type, data) => ({
+    generation: (data as { generation: number }).generation,
+    changes: [], mainDurationMs: 1,
+  }));
+  const { rerender } = render(<WatchProvider snapshot={initial}>
+    <Variables />
+    <RegisterWatch />
+  </WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  const requests = () => rpc.sendMessage.mock.calls.map((call) =>
+    call[1] as { visible: Array<{ target: { scope: string; path: unknown[] } }> },
+  );
+  const containsRoot = (index: number) => requests()[index]!.visible.some(
+    ({ target }) => target.scope === "story" && target.path.length === 0,
+  );
+  expect(containsRoot(0)).toBe(false);
+
+  rerender(<WatchProvider snapshot={initial}><Variables /></WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(containsRoot(1)).toBe(true);
+
+  rerender(<WatchProvider snapshot={initial}>
+    <Variables />
+    <RegisterWatch />
+  </WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  expect(containsRoot(2)).toBe(false);
+});
+
+it("checks immediate primitive rows only, not expanded containers or nested primitives", async () => {
+  const initial = snapshot();
+  initial.variables.story = { player: { hp: 100 } };
+  rpc.sendMessage.mockImplementation(async (_type, data) => ({
+    generation: (data as { generation: number }).generation,
+    changes: [], mainDurationMs: 1,
+  }));
+  function RegisterNested() {
+    const watch = useWatch();
+    const setVisible = watch.setVisible;
+    useEffect(() => {
+      const target = { scope: "story" as const, path: [
+        { type: "property" as const, key: "player" },
+        { type: "property" as const, key: "hp" },
+      ] };
+      setVisible(target, true);
+      return () => setVisible(target, false);
+    }, [setVisible]);
+    return null;
+  }
+  render(<WatchProvider snapshot={initial}>
+    <Variables />
+    <RegisterNested />
+  </WatchProvider>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(260); });
+  const request = rpc.sendMessage.mock.calls[0]![1] as {
+    visible: Array<{ target: { scope: string; path: unknown[] } }>;
+  };
+  expect(request.visible).toContainEqual({
+    target: { scope: "story", path: [] }, expanded: false,
+  });
 });
 
 it("continues monitoring an empty root, without retaining missing unfavorited paths", async () => {
