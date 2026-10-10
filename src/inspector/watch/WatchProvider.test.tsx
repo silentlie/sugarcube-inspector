@@ -106,7 +106,7 @@ it.each([
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
 
   const request = rpc.sendMessage.mock.calls[0]![1] as {
-    visible: Array<{ path: unknown[] }>;
+    visible: WatchTarget[];
   };
   expect(request.visible).toContainEqual({ path: [{ type: "property", key: "story" }] });
   if (primitiveVisible) {
@@ -126,11 +126,10 @@ it("keeps the root structural watch while visible primitive rows appear and disa
   </WatchProvider>);
   const containsRoot = (index: number) => {
     const request = rpc.sendMessage.mock.calls[index]![1] as {
-      visible: Array<{ path: unknown[] }>;
+      visible: WatchTarget[];
     };
     return request.visible.some((target) =>
-      target.path.length === 1 &&
-      JSON.stringify(target.path[0]) === JSON.stringify({ type: "property", key: "story" }),
+      target.path.length === 1 && target.path[0].key === "story",
     );
   };
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
@@ -156,10 +155,10 @@ it("watches only the active scope root while switching variable tabs", async () 
   render(<WatchProvider snapshot={snapshot()}><Variables /></WatchProvider>);
   const activeRoots = (index: number) => {
     const request = rpc.sendMessage.mock.calls[index]![1] as {
-      visible: Array<{ path: unknown[] }>;
+      visible: WatchTarget[];
     };
     return request.visible.filter((target) => target.path.length === 1)
-      .map((target) => (target.path[0] as { type: "property"; key: string }).key);
+      .map((target) => target.path[0].key);
   };
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(activeRoots(0)).toEqual(["story"]);
@@ -199,7 +198,7 @@ it("keeps the root structural watch with only a nested primitive watch", async (
   </WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   const request = rpc.sendMessage.mock.calls[0]![1] as {
-    visible: Array<{ path: unknown[] }>;
+    visible: WatchTarget[];
   };
   expect(request.visible).toContainEqual({ path: [{ type: "property", key: "story" }] });
 });
