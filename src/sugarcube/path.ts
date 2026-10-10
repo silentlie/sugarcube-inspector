@@ -27,7 +27,7 @@ export function readPathChild(value: unknown, part: PathSegment): PathResult {
 
   if (part.type === "property" || part.type === "index") {
     const key = part.type === "property" ? part.key : part.index;
-    if (!Object.hasOwn(value, key)) return { exists: false };
+    if (!Object.hasOwn(value as object, key)) return { exists: false };
     return {
       exists: true,
       value: (value as Record<string | number, unknown>)[key],
