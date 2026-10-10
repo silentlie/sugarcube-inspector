@@ -1,5 +1,5 @@
 import { circularDeepEqual, deepEqual } from "fast-equals";
-import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, WatchTarget, VisibleWatch } from "./watch";
+import type { PathSegment, WatchPatch, WatchRequest, WatchResponse, WatchTarget } from "./watch";
 import { minimizeWatchTargets, watchKey } from "./watch";
 import { applyWatchPatches } from "./applyWatchPatches";
 import type { SugarCubeSnapshot } from "./types";
@@ -131,9 +131,9 @@ function segmentForKey(key: string, array: boolean): PathSegment {
     : { type: "property", key };
 }
 
-function structureTargets(visible: readonly VisibleWatch[]): WatchTarget[] {
+function structureTargets(visible: readonly WatchTarget[]): WatchTarget[] {
   const targets = new Map<string, WatchTarget>();
-  for (const { target } of visible) {
+  for (const target of visible) {
     // Explicit root registrations are structure-only, including when empty.
     if (target.path.length === 0) {
       targets.set(watchKey(target), target);
@@ -248,16 +248,9 @@ export class WatchService {
       // A future poll reads the resulting structure from synchronized state.
     }
 
-    // Expanded visible containers are deep-watched as a whole, while
-    // collapsed containers are not watched for their descendants. Visible
-    // scalar/opaque leaves are checked normally. Favorite paths are independent.
-    const valueVisible = request.visible.filter(({ target, expanded }) => {
-      if (target.path.length === 0) return false;
-      if (expanded) return true;
-      const previous = resolve(baseline, target);
-      const current = resolve(stores, target);
-      return !structureOf(previous.value) || !structureOf(current.value);
-    }).map(({ target }) => target);
+    // Only eligible visible leaves and expanded containers are registered.
+    // The scope root is structure-only, never a whole-value watch.
+    const valueVisible = request.visible.filter((target) => target.path.length > 0);
     const targets = minimizeWatchTargets([...request.favorites, ...valueVisible]);
     const valueChanges: WatchPatch[] = [];
 

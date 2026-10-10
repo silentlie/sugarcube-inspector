@@ -22,17 +22,11 @@ export type WatchPatch =
   | { op: "set"; scope: VariableScope; path: PathSegment[]; value: unknown }
   | { op: "delete"; scope: VariableScope; path: PathSegment[] };
 
-export interface VisibleWatch {
-  target: WatchTarget;
-  /** Containers enter the visible list only while expanded. */
-  expanded: boolean;
-}
-
 export interface WatchRequest {
   generation: number;
   favorites: WatchTarget[];
   /** Includes the active-scope root for structure-only checking on every poll. */
-  visible: VisibleWatch[];
+  visible: WatchTarget[];
 }
 
 export interface WatchResponse {

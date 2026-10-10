@@ -13,7 +13,6 @@ import { VariableStore } from "./VariableStore";
 import type { SugarCubeSnapshot } from "../../sugarcube/types";
 import {
   watchKey,
-  type VisibleWatch,
   type WatchTarget,
 } from "../../sugarcube/watch";
 import { withTimeout } from "../../utils/withTimeout";
@@ -26,7 +25,8 @@ interface WatchContextValue {
   favorites: ReadonlyMap<string, WatchTarget>;
   watchedTargets: readonly WatchTarget[];
   toggleFavorite: (target: WatchTarget, favorite: boolean) => void;
-  setVisible: (target: WatchTarget, visible: boolean, expanded?: boolean) => void;
+  setVisible: (target: WatchTarget, visible: boolean) => void;
+  pollNow: () => void;
 }
 
 const WatchContext = createContext<WatchContextValue | null>(null);
@@ -45,23 +45,21 @@ export function WatchProvider({
     () => new Map(),
   );
   const favoritesRef = useRef(favorites);
-  const visibleRef = useRef(new Map<string, VisibleWatch>());
+  const visibleRef = useRef(new Map<string, WatchTarget>());
   const wakeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     favoritesRef.current = favorites;
   }, [favorites]);
 
-  const setVisible = useCallback((target: WatchTarget, isVisible: boolean, expanded = false) => {
+  const setVisible = useCallback((target: WatchTarget, isVisible: boolean) => {
     const key = watchKey(target);
-    if (!isVisible) {
-      visibleRef.current.delete(key);
-      return;
-    }
-    const old = visibleRef.current.get(key);
-    visibleRef.current.set(key, { target, expanded });
-    if (expanded && !old?.expanded) wakeRef.current?.();
+    if (isVisible) visibleRef.current.set(key, target);
+    else visibleRef.current.delete(key);
   }, []);
+
+  // Expansion requests an immediate poll without adding UI state to the RPC.
+  const pollNow = useCallback(() => wakeRef.current?.(), []);
 
   // Explicit desired state is idempotent, even with repeated requests.
   const toggleFavorite = useCallback((target: WatchTarget, favorite: boolean) => {
@@ -167,7 +165,8 @@ export function WatchProvider({
     watchedTargets: [...favorites.values()],
     toggleFavorite,
     setVisible,
-  }), [store, favorites, setVisible, toggleFavorite]);
+    pollNow,
+  }), [store, favorites, setVisible, toggleFavorite, pollNow]);
 
   return <WatchContext value={value}>{children}</WatchContext>;
 }

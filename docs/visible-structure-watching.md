@@ -6,9 +6,9 @@
 
 - **Favorites** contain explicit watch targets, independent of visibility.
 - **Visible** contains visible scalar/opaque leaves and expanded containers.
-  Collapsed containers are omitted unless independently favorited. Entries
-  carry an `expanded` flag. The active scope always registers its
-  empty-path root for structure-only comparison on every active poll,
+  Collapsed containers are omitted unless independently favorited. Each entry
+  is a watch target path; expansion state stays in React. The active scope
+  always registers its empty-path root for structure-only comparison on every active poll,
   regardless of which variable rows are visible.
 
 The visible map lives in a ref because IntersectionObserver changes do not

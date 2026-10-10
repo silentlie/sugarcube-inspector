@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WatchService } from "./watchService";
 import { applyWatchPatches } from "./applyWatchPatches";
-import { minimizeWatchTargets, watchPathExists, type WatchRequest, type WatchTarget, type VisibleWatch } from "./watch";
+import { minimizeWatchTargets, watchPathExists, type WatchRequest, type WatchTarget } from "./watch";
 import type { SugarCubeSnapshot } from "./types";
 
 const player: WatchTarget = {
@@ -217,7 +217,7 @@ describe("synchronized snapshot watch service", () => {
       { story: { player: { health: 10 } }, temporary: {} };
     const { service, generation, snapshot } = setup(stores.story);
     const visibleHealth: WatchRequest = {
-      generation, favorites: [], visible: [{ target: health, expanded: false }],
+      generation, favorites: [], visible: [health],
     };
     const idle = { generation, favorites: [], visible: [] };
     const poll = () => service.poll(visibleHealth, stores).changes;
@@ -303,11 +303,9 @@ describe("synchronized snapshot watch service", () => {
 
 describe("visible structural watch", () => {
   const root: WatchTarget = { scope: "story", path: [] };
-  function visible(generation: number, entries: VisibleWatch[]): WatchRequest {
+  function visible(generation: number, entries: WatchTarget[]): WatchRequest {
     return { generation, favorites: [], visible: entries };
   }
-  const watched = (target: WatchTarget, expanded = false): VisibleWatch =>
-    ({ target, expanded });
 
   it("derives root structure from a visible top-level child", () => {
     const score: WatchTarget = {
@@ -316,7 +314,7 @@ describe("visible structural watch", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { score: 7 }, temporary: {} };
     const { service, generation } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [watched(score)]), stores).changes;
+    const poll = () => service.poll(visible(generation, [score]), stores).changes;
 
     expect(poll()).toEqual([]);
     stores.story.newVariable = 15;
@@ -337,7 +335,7 @@ describe("visible structural watch", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { player: { health: 100 } }, temporary: {} };
     const { service, generation } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [watched(root)]), stores).changes;
+    const poll = () => service.poll(visible(generation, [root]), stores).changes;
 
     expect(poll()).toEqual([]);
     (stores.story.player as Record<string, unknown>).health = 75;
@@ -361,7 +359,7 @@ describe("visible structural watch", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { score: 7 }, temporary: {} };
     const { service, generation } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [watched(root), watched(score)]), stores).changes;
+    const poll = () => service.poll(visible(generation, [root, score]), stores).changes;
 
     expect(poll()).toEqual([]);
     stores.story.newQuest = 1;
@@ -376,7 +374,7 @@ describe("visible structural watch", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: {}, temporary: {} };
     const { service, generation, snapshot } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [watched(root)]), stores).changes;
+    const poll = () => service.poll(visible(generation, [root]), stores).changes;
     expect(poll()).toEqual([]);
     stores.story.score = 7;
     const added = poll();
@@ -400,7 +398,7 @@ describe("visible structural watch", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { player: {} }, temporary: {} };
     const { service, generation } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [watched(player, true)]), stores).changes;
+    const poll = () => service.poll(visible(generation, [player]), stores).changes;
     expect(poll()).toEqual([]);
     (stores.story.player as Record<string, unknown>).hp = 100;
     expect(poll()).toEqual([{
@@ -419,7 +417,7 @@ describe("visible structural watch", () => {
   it("detects new siblings through the visible leaf's parent without cloning unchanged siblings", () => {
     const stores = { story: { player: { health: 100 } as Record<string, unknown> }, temporary: {} };
     const { service, generation } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [watched(health)]), stores).changes;
+    const poll = () => service.poll(visible(generation, [health]), stores).changes;
     expect(poll()).toEqual([]);
     stores.story.player.mana = { max: 50 };
     expect(poll()).toEqual([{
@@ -436,7 +434,7 @@ describe("visible structural watch", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { player: { hp: 10 } }, temporary: {} };
     const { service, generation } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [watched(player, true)]), stores).changes;
+    const poll = () => service.poll(visible(generation, [player]), stores).changes;
     expect(poll()).toEqual([]);
     stores.story.player = 10;
     expect(poll()).toEqual([{ op: "set", scope: "story", path: player.path, value: 10 }]);
@@ -449,7 +447,7 @@ describe("visible structural watch", () => {
     const stores = { story: { items: [] as number[] }, temporary: {} };
     const item: WatchTarget = { scope: "story", path: [{ type: "property", key: "items" }] };
     const { service, generation, snapshot } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [watched(item, true)]), stores).changes;
+    const poll = () => service.poll(visible(generation, [item]), stores).changes;
     expect(poll()).toEqual([]);
     stores.story.items.push(4);
     const added = poll();
@@ -467,7 +465,7 @@ describe("visible structural watch", () => {
     const stores = { story: { items: new Map<string, number>() }, temporary: {} };
     const item: WatchTarget = { scope: "story", path: [{ type: "property", key: "items" }] };
     const { service, generation } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [watched(item, true)]), stores).changes;
+    const poll = () => service.poll(visible(generation, [item]), stores).changes;
     expect(poll()).toEqual([]);
     stores.story.items.set("key", 1);
     expect(poll()).toEqual([{
@@ -475,11 +473,11 @@ describe("visible structural watch", () => {
     }]);
   });
 
-  it("does not poll collapsed containers, but observes them when expanded", () => {
+  it("does not poll unregistered containers, but observes them when registered", () => {
     const stores = { story: { player: { hp: 10 } }, temporary: {} };
     const { service, generation } = setup(stores.story);
     const poll = (expanded: boolean) =>
-      service.poll(visible(generation, [watched(player, expanded)]), stores).changes;
+      service.poll(visible(generation, expanded ? [root, player] : [root]), stores).changes;
 
     expect(poll(false)).toEqual([]);
     stores.story.player.hp = 20;
@@ -500,7 +498,7 @@ describe("visible structural watch", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: { player: { health: 7 } }, temporary: {} };
     const { service, generation } = setup(stores.story);
-    const poll = () => service.poll(visible(generation, [watched(root), watched(player)]), stores).changes;
+    const poll = () => service.poll(visible(generation, [root, player]), stores).changes;
     expect(poll()).toEqual([]);
     // Existing child value becomes non-cloneable, but only structure is watched.
     (stores.story.player as Record<string, unknown>).health = () => {};

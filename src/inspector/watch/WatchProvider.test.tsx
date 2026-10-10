@@ -77,13 +77,8 @@ it("always sends the active root alongside visible top-level rows", async () => 
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(requested).toHaveLength(1);
   expect(requested[0]!.favorites).toEqual([]);
-  expect(requested[0]!.visible).toContainEqual({
-    target: { scope: "story", path: [] }, expanded: false,
-  });
-  expect(requested[0]!.visible).toContainEqual({
-    target: { scope: "story", path: [{ type: "property", key: "score" }] },
-    expanded: false,
-  });
+  expect(requested[0]!.visible).toContainEqual({ scope: "story", path: [] });
+  expect(requested[0]!.visible).toContainEqual({ scope: "story", path: [{ type: "property", key: "score" }] });
 });
 
 it.each([
@@ -110,16 +105,11 @@ it.each([
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
 
   const request = rpc.sendMessage.mock.calls[0]![1] as {
-    visible: Array<{ target: { scope: string; path: unknown[] } }>;
+    visible: Array<{ scope: string; path: unknown[] }>;
   };
-  expect(request.visible).toContainEqual({
-    target: { scope: "story", path: [] }, expanded: false,
-  });
+  expect(request.visible).toContainEqual({ scope: "story", path: [] });
   if (primitiveVisible) {
-    expect(request.visible).toContainEqual({
-      target: { scope: "story", path: [{ type: "property", key: "score" }] },
-      expanded: false,
-    });
+    expect(request.visible).toContainEqual({ scope: "story", path: [{ type: "property", key: "score" }] });
   }
 });
 
@@ -135,9 +125,9 @@ it("keeps the root structural watch while visible primitive rows appear and disa
   </WatchProvider>);
   const containsRoot = (index: number) => {
     const request = rpc.sendMessage.mock.calls[index]![1] as {
-      visible: Array<{ target: { scope: string; path: unknown[] } }>;
+      visible: Array<{ scope: string; path: unknown[] }>;
     };
-    return request.visible.some(({ target }) =>
+    return request.visible.some((target) =>
       target.scope === "story" && target.path.length === 0,
     );
   };
@@ -164,10 +154,10 @@ it("watches only the active scope root while switching variable tabs", async () 
   render(<WatchProvider snapshot={snapshot()}><Variables /></WatchProvider>);
   const activeRoots = (index: number) => {
     const request = rpc.sendMessage.mock.calls[index]![1] as {
-      visible: Array<{ target: { scope: string; path: unknown[] } }>;
+      visible: Array<{ scope: string; path: unknown[] }>;
     };
-    return request.visible.filter(({ target }) => target.path.length === 0)
-      .map(({ target }) => target.scope);
+    return request.visible.filter((target) => target.path.length === 0)
+      .map((target) => target.scope);
   };
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(activeRoots(0)).toEqual(["story"]);
@@ -207,11 +197,9 @@ it("keeps the root structural watch with only a nested primitive watch", async (
   </WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   const request = rpc.sendMessage.mock.calls[0]![1] as {
-    visible: Array<{ target: { scope: string; path: unknown[] } }>;
+    visible: Array<{ scope: string; path: unknown[] }>;
   };
-  expect(request.visible).toContainEqual({
-    target: { scope: "story", path: [] }, expanded: false,
-  });
+  expect(request.visible).toContainEqual({ scope: "story", path: [] });
 });
 
 it("continues monitoring an empty root, without retaining missing unfavorited paths", async () => {
@@ -245,22 +233,16 @@ it("continues monitoring an empty root, without retaining missing unfavorited pa
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(screen.queryByText("Missing watched variables (read-only)")).toBeNull();
   expect(screen.queryByText("score")).toBeNull();
-  expect(requests[0]!.visible).toContainEqual({
-    target: { scope: "story", path: [] }, expanded: false,
-  });
+  expect(requests[0]!.visible).toContainEqual({ scope: "story", path: [] });
 
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(requests[1]!.visible).toContainEqual({
-    target: { scope: "story", path: [] }, expanded: false,
-  });
-  expect(requests[1]!.visible).not.toContainEqual({ target: score, expanded: false });
+  expect(requests[1]!.visible).toContainEqual({ scope: "story", path: [] });
+  expect(requests[1]!.visible).not.toContainEqual(score);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(screen.getByTitle("99")).toBeTruthy();
   expect(requests[2]!.favorites).toEqual([]);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(requests[3]!.visible).toContainEqual({
-    target: { scope: "story", path: [] }, expanded: false,
-  });
+  expect(requests[3]!.visible).toContainEqual({ scope: "story", path: [] });
 });
 
 it("sets favorite state idempotently, and only favorites survive an unmount", async () => {
@@ -340,21 +322,19 @@ it("polls empty story roots even when no variable tiles exist", async () => {
   render(<WatchProvider snapshot={empty}><Variables /></WatchProvider>);
   expect(screen.getAllByText("No variables")).toHaveLength(2);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(requests[0]!.visible).toContainEqual({
-    target: { scope: "story", path: [] }, expanded: false,
-  });
+  expect(requests[0]!.visible).toContainEqual({ scope: "story", path: [] });
 });
 
 it("omits collapsed containers from visible watches unless favorited", async () => {
   const requested: Array<{
     favorites: unknown[];
-    visible: Array<{ target: unknown; expanded: boolean }>;
+    visible: unknown[];
   }> = [];
   rpc.sendMessage.mockImplementation(async (_type, data) => {
     const request = data as {
       generation: number;
       favorites: unknown[];
-      visible: Array<{ target: unknown; expanded: boolean }>;
+      visible: unknown[];
     };
     requested.push({ favorites: request.favorites, visible: request.visible });
     return { generation: request.generation, changes: [], mainDurationMs: 1 };
@@ -372,33 +352,33 @@ it("omits collapsed containers from visible watches unless favorited", async () 
   };
 
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(requested[0]!.visible).not.toContainEqual({ target: inventory, expanded: false });
+  expect(requested[0]!.visible).not.toContainEqual(inventory);
   expect(requested[0]!.favorites).toEqual([]);
 
   fireEvent.click(screen.getByRole("button", { name: "Expand inventory" }));
   await act(async () => { await vi.advanceTimersByTimeAsync(0); });
-  expect(requested[1]!.visible).toContainEqual({ target: inventory, expanded: true });
+  expect(requested[1]!.visible).toContainEqual(inventory);
 
   fireEvent.click(screen.getByRole("button", { name: "Collapse inventory" }));
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(requested[2]!.visible).not.toContainEqual({ target: inventory, expanded: false });
-  expect(requested[2]!.visible).not.toContainEqual({ target: inventory, expanded: true });
+  expect(requested[2]!.visible).not.toContainEqual(inventory);
+  expect(requested[2]!.visible).not.toContainEqual(inventory);
 
   fireEvent.click(screen.getByRole("button", { name: "Favorite inventory" }));
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
-  expect(requested[3]!.visible).not.toContainEqual({ target: inventory, expanded: false });
+  expect(requested[3]!.visible).not.toContainEqual(inventory);
   expect(requested[3]!.favorites).toContainEqual(inventory);
 
   fireEvent.click(screen.getByRole("button", { name: "Unfavorite inventory" }));
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
   expect(requested[4]!.favorites).not.toContainEqual(inventory);
-  expect(requested[4]!.visible).not.toContainEqual({ target: inventory, expanded: false });
+  expect(requested[4]!.visible).not.toContainEqual(inventory);
 });
 
 it("polls immediately after expanding a visible container", async () => {
-  const requests: Array<{ visible: Array<{ target: unknown; expanded: boolean }> }> = [];
+  const requests: Array<{ visible: unknown[] }> = [];
   rpc.sendMessage.mockImplementation(async (_type, data) => {
-    const request = data as { generation: number; visible: Array<{ target: unknown; expanded: boolean }> };
+    const request = data as { generation: number; visible: unknown[] };
     requests.push(request);
     return { generation: request.generation, changes: [], mainDurationMs: 1 };
   });
@@ -409,10 +389,7 @@ it("polls immediately after expanding a visible container", async () => {
   await act(async () => { await vi.advanceTimersByTimeAsync(0); });
 
   expect(requests).toHaveLength(1);
-  expect(requests[0]!.visible).toContainEqual({
-    target: { scope: "story", path: [{ type: "property", key: "inventory" }] },
-    expanded: true,
-  });
+  expect(requests[0]!.visible).toContainEqual({ scope: "story", path: [{ type: "property", key: "inventory" }] });
 });
 
 it("throws if useWatch is called outside WatchProvider", () => {

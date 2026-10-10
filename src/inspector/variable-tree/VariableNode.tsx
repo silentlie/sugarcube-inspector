@@ -60,7 +60,7 @@ function VariableNode({
   useEffect(() => {
     expandedRef.current = expanded;
     expandableRef.current = expandable;
-    if (intersectsRef.current) setVisible(target, !expandable || expanded, expanded);
+    if (intersectsRef.current) setVisible(target, !expandable || expanded);
   }, [target, expandable, expanded, setVisible]);
 
   useEffect(() => {
@@ -70,7 +70,7 @@ function VariableNode({
     const observe = (isIntersecting: boolean) => {
       intersectsRef.current = isIntersecting;
       setVisible(target, isIntersecting && (!expandableRef.current ||
-        expandedRef.current), expandedRef.current);
+        expandedRef.current));
     };
     if (typeof IntersectionObserver === "undefined") {
       observe(true);
@@ -112,7 +112,8 @@ function VariableNode({
             // A click proves visibility even before IntersectionObserver
             // reports it. Expansion starts watching and polls immediately.
             intersectsRef.current = true;
-            setVisible(target, !expanded, !expanded);
+            setVisible(target, !expanded);
+            if (!expanded) watch.pollNow();
             onToggle(id);
           }}
           favorite={watch.favorites.has(id)}
