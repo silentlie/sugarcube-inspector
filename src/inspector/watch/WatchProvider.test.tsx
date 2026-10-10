@@ -103,12 +103,14 @@ it.each([
   render(<WatchProvider snapshot={initial}><Variables /></WatchProvider>);
   await act(async () => { await vi.advanceTimersByTimeAsync(260); });
 
-  const request = rpc.sendMessage.mock.calls[0]![1] as {
-    visible: Array<{ target: { scope: string; path: unknown[] } }>;
-  };
-  const hasExplicitRoot = request.visible.some(({ target }) =>
+  // Without an explicit root or another registered visible watch,
+  // WatchProvider correctly skips the RPC entirely.
+  const request = rpc.sendMessage.mock.calls[0]?.[1] as
+    | { visible: Array<{ target: { scope: string; path: unknown[] } }> }
+    | undefined;
+  const hasExplicitRoot = request?.visible.some(({ target }) =>
     target.scope === "story" && target.path.length === 0,
-  );
+  ) ?? false;
   expect(hasExplicitRoot).toBe(registered);
 });
 
