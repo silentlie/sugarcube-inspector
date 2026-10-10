@@ -333,6 +333,45 @@ describe("visible structural watch", () => {
     expect(service.poll(visible(generation, []), stores).changes).toEqual([]);
   });
 
+  it("checks a nonempty root without any visible child rows, but does not deep-watch collapsed values", () => {
+    const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
+      { story: { player: { health: 100 } }, temporary: {} };
+    const { service, generation } = setup(stores.story);
+    const poll = () => service.poll(visible(generation, [watched(root)]), stores).changes;
+
+    expect(poll()).toEqual([]);
+    (stores.story.player as Record<string, unknown>).health = 75;
+    expect(poll()).toEqual([]);
+
+    stores.story.newQuest = true;
+    expect(poll()).toEqual([{
+      op: "set", scope: "story", path: [{ type: "property", key: "newQuest" }],
+      value: true,
+    }]);
+    delete stores.story.player;
+    expect(poll()).toEqual([{
+      op: "delete", scope: "story", path: player.path,
+    }]);
+  });
+
+  it("deduplicates explicit root structure and structure inferred from a visible child", () => {
+    const score: WatchTarget = {
+      scope: "story", path: [{ type: "property", key: "score" }],
+    };
+    const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
+      { story: { score: 7 }, temporary: {} };
+    const { service, generation } = setup(stores.story);
+    const poll = () => service.poll(visible(generation, [watched(root), watched(score)]), stores).changes;
+
+    expect(poll()).toEqual([]);
+    stores.story.newQuest = 1;
+    expect(poll()).toEqual([{
+      op: "set", scope: "story", path: [{ type: "property", key: "newQuest" }],
+      value: 1,
+    }]);
+    expect(poll()).toEqual([]);
+  });
+
   it("tracks an empty root, additions, removals and restoration without missing watches", () => {
     const stores: { story: Record<string, unknown>; temporary: Record<string, unknown> } =
       { story: {}, temporary: {} };
