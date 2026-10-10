@@ -1,8 +1,13 @@
 # Experimental watch strategies and Chromium RPC benchmark
 
-The production watcher is unchanged. This document records experimental
-implementations in [`watchEqual.ts`](../src/sugarcube/watchEqual.ts) and
-[`watchPollingVariants.ts`](../src/sugarcube/watchPollingVariants.ts).
+These measurements concern experimental implementations in
+[`watchEqual.ts`](../src/sugarcube/watchEqual.ts) and
+[`watchPollingVariants.ts`](../src/sugarcube/watchPollingVariants.ts),
+not the production polling RPC. The current production
+[`WatchService`](../src/sugarcube/watchService.ts) already compares watched
+values before cloning, using `fast-equals/deepEqual` with
+`circularDeepEqual` for known cyclic paths. The experimental
+comparators/strategies are not wired into it.
 
 **Verified:** [GitHub Actions run 37955702289](https://github.com/silentlie/sugarcube-inspector/actions/runs/37955702289)
 on Ubuntu / Node 22 and Chromium 156. All 72 Chromium MAIN ↔ isolated-world
@@ -98,12 +103,16 @@ Unsupported opaque types are also considered changed.
 
 ## Recommendation
 
-**Compare-before-clone** is the best simple default to explore for large,
-mostly unchanged watched values. Directly return or clone small primitives.
-Always-clone may win for values that change every poll. If performance
-notifications are reintroduced, measure synchronous MAIN-world CPU rather than
-just RPC round-trip latency, since page work can cause frame drops. The earlier
-notification design is recorded in
+**Retain the current production compare-before-clone approach** unless
+real game profiling shows a worthwhile alternative. The synthetic benchmarks
+suggest that avoiding cloning helps for large, mostly unchanged values, while
+always-clone may win for values that change every poll. This does not establish
+which strategy is best for actual SugarCube stories or the current
+visible/favorite structural-watch pattern.
+
+If performance notifications are reintroduced, measure synchronous
+MAIN-world CPU rather than just RPC round-trip latency, since page work can
+cause frame drops. The earlier notification design is recorded in
 [deferred watch-performance notifications](deferred-watch-performance-notices.md).
 
 Do not switch production to these variants based on this one synthetic
