@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WatchService } from "./watchService";
 import { applyWatchPatches } from "./applyWatchPatches";
-import { minimizeVariablePaths, watchPathExists, type WatchRequest, type VariablePath, type PathSegment } from "./watch";
+import { minimizeWatchPaths, watchPathExists, type WatchRequest, type VariablePath, type PathSegment } from "./watch";
 import type { SugarCubeSnapshot } from "./types";
 
 const player: VariablePath = [{ type: "property", key: "story" }, { type: "property", key: "player" }];
@@ -171,7 +171,7 @@ describe("synchronized snapshot watch service", () => {
   it("keeps paths in different scopes independent when minimizing watches", () => {
     const storyRoot: VariablePath = [{ type: "property", key: "story" }];
     const temporaryScore: VariablePath = [{ type: "property", key: "temporary" }, { type: "property", key: "score" }];
-    expect(minimizeVariablePaths([player, storyRoot, temporaryScore])).toEqual([
+    expect(minimizeWatchPaths([player, storyRoot, temporaryScore])).toEqual([
       storyRoot, temporaryScore,
     ]);
     expect(watchPathExists({ story: {}, temporary: { score: 5 } }, temporaryScore)).toBe(true);
@@ -184,11 +184,11 @@ describe("synchronized snapshot watch service", () => {
       [{ type: "property", key: "story" }, { type: "property", key: "items" }, { type: "mapKey", index: 0 }],
       [{ type: "property", key: "story" }, { type: "property", key: "flags" }, { type: "setValue", index: 0 }],
     ];
-    expect(minimizeVariablePaths(targets)).toEqual([
+    expect(minimizeWatchPaths(targets)).toEqual([
       [{ type: "property", key: "story" }, { type: "property", key: "items" }],
       [{ type: "property", key: "story" }, { type: "property", key: "flags" }],
     ]);
-    expect(minimizeVariablePaths([player, health])).toEqual([player]);
+    expect(minimizeWatchPaths([player, health])).toEqual([player]);
   });
 
   it("retains synchronized changes across watch removal and a different path reactivation", () => {
