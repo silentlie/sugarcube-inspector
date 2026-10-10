@@ -1,0 +1,179 @@
+import { describe, expect, it } from "vitest";
+import {
+  isPathPrefix,
+  pathToKey,
+  readPathChild,
+  resolvePath,
+} from "./path";
+import type { PathSegment, VariablePath } from "../watch/types";
+
+const prop = (key: string): PathSegment => ({ type: "property", key });
+const story = (...parts: PathSegment[]): VariablePath => [prop("story") as VariablePath[0], ...parts];
+
+describe("shared path operations", () => {
+  it("distinguishes existing undefined, missing own properties, and inherited properties", () => {
+    const player = Object.create({ inherited: 5 }) as Record<string, unknown>;
+    player.score = undefined;
+    const stores = { story: { player }, temporary: {} };
+    expect(resolvePath(stores, story(prop("player"), prop("score")))).toEqual({
+      exists: true, value: undefined,
+    });
+    expect(resolvePath(stores, story(prop("player"), prop("missing")))).toEqual({
+      exists: false, missingPath: story(prop("player"), prop("missing")),
+    });
+    expect(readPathChild(player, prop("inherited"))).toEqual({ status: "missing" });
+    expect(readPathChild(player, prop("score"))).toEqual({ status: "found", value: undefined });
+  });
+
+  it("reports a blocked ancestor separately from a missing child", () => {
+    const path = story(prop("player"), prop("hp"));
+    const result = resolvePath({ story: { player: null }, temporary: {} }, path);
+    expect(result).toEqual({
+      exists: false,
+      missingPath: story(prop("player")),
+      blockedExists: true,
+      blocked: null,
+    });
+    expect(resolvePath({ story: { player: {} }, temporary: {} }, path)).toEqual({
+      exists: false, missingPath: path,
+    });
+  });
+
+  it("returns exactly the fields belonging to each resolution outcome", () => {
+    const stores = { story: { player: { hp: undefined }, empty: {}, blocked: null }, temporary: {} };
+
+    expect(resolvePath(stores, story(prop("player"), prop("hp")))).toEqual({
+      exists: true, value: undefined,
+    });
+    expect(resolvePath(stores, story(prop("empty"), prop("hp")))).toEqual({
+      exists: false, missingPath: story(prop("empty"), prop("hp")),
+    });
+    expect(resolvePath(stores, story(prop("blocked"), prop("hp")))).toEqual({
+      exists: false,
+      missingPath: story(prop("blocked")),
+      blockedExists: true,
+      blocked: null,
+    });
+  });
+
+  it("preserves sparse-array holes and defined undefined entries", () => {
+    const items = new Array<unknown>(2);
+    items[1] = undefined;
+    expect(readPathChild(items, { type: "property", key: "0" })).toEqual({ status: "missing" });
+    expect(readPathChild(items, { type: "property", key: "1" })).toEqual({
+      status: "found", value: undefined,
+    });
+  });
+
+  it("resolves positional Map keys, Map values, and Set values", () => {
+    const key = { id: 1 };
+    const collection = new Map<unknown, unknown>([[key, undefined]]);
+    const members = new Set<unknown>([undefined, key]);
+    const stores = { story: { collection, members }, temporary: {} };
+    expect(resolvePath(stores, story(prop("collection"), { type: "mapKey", index: 0 }))).toEqual({
+      exists: true, value: key,
+    });
+    expect(resolvePath(stores, story(prop("collection"), { type: "mapValue", index: 0 }))).toEqual({
+      exists: true, value: undefined,
+    });
+    expect(resolvePath(stores, story(prop("collection"), { type: "mapValue", index: 1 })).exists).toBe(false);
+    expect(resolvePath(stores, story(prop("members"), { type: "setValue", index: 0 }))).toEqual({
+      exists: true, value: undefined,
+    });
+    expect(resolvePath(stores, story(prop("members"), { type: "setValue", index: 2 })).exists).toBe(false);
+  });
+
+  it("distinguishes incompatible segment types from missing Map and Set entries", () => {
+    const entry = { type: "mapValue" as const, index: 0 };
+    const member = { type: "setValue" as const, index: 0 };
+    expect(readPathChild({}, prop("hp"))).toEqual({ status: "missing" });
+    expect(readPathChild(42, prop("hp"))).toEqual({ status: "blocked" });
+    expect(readPathChild({}, entry)).toEqual({ status: "blocked" });
+    expect(readPathChild(new Map(), entry)).toEqual({ status: "missing" });
+    expect(readPathChild(new Map([["a", undefined]]), entry)).toEqual({
+      status: "found", value: undefined,
+    });
+    expect(readPathChild({}, member)).toEqual({ status: "blocked" });
+    expect(readPathChild(new Set(), member)).toEqual({ status: "missing" });
+    expect(readPathChild(new Set([undefined]), member)).toEqual({
+      status: "found", value: undefined,
+    });
+  });
+
+  it("checks Map and Set entries by index, not by their contained values", () => {
+    const map = new Map<unknown, unknown>([
+      ["zero", 0],
+      ["false", false],
+      ["undefined", undefined],
+    ]);
+    const set = new Set<unknown>([0, false, undefined]);
+
+    for (const index of [0, 1, 2]) {
+      expect(readPathChild(map, { type: "mapValue", index })).toEqual({
+        status: "found", value: [0, false, undefined][index],
+      });
+      expect(readPathChild(set, { type: "setValue", index })).toEqual({
+        status: "found", value: [0, false, undefined][index],
+      });
+    }
+
+    for (const index of [-1, 3, 100]) {
+      expect(readPathChild(map, { type: "mapKey", index })).toEqual({ status: "missing" });
+      expect(readPathChild(map, { type: "mapValue", index })).toEqual({ status: "missing" });
+      expect(readPathChild(set, { type: "setValue", index })).toEqual({ status: "missing" });
+    }
+  });
+
+  it("reads own properties through Reflect.get without changing existence rules", () => {
+    const object = Object.create({ inherited: "ignored" }) as Record<string, unknown>;
+    Object.defineProperty(object, "computed", { get: () => 42, enumerable: true });
+    object["0"] = undefined;
+
+    expect(readPathChild(object, prop("computed"))).toEqual({ status: "found", value: 42 });
+    expect(readPathChild(object, { type: "property", key: "0" })).toEqual({
+      status: "found", value: undefined,
+    });
+    expect(readPathChild(object, prop("inherited"))).toEqual({ status: "missing" });
+  });
+
+  it("uses one property path for numeric keys on arrays and objects", () => {
+    const key = prop("0");
+    expect(readPathChild(["sword"], key)).toEqual({ status: "found", value: "sword" });
+    expect(readPathChild({ "0": "sword" }, key)).toEqual({ status: "found", value: "sword" });
+    expect(pathToKey(story(prop("items"), key))).toBe(pathToKey(story(prop("items"), prop("0"))));
+  });
+
+  it("keeps scope and segment types distinct when comparing paths", () => {
+    const scope = story(prop("items"));
+    const child = story(prop("items"), { type: "property", key: "0" });
+    const temporary: VariablePath = [{ type: "property", key: "temporary" }, prop("items")];
+    expect(isPathPrefix(scope, child)).toBe(true);
+    expect(isPathPrefix(child, scope)).toBe(false);
+    expect(isPathPrefix(temporary, child)).toBe(false);
+  });
+
+  it("compares the type and value of each path segment without serialization", () => {
+    const parent = story(prop("items"));
+    const segments: PathSegment[] = [
+      { type: "property", key: "0" },
+      { type: "mapKey", index: 0 },
+      { type: "mapValue", index: 0 },
+      { type: "setValue", index: 0 },
+    ];
+
+    for (const segment of segments) {
+      const prefix = [...parent, segment];
+      expect(isPathPrefix(prefix, [...parent, { ...segment }])).toBe(true);
+      expect(isPathPrefix(prefix, [...parent, { ...segment }, prop("hp")])).toBe(true);
+
+      for (const other of segments) {
+        if (other.type !== segment.type) {
+          expect(isPathPrefix(prefix, [...parent, other])).toBe(false);
+        }
+      }
+    }
+    expect(isPathPrefix([...parent, prop("0")], [...parent, prop("1")])).toBe(false);
+    expect(isPathPrefix([...parent, prop("hp")], [...parent, prop("mp")])).toBe(false);
+  });
+
+});

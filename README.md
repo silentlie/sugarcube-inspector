@@ -12,6 +12,8 @@ RPC bridge between the page's SugarCube runtime and the inspector.
 - Expandable trees for story variables (`$`) and temporary variables (`_`).
 - Automatic snapshot refresh after SugarCube passage changes, plus a manual
   **Refresh** button.
+- Live polling of visible variable rows and favorited paths, with batched,
+  incremental updates.
 - A drawer that opens on hover, supports resizing by dragging its edge, and has
   keyboard controls.
 - Snapshot validation, request timeouts, and a **Retry** button for snapshot
@@ -52,10 +54,36 @@ open the drawer. Drag the handle to adjust its width. With the handle focused,
 **Enter** or **Space** toggles the drawer, and **Left Arrow** or **Right Arrow**
 adjusts its width.
 
-Expand the variable trees to inspect values. Passage changes refresh them
-automatically; use **Refresh** to capture changes made without passage
-navigation. If a snapshot request fails, the drawer shows the error and a
-**Retry** button.
+Expand the variable trees to inspect values. Circular references appear as
+links to their ancestor nodes; selecting a link scrolls to and focuses that
+ancestor instead of rendering the same object again. Visible and favorited
+variables update through polling without a passage change. Passage changes
+also trigger a fresh full snapshot; use **Refresh** when you need all values,
+including unwatched or collapsed ones, to be recaptured. If a snapshot
+request fails, the drawer shows the error and a **Retry** button.
+
+Variable watches use separate favorite and visible lists. The visible list
+contains scalar/opaque leaves and expanded containers only; collapsed
+containers are absent unless explicitly favorited. Watches poll every 250 ms
+and pause while the page is hidden. Expanded visible containers are compared
+as a whole and cloned only when changed. Expanding a visible container
+triggers an immediate poll. Empty objects, arrays, Maps, and Sets can expand.
+
+On every active poll, the selected variable scope's root is checked for
+**top-level additions and removals**, even when all variable rows are offscreen
+or collapsed. This is a shallow scan of root property names, not a deep
+comparison of root values. MAIN deduplicates root checks inferred from other
+visible rows. Parents of nested visible rows are also checked for added/removed
+children. Polling still pauses when the page is hidden.
+
+Favorites remain value-watched when hidden; missing favorites retain read-only
+placeholders. MAIN and the inspector each maintain a mutable synchronized
+variable graph. Poll responses contain path-based patches that update both
+graphs. Unwatching does not discard already synchronized state; only a fresh
+full snapshot replaces the baseline. Independent watched aliases may diverge,
+then catch up when watched again or refreshed.
+See [visible structure watching](docs/visible-structure-watching.md).
+Favorites currently last for the lifetime of the inspector.
 
 Select the extension's toolbar icon to open the side panel. Its **Refresh**
 button checks the currently active tab for a local SugarCube story and updates
@@ -81,10 +109,6 @@ API, including `typescript-eslint`; `@typescript/native` supplies TypeScript 7's
 Use `npx tsc --version` and `npx tsc6 --version` to check each compiler, or
 `npx tsc6 --noEmit` to check the project explicitly with TypeScript 6.
 
-The package also provides `npm run dev:firefox`, `npm run build:firefox`, and
-`npm run zip:firefox`. Runtime support and automated browser coverage currently
-target Chromium; Firefox support has not been validated.
-
 ## Testing
 
 Before the first browser test run, install Playwright's bundled Chromium:
@@ -108,13 +132,15 @@ npm run test:browser
 ```
 
 Unit and startup tests cover snapshot validation, timeout handling, inspector
-state transitions, bridge readiness, and cleanup. RPC integration tests use the
-production page bridge and actual custom-event transport with a small SugarCube
-fixture.
+state transitions, bridge readiness, and cleanup. Watch-service and component
+tests cover structural discovery, missing/favorite paths, cycles and aliases,
+snapshot generations, patch application, and path-local notifications. RPC
+integration tests use the production page bridge and actual custom-event
+transport with a small SugarCube fixture.
 
 Browser smoke tests load the built extension with a real SugarCube 2.37.3 story
-and check initial variables, updates after passage navigation, repeated reloads,
-and manual refresh. The pinned story format is downloaded on the first run,
+and check initial variables, live polling updates without passage navigation,
+updates after passage navigation, repeated reloads, and manual refresh. The pinned story format is downloaded on the first run,
 verified against a SHA-256 checksum, and cached for subsequent runs.
 
 See [the testing guide](tests/README.md) for fixture details and Playwright trace
@@ -124,8 +150,8 @@ instructions.
 
 The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pushes to `main`,
 pull requests targeting `main`, and manual runs. It uses Ubuntu 24.04 and Node.js
-24, installs locked dependencies, checks TypeScript, runs the unit and
-integration tests, then builds the extension and runs Chromium smoke tests.
+24, installs locked dependencies, runs ESLint and TypeScript checks, runs the
+unit and integration tests, then builds the extension and runs Chromium smoke tests.
 
 Superseded runs on the same branch are cancelled. Failed browser runs upload
 `test-results` as a `browser-test-results` artifact retained for seven days.
@@ -141,37 +167,52 @@ drawer in a shadow root. The two scripts communicate through
 ```mermaid
 sequenceDiagram
     participant Story as SugarCube runtime
-    participant Bridge as Page bridge
-    participant Inspector as Inspector drawer
+    participant Bridge as MAIN WatchService
+    participant Inspector as Inspector WatchProvider
     Inspector->>Bridge: bridgeReady
     Bridge-->>Inspector: true after initialization
     Inspector->>Bridge: getSnapshot
-    Bridge-->>Inspector: Cloned snapshot
-    Note over Inspector: Validate snapshot and display variables
+    Bridge->>Bridge: Clone live snapshot and start generation
+    Bridge-->>Inspector: Full snapshot + generation
+    Note over Inspector: Validate snapshot; create VariableStore
+    loop Every 250 ms while document is visible
+        Inspector->>Bridge: getWatchChanges(generation, favorites, visible)
+        Bridge->>Story: Compare registered values and structures
+        Bridge->>Bridge: Clone changes; apply patches to MAIN copy
+        Bridge-->>Inspector: Patches + generation
+        Inspector->>Inspector: Mutate local copy; notify affected paths
+    end
     Story->>Bridge: passageend event
     Bridge->>Inspector: passageChanged
     Inspector->>Bridge: getSnapshot
-    Bridge-->>Inspector: Updated snapshot
+    Bridge-->>Inspector: Fresh full snapshot + new generation
+    Note over Inspector: Poll failure/mismatch also triggers resync
 ```
 
 The bridge registers its readiness handler after successful initialization.
-Readiness and snapshot requests have a three-second timeout. The inspector
-validates snapshots with Zod and ignores superseded results or results received
-after unmounting.
+Readiness, snapshot, and watch-poll requests use a three-second timeout.
+The inspector validates full snapshots with Zod and ignores superseded
+snapshots or results received after unmounting. Watch polls do not overlap,
+pause when the page is hidden, and trigger full-snapshot recovery on failure
+or generation mismatch.
 
 ## Project structure
 
-| Path                               | Responsibility                                                                               |
-| ---------------------------------- | -------------------------------------------------------------------------------------------- |
-| `entrypoints/content.tsx`          | Verify bridge readiness and mount the drawer.                                                |
-| `entrypoints/sugarcube.content.ts` | Serve snapshots and emit passage-change notifications from the page.                         |
-| `entrypoints/background.ts`        | Configure toolbar clicks to open the side panel.                                             |
-| `entrypoints/sidepanel/`           | Detect the active local story and display its metadata.                                      |
-| `src/inspector/`                   | Drawer, variable trees, request state, and error UI.                                         |
-| `src/sugarcube/`                   | RPC contract, snapshot construction, and validation schema.                                  |
-| `src/utils/`                       | Request timeout helper.                                                                      |
-| `tests/`                           | Startup, transport integration, and browser tests; unit tests also live beside source files. |
-| `docs/`                            | Deferred feature designs.                                                                    |
+| Path | Responsibility |
+| --- | --- |
+| `entrypoints/content.tsx` | Verify bridge readiness and mount the inspector drawer. |
+| `entrypoints/sugarcube.content.ts` | MAIN-world bridge: snapshots, watch polling, and passage-change messages. |
+| `entrypoints/background.ts` | Open the extension side panel from the toolbar. |
+| `entrypoints/sidepanel/` | Detect the active local story and display metadata. |
+| `src/sidepanel/` | Read SugarCube metadata from the active tab; side-panel entrypoint owns display. |
+| `src/inspector/variable-tree/` | Variable tree, value formatting, expansion, and missing favorites. |
+| `src/inspector/watch/` | Watch registration, polling lifecycle, mutable UI store, and React subscriptions. |
+| `src/sugarcube/watch/` | Watch coordinator, contracts, path discovery, structural comparison, and equality. |
+| `src/sugarcube/variables/` | Live variable access, collection identity tracking, synchronized snapshot, and patch/path operations. |
+| `src/sugarcube/rpc.ts` | Typed communication contract between page bridge and inspector. |
+| `src/sugarcube/types.ts` | Snapshot validation schema. |
+| `tests/` and colocated `*.test.ts(x)` | Browser, bridge, startup, watch, and component tests. |
+| `docs/` | Watch architecture and deferred feature designs. |
 
 ## Current scope and limitations
 

@@ -1,3 +1,4 @@
+import { isError } from "@sindresorhus/is";
 import {
   createContext,
   use,
@@ -44,7 +45,7 @@ interface InspectorProviderProps {
 const InspectorContext = createContext<InspectorContextValue | null>(null);
 
 function toError(value: unknown): Error {
-  return value instanceof Error ? value : new Error(String(value));
+  return isError(value) ? value : new Error(String(value));
 }
 
 async function readSnapshot(): Promise<SugarCubeSnapshot> {

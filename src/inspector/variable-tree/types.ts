@@ -1,14 +1,15 @@
-export type VariableScope = "story" | "temporary";
+import type { PathSegment } from "../../sugarcube/watch/types";
 
-export type PathSegment =
-  | { type: "property"; key: string }
-  | { type: "index"; index: number }
-  | { type: "mapKey"; index: number }
-  | { type: "mapValue"; index: number }
-  | { type: "setValue"; index: number };
+export type { PathSegment, VariableScope } from "../../sugarcube/watch/types";
 
 export interface VariableChild {
   name: string;
   value: unknown;
   segment: PathSegment;
+}
+
+/** Identity and path of a visible ancestor in the current variable tree. */
+export interface VariableAncestor {
+  value: object;
+  path: readonly PathSegment[];
 }

@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  getChildren,
-  getValueType,
-  isCircular,
-  isExpandable,
-} from "./valueUtils";
+import { getChildren, isExpandable } from "./valueChildren";
 
 describe("expandable variable values", () => {
   it.each([
@@ -16,10 +11,6 @@ describe("expandable variable values", () => {
     ["bigint", 7n],
     ["symbol", Symbol("item")],
     ["function", () => {}],
-    ["empty object", {}],
-    ["empty array", []],
-    ["empty Map", new Map()],
-    ["empty Set", new Set()],
     ["Date", new Date("2026-10-09T00:00:00Z")],
     ["RegExp", /map/],
     ["Error", new Error("missing")],
@@ -30,6 +21,16 @@ describe("expandable variable values", () => {
     ["WeakSet", new WeakSet()],
   ])("treats %s as a leaf", (_name, value) => {
     expect(isExpandable(value)).toBe(false);
+    expect(getChildren(value)).toEqual([]);
+  });
+
+  it.each([
+    ["empty object", {}],
+    ["empty array", []],
+    ["empty Map", new Map()],
+    ["empty Set", new Set()],
+  ])("allows expanding %s even without children", (_name, value) => {
+    expect(isExpandable(value)).toBe(true);
     expect(getChildren(value)).toEqual([]);
   });
 
@@ -49,7 +50,7 @@ describe("expandable variable values", () => {
       value: "hidden",
       enumerable: false,
     });
-    expect(isExpandable(value)).toBe(false);
+    expect(isExpandable(value)).toBe(true);
     Object.assign(value, { visible: 7 });
 
     expect(getChildren(value)).toEqual([
@@ -80,7 +81,7 @@ describe("variable children and paths", () => {
     expect(children[1]!.value).toBe(nested);
   });
 
-  it("distinguishes sparse array indices from named and out-of-range properties", () => {
+  it("displays array indices distinctly while using property segments for all entries", () => {
     const value = ["map"];
     value[3] = "key";
     Object.assign(value, {
@@ -90,8 +91,8 @@ describe("variable children and paths", () => {
     });
 
     expect(getChildren(value)).toEqual([
-      { name: "[0]", value: "map", segment: { type: "index", index: 0 } },
-      { name: "[3]", value: "key", segment: { type: "index", index: 3 } },
+      { name: "[0]", value: "map", segment: { type: "property", key: "0" } },
+      { name: "[3]", value: "key", segment: { type: "property", key: "3" } },
       { name: "01", value: "named", segment: { type: "property", key: "01" } },
       {
         name: "-1",
@@ -146,38 +147,3 @@ describe("variable children and paths", () => {
   });
 });
 
-describe("circular references", () => {
-  it("detects ancestor identity without marking a separate equal object as circular", () => {
-    const ancestor = { score: 7 };
-    expect(isCircular(ancestor, [ancestor])).toBe(true);
-    expect(isCircular({ score: 7 }, [ancestor])).toBe(false);
-    expect(isCircular(ancestor, [])).toBe(false);
-    expect(isCircular(null, [ancestor])).toBe(false);
-    expect(isCircular(7, [ancestor])).toBe(false);
-  });
-});
-
-describe("variable type labels", () => {
-  it.each([
-    [null, "null"],
-    [undefined, "undefined"],
-    [7, "number"],
-    [false, "boolean"],
-    ["map", "string"],
-    [7n, "bigint"],
-    [Symbol("item"), "symbol"],
-    [() => {}, "function"],
-    [{}, "Object"],
-    [[], "Array"],
-    [new Map(), "Map"],
-    [new Set(), "Set"],
-    [new Date(), "Date"],
-    [/map/, "RegExp"],
-    [new TypeError("missing"), "TypeError"],
-    [new ArrayBuffer(8), "ArrayBuffer"],
-    [new Uint16Array(2), "Uint16Array"],
-    [new DataView(new ArrayBuffer(8)), "DataView"],
-  ])("labels %s as %s", (value, label) => {
-    expect(getValueType(value)).toBe(label);
-  });
-});

@@ -19,6 +19,30 @@ containers, circular and shared references, literal property paths, and retained
 expansion after snapshot updates. Value helpers also cover sparse array indices,
 named properties, type labels, special numeric values, and preview tooltips.
 
+## Live watch coverage
+
+- `src/sugarcube/watch/WatchService.test.ts`: incremental value patches, structural
+  discovery, nested additions/removals, generation mismatches, missing-path
+  restoration, watched aliases and circular values, array lengths, and Map/Set
+  handling.
+- `src/sugarcube/variables/applyWatchPatches.test.ts`: in-place mutation, sparse arrays,
+  special property names, and explicit nonconfigurable-property failures.
+- `src/inspector/watch/VariableStore.test.ts`: path-version notifications
+  and updates to shared aliases without unnecessary root/sibling notifications.
+- `src/inspector/watch/WatchProvider.test.tsx`: independent visible/favorite
+  registrations, missing-favorite removal, 250 ms polling, recovery,
+  unconditional active-scope root watching, and immediate polling when
+  expanding visible containers.
+
+**Active-root watch contract:** Every active poll includes the selected
+scope's root as a structure-only target, even if no variable rows are visible,
+all containers are collapsed, or the scope is empty. This checks for top-level
+additions and removals without deep-comparing root values. Structure checks
+implied by visible child rows are deduplicated with the explicit root check.
+Polling pauses while the page is hidden. See
+[visible structure watching](../docs/visible-structure-watching.md).
+
+
 ## Browser smoke tests
 
 Install the browser once:
@@ -44,7 +68,8 @@ Each browser test uses a temporary profile and closes its browser context in
 variable updates after a real passage change, and five consecutive reloads with
 one inspector and a working manual refresh. They also exercise keyboard scope
 navigation, independent tree expansion across refreshes and passage changes,
-and recovery through Retry after the real bridge rejects uncloneable data.
+live polling of a visible scalar without a passage change, and recovery through
+Retry after the real bridge rejects uncloneable data.
 Generated stories and browser results are ignored by Git. Failed runs retain
 Playwright traces under `test-results`.
 
@@ -62,9 +87,9 @@ The [CI workflow](../.github/workflows/ci.yml) runs on pushes to `main`, pull
 requests targeting `main`, and manual runs from the Actions tab. It uses Node.js
 24 on Ubuntu 24.04 and installs the locked dependencies with `npm ci`.
 
-Each run checks TypeScript, runs the unit and RPC integration tests, installs
-Playwright's Chromium and its Linux dependencies, then builds the extension and
-runs the browser smoke tests. Superseded runs on the same branch are cancelled.
+Each run checks ESLint and TypeScript, runs the unit and RPC integration
+tests, installs Playwright's Chromium and its Linux dependencies, then builds
+the extension and runs the browser smoke tests. Superseded runs on the same branch are cancelled.
 Failed browser runs upload `test-results` as the `browser-test-results` artifact
 and retain it for seven days. Download the artifact and open a trace with
 `npx playwright show-trace path/to/trace.zip` to inspect the failure.

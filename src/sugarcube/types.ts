@@ -3,15 +3,24 @@ import type {
   SugarCubeTemporaryVariables,
 } from "twine-sugarcube";
 import { z } from "zod";
+import { isArray } from "@sindresorhus/is";
+import { isNonFunctionObject } from "../utils/isNonFunctionObject";
 
 const isVariableContainer = (value: unknown): value is object =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+  isNonFunctionObject(value) && !isArray(value);
 
 const StoryVariablesSchema =
   z.custom<SugarCubeStoryVariables>(isVariableContainer);
 
 const TemporaryVariablesSchema =
   z.custom<SugarCubeTemporaryVariables>(isVariableContainer);
+
+export const SugarCubeVariablesSchema = z.object({
+  story: StoryVariablesSchema,
+  temporary: TemporaryVariablesSchema,
+});
+
+export type SugarCubeVariables = z.infer<typeof SugarCubeVariablesSchema>;
 
 export const SugarCubeSnapshotSchema = z.object({
   story: z.object({
@@ -30,12 +39,11 @@ export const SugarCubeSnapshotSchema = z.object({
     length: z.number().int().nonnegative(),
   }),
 
-  variables: z.object({
-    story: StoryVariablesSchema,
-    temporary: TemporaryVariablesSchema,
-  }),
+  variables: SugarCubeVariablesSchema,
 
   capturedAt: z.number(),
+  /** MAIN-world watch baseline generation. */
+  watchGeneration: z.number().int().nonnegative().optional(),
 });
 
 export type SugarCubeSnapshot = z.infer<typeof SugarCubeSnapshotSchema>;

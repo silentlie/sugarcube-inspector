@@ -1,15 +1,21 @@
-import { useId, useRef, useState, type KeyboardEvent } from "react";
-import type { SugarCubeSnapshot } from "../sugarcube/types";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import VariableTree from "./variable-tree/VariableTree";
+import MissingWatches from "./variable-tree/MissingWatches";
+import { useWatch } from "./watch/WatchProvider";
+import type { VariablePath, VariableScope } from "../sugarcube/watch/types";
 
-type Tab = "story" | "temporary";
+export default function Variables() {
+  const [activeTab, setActiveTab] = useState<VariableScope>("story");
+  const watch = useWatch();
+  const setVisible = watch.setVisible;
+  // Watch the active scope's root structure on every poll, even when empty,
+  // offscreen, or composed entirely of collapsed containers.
+  useEffect(() => {
+    const root: VariablePath = [{ type: "property", key: activeTab }];
+    setVisible(root, true);
+    return () => setVisible(root, false);
+  }, [activeTab, setVisible]);
 
-interface VariablesProps {
-  snapshot: SugarCubeSnapshot;
-}
-
-export default function Variables({ snapshot }: VariablesProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("story");
   const id = useId();
 
   const storyTabRef = useRef<HTMLButtonElement>(null);
@@ -25,7 +31,7 @@ export default function Variables({ snapshot }: VariablesProps) {
   ] as const;
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    let nextTab: Tab;
+    let nextTab: VariableScope;
 
     switch (event.key) {
       case "ArrowLeft":
@@ -93,7 +99,8 @@ export default function Variables({ snapshot }: VariablesProps) {
         hidden={activeTab !== "story"}
         className="pt-3"
       >
-        <VariableTree scope="story" value={snapshot.variables.story} />
+        <VariableTree scope="story" />
+        <MissingWatches scope="story" />
       </section>
 
       <section
@@ -103,8 +110,10 @@ export default function Variables({ snapshot }: VariablesProps) {
         hidden={activeTab !== "temporary"}
         className="pt-3"
       >
-        <VariableTree scope="temporary" value={snapshot.variables.temporary} />
+        <VariableTree scope="temporary" />
+        <MissingWatches scope="temporary" />
       </section>
     </div>
   );
 }
+
