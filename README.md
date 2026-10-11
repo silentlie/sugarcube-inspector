@@ -1,58 +1,58 @@
-# SugarCube Inspector: DevTools extension proof of concept
+# SugarCube Inspector: DevTools proof of concept
 
-Experimental Chromium extension that inspects SugarCube story and temporary
-variables using **Chrome DevTools' native JavaScript object viewer**, rather
-than copying live objects through RPC or attaching through `chrome.debugger`.
+A Chromium DevTools extension for inspecting live SugarCube game variables.
+This branch is independent of PR #3's CDP side-panel prototype and main's
+snapshot inspector.
 
-This prototype is developed separately from both the snapshot inspector on
-`main` and the CDP side-panel proof of concept in PR #3.
+## Where to find the variables
 
-## How it works
+Open Chrome DevTools on a SugarCube story and select the **SugarCube** tab.
+The tab now displays two live, expandable trees directly underneath Refresh:
 
-Opening DevTools creates a **SugarCube** panel with a status check and
-**Refresh variables** button. In the standard **Elements** panel's sidebar,
-the extension provides two native property viewers:
+- **Story variables ($)** — `SugarCube.State.variables`
+- **Temporary variables (_)** — `SugarCube.State.temporary`
 
-- **SugarCube Story:** `SugarCube.State.variables` (`$` variables).
-- **SugarCube Temporary:** `SugarCube.State.temporary` (`_` variables).
+Expand any object to inspect its own properties. The tree requests just one
+level at a time through `devtools.inspectedWindow.eval()`; it doesn't copy
+the entire graph, attach Chrome's debugger, or inject a page script. Refresh
+re-reads both stores from the game and clears previously expanded nodes.
+Large collections support **Load more**.
 
-Chrome's native object viewer handles functions, accessor descriptors, object
-identity, Map/Set values, and other JavaScript types. The extension only passes
-expressions to DevTools, never cloned variable graphs. Sidebars refresh on
-selection, navigation, or a manual click in the SugarCube dashboard. The
-SugarCube panel creates and refreshes its sidebars directly in the same
-DevTools context, without runtime messaging.
+The **Elements** panel also retains **SugarCube Story** and
+**SugarCube Temporary** native sidebars for full-fidelity debugging. Chrome
+does not offer a way to embed those native object viewers into a custom
+DevTools panel, so the new in-tab tree is a lightweight descriptor-based viewer.
+It displays functions and accessors without invoking ordinary property
+getters. Private class fields, internal slots, exotic built-ins and proxy traps
+still require the native Elements sidebar.
 
-There is **no injected page drawer, extension side panel, snapshot fallback,
-debugger permission, or extension debugger warning**. The inspector is available
-only while DevTools is open. The native object tree lives in the Elements sidebar,
-not directly in the custom SugarCube dashboard tab.
+There is no snapshot fallback, page drawer, extension side panel,
+`chrome.debugger` permission, or debugger security banner. Ordinary DevTools
+Console operations can edit game variables directly.
 
-## Install
+## Install and run
 
-Using Node.js 24:
+With Node.js 24:
 
 ```sh
 npm ci
 npm run build
 ```
 
-Load `.output/chrome-mv3` from `chrome://extensions` > Developer mode >
-Load unpacked. In Details, enable **Allow access to file URLs**, then open a
-local SugarCube HTML story and launch DevTools (F12).
+Load `.output/chrome-mv3` via `chrome://extensions` > Developer mode >
+Load unpacked. Enable **Allow access to file URLs** in the extension details.
 
-Select **SugarCube** to see detection and refresh controls. Then open
-**Elements**, and find **SugarCube Story** or **SugarCube Temporary** among its
-sidebar tabs. Expand objects in the native view and use the regular DevTools
-Console to edit live variables; click **Refresh variables** or revisit a
-sidebar to fetch the current roots.
+Open the local SugarCube HTML game, press **F12**, and select **SugarCube**.
+Expand variables directly in that panel. Change `SugarCube.State.variables.day`
+in the normal Console, return to SugarCube, and click **Refresh variables**.
 
-## Scope
-
-This is a read-only integration prototype: no custom variable editor, favorites,
-automatic watches, or breakpoints. Browser smoke tests confirm packaging and
-non-injection; native sidebar behavior must be verified with actual Chrome
-DevTools during manual testing.
+## Tests and scope
 
 Run `npm run lint`, `npm run compile`, `npm test`, and
-`npm run test:browser` for automated checks.
+`npm run test:browser`. Unit tests cover lazy page inspection, accessor
+safety, cycles, Maps/Sets, pagination, variable tree UI and Refresh.
+The Chromium smoke tests cover packaging, not the real custom DevTools tab,
+which still needs manual validation.
+
+This is a read-only proof of concept: custom variable editing, watches,
+persistent expansion, and breakpoints are not implemented.

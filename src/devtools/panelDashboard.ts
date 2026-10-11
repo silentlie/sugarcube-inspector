@@ -39,7 +39,7 @@ export function mountPanelDashboard(
       status.textContent = "Requesting native sidebar refresh…";
       await withTimeout(host.refreshSidebars(), "sidebar refresh");
       status.textContent = detected
-        ? "SugarCube detected. Inspect live variables in Elements > SugarCube Story / SugarCube Temporary."
+        ? "SugarCube detected. Showing live variables below."
         : "SugarCube not detected in the inspected page. Navigate to a SugarCube story and refresh.";
     } catch (error) {
       status.textContent = `Could not refresh: ${error instanceof Error ? error.message : String(error)}`;
