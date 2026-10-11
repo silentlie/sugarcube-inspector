@@ -22,12 +22,17 @@ export interface NativeSidebar {
 
 export interface NativeInspectorHost {
   createSidebarPane(title: string): Promise<NativeSidebar>;
-  createPanel(): Promise<unknown>;
   onNavigated(listener: () => void): void;
-  onRefreshRequested(listener: () => Promise<void>): void;
 }
 
-export async function registerNativeInspector(host: NativeInspectorHost): Promise<void> {
+/**
+ * Create both sidebars in the same DevTools panel context as the controls.
+ * Returns a refresh operation that queues live evaluations without waiting for
+ * a hidden Elements sidebar to finish rendering.
+ */
+export async function registerNativeInspector(
+  host: NativeInspectorHost,
+): Promise<() => void> {
   const panes = await Promise.all(
     variableRoots.map((root) => host.createSidebarPane(root.title)),
   );
@@ -35,25 +40,21 @@ export async function registerNativeInspector(host: NativeInspectorHost): Promis
   const update = (index: number): void => {
     const root = variableRoots[index]!;
     try {
-      // DevTools may defer evaluating an Elements sidebar until it becomes
-      // visible. Do not block the SugarCube panel or message replies on that.
       void Promise.resolve(panes[index]!.setExpression(root.expression, root.rootTitle))
         .catch(console.error);
     } catch (error) {
       console.error(error);
     }
   };
-  const refresh = async (): Promise<void> => {
+  const refresh = (): void => {
     variableRoots.forEach((_, index) => update(index));
   };
 
   panes.forEach((pane, index) => {
     pane.onShown.addListener(() => update(index));
   });
-  host.onNavigated(() => { void refresh(); });
-  host.onRefreshRequested(refresh);
+  host.onNavigated(refresh);
+  refresh();
 
-  // Register the panel before updating hidden Elements sidebar panes.
-  await host.createPanel();
-  await refresh();
+  return refresh;
 }

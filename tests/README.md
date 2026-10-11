@@ -2,7 +2,8 @@
 
 `npm test` covers native sidebar registration, use of live expressions,
 refresh on sidebar selection and navigation, and the dashboard's refresh
-behavior. The extension does not copy SugarCube variable graphs.
+behavior. A combined dashboard-and-sidebar test verifies that refreshing does
+not require messaging between extension contexts. The extension does not copy SugarCube variable graphs.
 
 `npm run test:browser` builds the extension, generates a real SugarCube
 2.37.3 HTML story, and checks the manifest includes a DevTools page but

@@ -11,33 +11,31 @@ function setup() {
     onShown: { addListener: vi.fn((listener: () => void) => { shown.push(listener); }) },
   }));
   let onNavigated: (() => void) | undefined;
-  let onRefresh: (() => Promise<void>) | undefined;
   const host = {
     createSidebarPane: vi.fn(async (name: string) => panes[
       name === variableRoots[0].title ? 0 : 1
     ]!),
-    createPanel: vi.fn(async () => ({})),
     onNavigated: vi.fn((listener: () => void) => { onNavigated = listener; }),
-    onRefreshRequested: vi.fn((listener: () => Promise<void>) => { onRefresh = listener; }),
   };
-  return { host, panes, evaluated, shown, navigate: () => onNavigated?.(), refresh: () => onRefresh?.() };
+  return { host, panes, evaluated, shown, navigate: () => onNavigated?.() };
 }
 
 describe("DevTools native SugarCube object inspection", () => {
-  it("registers story and temporary sidebars and a DevTools panel", async () => {
+  it("registers both live variable sidebars without remote messaging", async () => {
     const test = setup();
-    await registerNativeInspector(test.host);
+    const refresh = await registerNativeInspector(test.host);
 
     expect(test.host.createSidebarPane.mock.calls.map(([name]) => name))
       .toEqual(["SugarCube Story", "SugarCube Temporary"]);
-    expect(test.host.createPanel).toHaveBeenCalledTimes(1);
     expect(test.evaluated).toEqual(variableRoots.map(root => [root.expression, root.rootTitle]));
     expect(test.evaluated[0]![0]).toBe("globalThis.SugarCube?.State?.variables");
     expect(test.evaluated[1]![0]).toBe("globalThis.SugarCube?.State?.temporary");
-    // No evaluation result or cloned game object is transferred back to the extension.
+
+    refresh();
+    expect(test.evaluated).toHaveLength(4);
   });
 
-  it("refreshes live expressions on sidebar selection, navigation, and manual request", async () => {
+  it("refreshes on sidebar selection and navigation", async () => {
     const test = setup();
     await registerNativeInspector(test.host);
 
@@ -47,21 +45,17 @@ describe("DevTools native SugarCube object inspection", () => {
 
     test.navigate();
     await vi.waitFor(() => expect(test.evaluated).toHaveLength(5));
-    await test.refresh();
-    expect(test.evaluated).toHaveLength(7);
   });
 
-  it("does not block sidebar refresh replies or panel mounting while panes are hidden", async () => {
+  it("returns a refresh callback without waiting for hidden Elements panes", async () => {
     const test = setup();
-    test.panes.forEach((pane) => {
+    test.panes.forEach(pane => {
       vi.spyOn(pane, "setExpression").mockImplementation(() => new Promise<void>(() => {}));
     });
 
-    await registerNativeInspector(test.host);
-    expect(test.host.createPanel).toHaveBeenCalledTimes(1);
-
-    await expect(test.refresh()).resolves.toBeUndefined();
-    test.shown[0]?.();
-    expect(test.panes[0]!.setExpression).toHaveBeenCalledTimes(3);
+    const refresh = await registerNativeInspector(test.host);
+    expect(refresh).toBeTypeOf("function");
+    expect(() => refresh()).not.toThrow();
+    expect(test.panes[0]!.setExpression).toHaveBeenCalledTimes(2);
   });
 });

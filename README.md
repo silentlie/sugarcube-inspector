@@ -19,7 +19,9 @@ the extension provides two native property viewers:
 Chrome's native object viewer handles functions, accessor descriptors, object
 identity, Map/Set values, and other JavaScript types. The extension only passes
 expressions to DevTools, never cloned variable graphs. Sidebars refresh on
-selection, navigation, or a manual click in the SugarCube dashboard.
+selection, navigation, or a manual click in the SugarCube dashboard. The
+SugarCube panel creates and refreshes its sidebars directly in the same
+DevTools context, without runtime messaging.
 
 There is **no injected page drawer, extension side panel, snapshot fallback,
 debugger permission, or extension debugger warning**. The inspector is available
