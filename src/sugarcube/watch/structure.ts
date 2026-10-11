@@ -2,7 +2,8 @@ import { isArray, isArrayBuffer, isDate, isError, isMap, isRegExp, isSet, isWeak
 import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 
 type Structure =
-  | { kind: "object" | "array"; keys: string[]; length?: number }
+  | { kind: "object"; keys: string[] }
+  | { kind: "array"; keys: string[]; length: number }
   | { kind: "map" | "set"; keys: unknown[] };
 
 export function structureOf(value: unknown): Structure | null {
@@ -18,6 +19,31 @@ export function structureOf(value: unknown): Structure | null {
   return { kind: "object", keys: Object.keys(value) };
 }
 
+/** Compare container shapes without comparing ordinary property values.
+ * Object/array keys are unordered; Map/Set entries are positional.
+ * The caller supplies equality for Map keys and Set members.
+ */
+export function sameStructure(
+  previous: Structure | null,
+  current: Structure | null,
+  sameMember: (previous: unknown, current: unknown) => boolean,
+): boolean {
+  if (!previous || !current) return previous === current;
+  if (previous.kind !== current.kind) return false;
+
+  if (previous.kind === "map" || previous.kind === "set") {
+    return previous.keys.length === current.keys.length &&
+      previous.keys.every((member, index) => sameMember(member, current.keys[index]));
+  }
+
+  if (previous.kind === "array" && current.kind === "array" &&
+      previous.length !== current.length) return false;
+
+  const currentKeys = new Set(current.keys);
+  return previous.keys.length === current.keys.length &&
+    previous.keys.every((key) => currentKeys.has(key));
+}
+
 /** Map keys and Set values define the meaning of positional entry paths. */
 export type CollectionMembers = { kind: "map" | "set"; entries: unknown[] };
 
@@ -27,4 +53,3 @@ export function collectionMembers(value: unknown): CollectionMembers | null {
   return null;
 }
 
-/** Register collection prefixes from BOTH favorites and visible watches. */

@@ -2,7 +2,7 @@ import type { SugarCubeSnapshot, SugarCubeVariables } from "../types";
 import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./types";
 import { collectionPaths, minimizeWatchPaths, structurePaths } from "./watchPaths";
 import { sameEntry, sameValue } from "./comparison";
-import { collectionMembers, structureOf } from "./structure";
+import { collectionMembers, sameStructure, structureOf } from "./structure";
 import { isPathPrefix, pathToKey, resolvePath, type PathKey } from "../variables/path";
 import { LiveVariableService } from "../variables/LiveVariableService";
 import { SynchronizedVariableStore } from "../variables/SynchronizedVariableStore";
@@ -82,7 +82,8 @@ export class WatchService {
       const liveEntry = this.live.read(stores, path);
       const previous = structureOf(oldEntry.status === "found" ? oldEntry.value : undefined);
       const current = structureOf(liveEntry.status === "found" ? liveEntry.value : undefined);
-      if (!previous && !current) continue;
+      if (sameStructure(previous, current, (left, right) =>
+        sameValue(left, right, key, this.circularPaths))) continue;
       const add = (value: unknown) => {
         structuralChanges.push({
           op: "set", path, value: structuredClone(value),
@@ -94,12 +95,7 @@ export class WatchService {
         continue;
       }
       if (current.kind === "map" || current.kind === "set") {
-        const oldKeys = previous.keys;
-        const newKeys = current.keys;
-        if (liveEntry.status === "found" && (oldKeys.length !== newKeys.length ||
-            oldKeys.some((old, i) => !sameValue(old, newKeys[i], key, this.circularPaths)))) {
-          add(liveEntry.value);
-        }
+        if (liveEntry.status === "found") add(liveEntry.value);
         continue;
       }
       const before = new Set(previous.keys as string[]);
