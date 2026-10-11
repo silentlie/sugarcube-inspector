@@ -12,8 +12,11 @@ Chrome's MAIN JavaScript world, next to SugarCube itself.
   tile reads its current live slot, not a stale value captured by its parent.
 - Expanded objects additionally watch property structure and Map/Set membership;
   object replacement, in-place changes and array length updates are supported.
-- One shared 250ms scheduler polls active subscriptions. Passage changes and
-  inspector edits trigger an immediate check. No per-tile timers.
+- One shared IntersectionObserver tracks whether a tile's subtree intersects
+  the viewport. Offscreen tiles stop polling, including while the drawer is
+  closed; visible ancestors stay active to detect object replacement.
+- One shared 250ms scheduler polls only active subscriptions. Passage changes
+  and inspector edits trigger an immediate check. No per-tile timers.
 - Nested lists receive **actual JS references**, not JSON or CDP object IDs.
 - Aliases and cycles stay referentially identical; accessors are described
   without invoking their getters.
@@ -47,5 +50,8 @@ Do not use this POC on untrusted pages.
 This is a **limited writable POC**, not a full variable editor. Getter
 execution, setters, arbitrary function invocation, and automatic deep
 getter watching are deliberately omitted. Active tiles automatically detect
-changes on a shared 250ms polling interval, with immediate refresh on passage
-navigation, manual refresh, and explicit edits.
+changes on a shared 250ms polling interval **while visible**. Scrolling a tile
+back into view re-reads its current value. Expanded container structures are
+observed while their subtree is visible, so scrolling into the tree detects new
+or removed entries. Passage navigation, manual refresh, and explicit edits
+trigger immediate checks of active subscriptions.

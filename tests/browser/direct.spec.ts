@@ -158,3 +158,36 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
   });
   await expect(drawer.getByTitle('"south"', { exact: true })).toBeVisible();
 });
+
+test("offscreen tiles stop polling and refresh when scrolled back into view", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openDrawer(page);
+  await page.evaluate(() => {
+    const store = SugarCube.State.variables as unknown as Record<string, unknown>;
+    store.large = Object.fromEntries(
+      Array.from({ length: 80 }, (_, i) => [`item${String(i).padStart(2, "0")}`, i]),
+    );
+  });
+  await drawer.getByRole("button", { name: "Expand large" }).click();
+
+  const firstRow = drawer.getByText("item00", { exact: true }).locator("..");
+  await firstRow.scrollIntoViewIfNeeded();
+  await expect(firstRow.getByTitle("0", { exact: true })).toBeVisible();
+
+  await drawer.getByText("item79", { exact: true }).scrollIntoViewIfNeeded();
+  await expect(firstRow).not.toBeInViewport();
+  // Allow the IntersectionObserver to mark the first row as offscreen.
+  await page.waitForTimeout(250);
+
+  await page.evaluate(() => {
+    const store = SugarCube.State.variables as unknown as {
+      large: Record<string, number>;
+    };
+    store.large.item00 = 999;
+  });
+  await page.waitForTimeout(600);
+  await expect(firstRow.getByTitle("0", { exact: true })).toHaveCount(1);
+
+  await firstRow.scrollIntoViewIfNeeded();
+  await expect(firstRow.getByTitle("999", { exact: true })).toBeVisible();
+});
