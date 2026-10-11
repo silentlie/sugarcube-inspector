@@ -35,13 +35,13 @@ describe("SugarCube runtime access", () => {
     expect(snapshot.passage.name).toBe("Start");
     expect(snapshot.variables.story).not.toBe(runtime.State.variables);
 
-    snapshot.variables.story.score = 99;
+    Object.assign(snapshot.variables.story, { score: 99 });
     expect(runtime.State.variables.score).toBe(7);
 
     runtime.State.passage = "Next Passage";
     runtime.State.variables = { score: 12 };
     const next = service.createSnapshot();
     expect(next.passage.name).toBe("Next Passage");
-    expect(next.variables.story.score).toBe(12);
+    expect(next.variables.story).toHaveProperty("score", 12);
   });
 });

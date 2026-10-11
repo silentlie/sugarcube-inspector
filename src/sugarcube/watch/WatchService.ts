@@ -120,7 +120,7 @@ export class WatchService {
         else structuralChanges.push({ op: "delete", path });
         continue;
       }
-      if (current.kind === "map" || current.kind === "set") {
+      if ("members" in previous || "members" in current) {
         if (liveEntry.status === "found") add(liveEntry.value);
         continue;
       }
