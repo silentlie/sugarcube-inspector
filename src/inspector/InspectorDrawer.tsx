@@ -59,8 +59,15 @@ function VariableList({ target }: { target: Target }) {
     async function load(): Promise<void> {
       for (let attempt = 0; attempt < 12 && active; attempt++) {
         try {
-          const value = await send(request);
-          if (active) setData(value as Inspection);
+          const value = await send(request) as Inspection;
+          // On a new passage the store may exist before SugarCube finishes
+          // populating its variables. Retry an initially empty scope briefly.
+          if (target.kind === "path" && target.path.segments.length === 0 &&
+              value.total === 0 && attempt < 11) {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            continue;
+          }
+          if (active) setData(value);
           return;
         } catch (cause) {
           const message = errorText(cause);
@@ -151,6 +158,17 @@ export default function InspectorDrawer() {
       browser.runtime.onMessage.removeListener(listener);
     };
   }, []);
+
+  useEffect(() => {
+    if (mode.mode !== "main") return;
+    const passages = document.getElementById("passages");
+    if (!passages) return;
+    const observer = new MutationObserver(() => {
+      setRevision((current) => current + 1);
+    });
+    observer.observe(passages, { childList: true });
+    return () => observer.disconnect();
+  }, [mode.mode]);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
