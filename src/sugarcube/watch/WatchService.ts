@@ -1,5 +1,5 @@
 import type { SugarCubeSnapshot } from "../types";
-import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./types";
+import type { VariablePatch, WatchRequest, WatchResponse, VariablePath } from "./types";
 import { collectionPaths, minimizeWatchPaths, structurePaths } from "./watchPaths";
 import { circularDeepEqual, deepEqual } from "fast-equals";
 import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
@@ -95,7 +95,7 @@ export class WatchService {
     // *inside* an existing Set member must not look like a new Set entry.
     const collections = collectionPaths([...request.favorites, ...request.visible]);
     const collectionKeys = new Set(collections.map(pathToKey));
-    const collectionChanges: WatchPatch[] = [];
+    const collectionChanges: VariablePatch[] = [];
     const replacedCollections: VariablePath[] = [];
 
     for (const path of collections) {
@@ -132,7 +132,7 @@ export class WatchService {
     }
 
     const structs = structurePaths(request.visible);
-    const structuralChanges: WatchPatch[] = [];
+    const structuralChanges: VariablePatch[] = [];
 
     // Compare against the last synchronized state, including earlier patches.
     for (const path of structs) {
@@ -193,7 +193,7 @@ export class WatchService {
     // The scope root is structure-only, never a whole-value watch.
     const valueVisible = request.visible.filter((path) => path.length > 1);
     const paths = minimizeWatchPaths([...request.favorites, ...valueVisible]);
-    const valueChanges: WatchPatch[] = [];
+    const valueChanges: VariablePatch[] = [];
 
     // Stage all patches before advancing the synchronized snapshot.
     for (const path of paths) {

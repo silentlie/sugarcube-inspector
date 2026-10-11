@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { WatchService } from "./WatchService";
 import { SugarCubeService } from "../SugarCubeService";
 import type { SugarCubeObject } from "twine-sugarcube";
-import { applyWatchPatches } from "../variables/applyWatchPatches";
+import { applyVariablePatches } from "../variables/applyVariablePatches";
 import type { WatchRequest, VariablePath, PathSegment } from "./types";
 import { minimizeWatchPaths } from "./watchPaths";
 import { resolvePath } from "../variables/path";
@@ -46,7 +46,7 @@ describe("synchronized snapshot watch service", () => {
     expect((snapshot.variables.story as Record<string, unknown>).player).toEqual({ health: 100, stats: { strength: 10 } });
 
     // The synchronized state must retain a clone, not a mutable live object.
-    const updated = applyWatchPatches(snapshot.variables, response.changes);
+    const updated = applyVariablePatches(snapshot.variables, response.changes);
     expect(((updated.story as Record<string, unknown>).player as { health: number }).health).toBe(75);
     expect(service.poll(request(generation)).changes).toEqual([]);
     stores.story.player.stats.strength = 12;
@@ -98,7 +98,7 @@ describe("synchronized snapshot watch service", () => {
     const deleted = service.poll(request(generation, [health]));
     expect(deleted.changes).toEqual([{ op: "delete", path: player }]);
 
-    const removed = applyWatchPatches(snapshot.variables, deleted.changes);
+    const removed = applyVariablePatches(snapshot.variables, deleted.changes);
     expect(Object.hasOwn(removed.story, "player")).toBe(false);
 
     stores.story.player = { health: 75, mana: 50 };
@@ -106,7 +106,7 @@ describe("synchronized snapshot watch service", () => {
     expect(restored.changes).toEqual([{
       op: "set", path: player, value: { health: 75, mana: 50 },
     }]);
-    expect((applyWatchPatches(removed, restored.changes).story as Record<string, unknown>).player).toEqual(stores.story.player);
+    expect((applyVariablePatches(removed, restored.changes).story as Record<string, unknown>).player).toEqual(stores.story.player);
   });
 
   it("replaces a parent that becomes null, undefined, or a primitive", () => {
@@ -117,18 +117,18 @@ describe("synchronized snapshot watch service", () => {
     stores.story.player = null;
     const nullValue = service.poll(request(generation, [health]));
     expect(nullValue.changes).toEqual([{ op: "set", path: player, value: null }]);
-    let displayed = applyWatchPatches(snapshot.variables, nullValue.changes);
+    let displayed = applyVariablePatches(snapshot.variables, nullValue.changes);
     expect((displayed.story as Record<string, unknown>).player).toBeNull();
 
     stores.story.player = 123;
     const primitive = service.poll(request(generation, [health]));
     expect(primitive.changes).toEqual([{ op: "set", path: player, value: 123 }]);
-    displayed = applyWatchPatches(displayed, primitive.changes);
+    displayed = applyVariablePatches(displayed, primitive.changes);
 
     stores.story.player = {};
     const emptyParent = service.poll(request(generation, [health]));
     expect(emptyParent.changes).toEqual([{ op: "set", path: player, value: {} }]);
-    displayed = applyWatchPatches(displayed, emptyParent.changes);
+    displayed = applyVariablePatches(displayed, emptyParent.changes);
     expect((displayed.story as Record<string, unknown>).player).toEqual({});
 
     stores.story.player = { health: 99, mana: 40 };
@@ -227,7 +227,7 @@ describe("synchronized snapshot watch service", () => {
       { op: "set", path: mapHp, value: 20 },
       { op: "set", path: setHp, value: 30 },
     ]);
-    applyWatchPatches(snapshot.variables, changes);
+    applyVariablePatches(snapshot.variables, changes);
     const copied = snapshot.variables.story as typeof stores.story;
     expect(copied.map.get("mc")!.hp).toBe(20);
     expect([...copied.set][0]!.hp).toBe(30);
@@ -246,7 +246,7 @@ describe("synchronized snapshot watch service", () => {
     key.hp = 15;
     const patches = poll();
     expect(patches).toEqual([{ op: "set", path: keyHp, value: 15 }]);
-    applyWatchPatches(snapshot.variables, patches);
+    applyVariablePatches(snapshot.variables, patches);
     const copied = (snapshot.variables.story as typeof stores.story).map;
     expect([...copied.keys()][0]!.hp).toBe(15);
   });
@@ -272,7 +272,7 @@ describe("synchronized snapshot watch service", () => {
       { op: "set", path: map, value: new Map([["b", { hp: 2 }], ["c", { hp: 3 }]]) },
       { op: "set", path: set, value: new Set([{ hp: 2 }, { hp: 3 }]) },
     ]);
-    applyWatchPatches(snapshot.variables, replaced);
+    applyVariablePatches(snapshot.variables, replaced);
     const copied = snapshot.variables.story as typeof stores.story;
     expect([...copied.map.keys()]).toEqual(["b", "c"]);
     expect([...copied.set].map((entry) => entry.hp)).toEqual([2, 3]);
@@ -283,7 +283,7 @@ describe("synchronized snapshot watch service", () => {
       { op: "set", path: mapHp, value: 30 },
       { op: "set", path: setHp, value: 30 },
     ]);
-    applyWatchPatches(snapshot.variables, changes);
+    applyVariablePatches(snapshot.variables, changes);
     expect(copied.map.get("c")!.hp).toBe(30);
     expect([...copied.set][1]!.hp).toBe(30);
   });
@@ -296,7 +296,7 @@ describe("synchronized snapshot watch service", () => {
     [...stores.story.set][0]!.hp = 2;
     const patches = service.poll(request(generation, [hp])).changes;
     expect(patches).toEqual([{ op: "set", path: set, value: new Set([{ hp: 2 }]) }]);
-    applyWatchPatches(snapshot.variables, patches);
+    applyVariablePatches(snapshot.variables, patches);
     expect([...((snapshot.variables.story as typeof stores.story).set)][0]!.hp).toBe(2);
   });
 
@@ -327,7 +327,7 @@ describe("synchronized snapshot watch service", () => {
     expect(changed).toEqual([{
       op: "set", path: player, value: { health: 20 },
     }]);
-    displayed = applyWatchPatches(displayed, changed);
+    displayed = applyVariablePatches(displayed, changed);
 
     // No active watches, and a value returns to its original snapshot value.
     expect(service.poll(request(generation, [])).changes).toEqual([]);
@@ -339,7 +339,7 @@ describe("synchronized snapshot watch service", () => {
     expect(restored).toEqual([{
       op: "set", path: health, value: 10,
     }]);
-    displayed = applyWatchPatches(displayed, restored);
+    displayed = applyVariablePatches(displayed, restored);
     expect((displayed.story as { player: { health: number } }).player.health).toBe(10);
     expect(service.poll(request(generation, [health])).changes).toEqual([]);
   });
@@ -361,7 +361,7 @@ describe("synchronized snapshot watch service", () => {
       op: "set", path: [...player, { type: "property", key: "mana" }],
       value: 5,
     }]);
-    let displayed = applyWatchPatches(snapshot.variables, added);
+    let displayed = applyVariablePatches(snapshot.variables, added);
     expect(service.poll(idle).changes).toEqual([]);
 
     delete (stores.story.player as Record<string, unknown>).mana;
@@ -369,7 +369,7 @@ describe("synchronized snapshot watch service", () => {
     expect(removed).toEqual([{
       op: "delete", path: [...player, { type: "property", key: "mana" }],
     }]);
-    displayed = applyWatchPatches(displayed, removed);
+    displayed = applyVariablePatches(displayed, removed);
     expect((displayed.story as { player: unknown }).player).toEqual({ health: 10 });
   });
 
@@ -382,7 +382,7 @@ describe("synchronized snapshot watch service", () => {
     shared.health = 20;
     const first = service.poll(request(generation, [left])).changes;
     expect(first).toEqual([{ op: "set", path: left, value: { health: 20 } }]);
-    const displayed = applyWatchPatches(snapshot.variables, first);
+    const displayed = applyVariablePatches(snapshot.variables, first);
     const copied = displayed.story as { left: { health: number }; right: { health: number } };
     expect(copied.left.health).toBe(20);
     expect(copied.right.health).toBe(10);
@@ -390,7 +390,7 @@ describe("synchronized snapshot watch service", () => {
 
     const second = service.poll(request(generation, [right])).changes;
     expect(second).toEqual([{ op: "set", path: right, value: { health: 20 } }]);
-    applyWatchPatches(displayed, second);
+    applyVariablePatches(displayed, second);
     expect(copied.right.health).toBe(20);
     expect(service.poll(request(generation, [right])).changes).toEqual([]);
   });
@@ -403,7 +403,7 @@ describe("synchronized snapshot watch service", () => {
     stores.story.left = { health: 90 };
     const changed = service.poll(request(generation, [left])).changes;
     expect(changed).toEqual([{ op: "set", path: left, value: { health: 90 } }]);
-    const displayed = applyWatchPatches(snapshot.variables, changed);
+    const displayed = applyVariablePatches(snapshot.variables, changed);
     const copied = displayed.story as { left: { health: number }; right: { health: number } };
     expect(copied.left.health).toBe(90);
     expect(copied.right.health).toBe(10);
@@ -503,15 +503,15 @@ describe("visible structural watch", () => {
     expect(added).toEqual([{
       op: "set", path: [{ type: "property", key: "story" }, { type: "property", key: "score" }], value: 7,
     }]);
-    let displayed = applyWatchPatches(snapshot.variables, added);
+    let displayed = applyVariablePatches(snapshot.variables, added);
     expect(displayed.story).toEqual({ score: 7 });
     delete stores.story.score;
     const removed = poll();
     expect(removed).toEqual([{ op: "delete", path: [{ type: "property", key: "story" }, { type: "property", key: "score" }] }]);
-    displayed = applyWatchPatches(displayed, removed);
+    displayed = applyVariablePatches(displayed, removed);
     expect(displayed.story).toEqual({});
     stores.story.score = 9;
-    displayed = applyWatchPatches(displayed, poll());
+    displayed = applyVariablePatches(displayed, poll());
     expect(displayed.story).toEqual({ score: 9 });
     expect(poll()).toEqual([]);
   });
@@ -576,10 +576,10 @@ describe("visible structural watch", () => {
     expect(added).toEqual([{
       op: "set", path: item, value: [4],
     }]);
-    let displayed = applyWatchPatches(snapshot.variables, added);
+    let displayed = applyVariablePatches(snapshot.variables, added);
     expect((displayed.story as Record<string, unknown>).items).toEqual([4]);
     stores.story.items.pop();
-    displayed = applyWatchPatches(displayed, poll());
+    displayed = applyVariablePatches(displayed, poll());
     expect((displayed.story as Record<string, unknown>).items).toEqual([]);
   });
 
@@ -594,12 +594,12 @@ describe("visible structural watch", () => {
     delete stores.story.items;
     const removed = service.poll(request(generation, [hp])).changes;
     expect(removed).toEqual([{ op: "delete", path: items }]);
-    applyWatchPatches(snapshot.variables, removed);
+    applyVariablePatches(snapshot.variables, removed);
 
     stores.story.items = [{ hp: 20 }];
     const restored = service.poll(request(generation, [hp])).changes;
     expect(restored).toEqual([{ op: "set", path: items, value: [{ hp: 20 }] }]);
-    applyWatchPatches(snapshot.variables, restored);
+    applyVariablePatches(snapshot.variables, restored);
     const result = (snapshot.variables.story as Record<string, unknown>).items;
     expect(Array.isArray(result)).toBe(true);
     expect(result).toEqual([{ hp: 20 }]);

@@ -1,9 +1,9 @@
 import { isArray } from "@sindresorhus/is";
 import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
-import { applyWatchPatches } from "../../sugarcube/variables/applyWatchPatches";
+import { applyVariablePatches } from "../../sugarcube/variables/applyVariablePatches";
 import { isPathPrefix, pathToKey, readPathChild, resolvePath, type PathKey } from "../../sugarcube/variables/path";
 import type { SugarCubeVariables } from "../../sugarcube/types";
-import type { PathSegment, VariablePath, WatchPatch } from "../../sugarcube/watch/types";
+import type { PathSegment, VariablePath, VariablePatch } from "../../sugarcube/watch/types";
 
 type Listener = () => void;
 type Subscription = { path: VariablePath; listeners: Set<Listener> };
@@ -51,7 +51,7 @@ export class VariableStore {
   getAnyVersion = (): number => this.anyVersion;
 
   /** Collect impacted subscriptions before a patch mutates the graph. */
-  private collectAffectedSubscriptions(patch: WatchPatch, changed: Set<PathKey>): void {
+  private collectAffectedSubscriptions(patch: VariablePatch, changed: Set<PathKey>): void {
     const parent: VariablePath = patch.path.length === 1
       ? patch.path
       : patch.path.slice(0, -1) as VariablePath;
@@ -105,14 +105,14 @@ export class VariableStore {
     for (const listener of this.anyListeners) listener();
   }
 
-  apply(patches: WatchPatch[]): void {
+  apply(patches: VariablePatch[]): void {
     if (!patches.length) return;
     const changed = new Set<PathKey>();
 
     for (const patch of patches) {
       // Subscriptions and aliases are checked before each mutation.
       this.collectAffectedSubscriptions(patch, changed);
-      applyWatchPatches(this.variables, [patch]);
+      applyVariablePatches(this.variables, [patch]);
     }
 
     this.notify(changed);

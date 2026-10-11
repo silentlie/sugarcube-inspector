@@ -1,6 +1,6 @@
 import { isArray, isMap, isSet } from "@sindresorhus/is";
 import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
-import type { PathSegment, WatchPatch } from "../watch/types";
+import type { PathSegment, VariablePatch } from "../watch/types";
 import type { SugarCubeVariables } from "../types";
 import { readPathChild } from "./path";
 
@@ -15,7 +15,7 @@ function writeProperty(target: object, key: string | number, value: unknown) {
   });
 }
 
-function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch): unknown {
+function mutate(root: unknown, path: readonly PathSegment[], patch: VariablePatch): unknown {
   if (path.length === 0) {
     return patch.op === "set" ? patch.value : undefined;
   }
@@ -40,7 +40,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
       const old = entry[part.type === "mapKey" ? 0 : 1];
       const replacement = rest.length
         ? mutate(old, rest, patch)
-        : (patch as Extract<WatchPatch, { op: "set" }>).value;
+        : (patch as Extract<VariablePatch, { op: "set" }>).value;
       entries[part.index] = part.type === "mapKey"
         ? [replacement, entry[1]] : [entry[0], replacement];
     }
@@ -57,7 +57,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
     else {
       values[part.index] = rest.length
         ? mutate(values[part.index], rest, patch)
-        : (patch as Extract<WatchPatch, { op: "set" }>).value;
+        : (patch as Extract<VariablePatch, { op: "set" }>).value;
     }
     root.clear();
     for (const value of values) root.add(value);
@@ -77,7 +77,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
     const old = previous.status === "found" ? previous.value : undefined;
     const next = rest.length
       ? mutate(old, rest, patch)
-      : (patch as Extract<WatchPatch, { op: "set" }>).value;
+      : (patch as Extract<VariablePatch, { op: "set" }>).value;
     // Do not fabricate missing ancestors when processing a deletion.
     if (rest.length && patch.op === "delete" && old === undefined) return root;
     writeProperty(record, key, next);
@@ -90,7 +90,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: WatchPatch):
  * Ancestor containers remain mutable; a whole-value set replaces that value
  * without reconciling its former aliases. The variables object stays stable.
  */
-export function applyWatchPatches(variables: SugarCubeVariables, patches: WatchPatch[]): SugarCubeVariables {
+export function applyVariablePatches(variables: SugarCubeVariables, patches: VariablePatch[]): SugarCubeVariables {
   for (const patch of patches) {
     mutate(variables, patch.path, patch);
   }

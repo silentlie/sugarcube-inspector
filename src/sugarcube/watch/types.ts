@@ -12,7 +12,7 @@ export type VariablePath = [
   ...PathSegment[],
 ];
 
-export type WatchPatch =
+export type VariablePatch =
   | { op: "set"; path: VariablePath; value: unknown }
   | { op: "delete"; path: VariablePath };
 
@@ -25,5 +25,5 @@ export interface WatchRequest {
 
 export interface WatchResponse {
   generation: number;
-  changes: WatchPatch[];
+  changes: VariablePatch[];
 }

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { applyWatchPatches } from "./applyWatchPatches";
-import type { PathSegment, WatchPatch } from "../watch/types";
+import { applyVariablePatches } from "./applyVariablePatches";
+import type { PathSegment, VariablePatch } from "../watch/types";
 import type { SugarCubeSnapshot } from "../types";
 
 type Stores = SugarCubeSnapshot["variables"];
 
-const change = (segments: PathSegment[], value: unknown): WatchPatch => ({
+const change = (segments: PathSegment[], value: unknown): VariablePatch => ({
   op: "set", path: [{ type: "property", key: "story" }, ...segments], value,
 });
 const prop = (key: string) => ({ type: "property" as const, key });
@@ -17,7 +17,7 @@ describe("in-place watch patches", () => {
   it("uses the first path element to select the scope, including root replacement", () => {
     const originalTemporary = { score: 2 };
     const stores = { story: { score: 1 }, temporary: originalTemporary };
-    const result = applyWatchPatches(stores, [
+    const result = applyVariablePatches(stores, [
       { op: "set", path: [{ type: "property", key: "temporary" }], value: { score: 3 } },
       { op: "set", path: [{ type: "property", key: "story" }, prop("score")], value: 4 },
     ]);
@@ -43,7 +43,7 @@ describe("in-place watch patches", () => {
     });
 
     const initial = snapshot({ inventory: array });
-    const updated = applyWatchPatches(initial, [
+    const updated = applyVariablePatches(initial, [
       change([prop("inventory"), prop("3")], "compass"),
     ]);
     const next = (updated.story as Record<string, unknown>).inventory as
@@ -67,7 +67,7 @@ describe("in-place watch patches", () => {
       value: "loot", enumerable: true, configurable: true, writable: true,
     });
     const initial = snapshot({ inventory: arr });
-    const withoutIndex = applyWatchPatches(initial, [{
+    const withoutIndex = applyVariablePatches(initial, [{
       op: "delete", path: [{ type: "property", key: "story" }, prop("inventory"), prop("0")],
     }]);
     const next = (withoutIndex.story as Record<string, unknown>).inventory as string[];
@@ -76,7 +76,7 @@ describe("in-place watch patches", () => {
     expect((next as unknown as { category: string }).category).toBe("loot");
     expect(Object.hasOwn(arr, 0)).toBe(false);
 
-    const extended = applyWatchPatches(withoutIndex, [
+    const extended = applyVariablePatches(withoutIndex, [
       change([prop("inventory"), prop("length")], 4),
     ]);
     const result = (extended.story as Record<string, unknown>).inventory as string[];
@@ -88,12 +88,12 @@ describe("in-place watch patches", () => {
   it("does not invent an object when an array ancestor is missing", () => {
     const initial = snapshot({});
     const nested = change([prop("inventory"), prop("0")], "sword");
-    expect(() => applyWatchPatches(initial, [nested])).toThrow(
+    expect(() => applyVariablePatches(initial, [nested])).toThrow(
       "Cannot apply a watch patch through a missing or non-object ancestor.",
     );
     expect(initial.story).toEqual({});
 
-    applyWatchPatches(initial, [change([prop("inventory")], ["sword"])]);
+    applyVariablePatches(initial, [change([prop("inventory")], ["sword"])]);
     expect(Array.isArray((initial.story as Record<string, unknown>).inventory)).toBe(true);
     expect((initial.story as Record<string, unknown>).inventory).toEqual(["sword"]);
   });
@@ -105,7 +105,7 @@ describe("in-place watch patches", () => {
     });
     player.health = 10;
     const initial = snapshot({ player });
-    const changed = applyWatchPatches(initial, [
+    const changed = applyVariablePatches(initial, [
       change([prop("player"), prop("health")], 20),
     ]);
     const next = (changed.story as Record<string, unknown>).player as Record<string, unknown>;
@@ -115,7 +115,7 @@ describe("in-place watch patches", () => {
     expect(next.health).toBe(20);
     expect(player.health).toBe(20);
 
-    const replaced = applyWatchPatches(changed, [
+    const replaced = applyVariablePatches(changed, [
       change([prop("player"), prop("__proto__")], { note: "updated" }),
     ]);
     const after = (replaced.story as Record<string, unknown>).player as Record<string, unknown>;
@@ -128,7 +128,7 @@ describe("in-place watch patches", () => {
     Object.defineProperty(player, "locked", {
       value: 1, enumerable: false, writable: false, configurable: false,
     });
-    const next = applyWatchPatches(snapshot({ player }), [
+    const next = applyVariablePatches(snapshot({ player }), [
       change([prop("player"), prop("health")], 20),
     ]);
     const result = (next.story as Record<string, unknown>).player;
@@ -146,7 +146,7 @@ describe("in-place watch patches", () => {
     Object.defineProperty(player, "prototype", {
       value: "literal-prototype", enumerable: true, writable: true, configurable: true,
     });
-    const updated = applyWatchPatches(snapshot({ player }), [
+    const updated = applyVariablePatches(snapshot({ player }), [
       change([prop("player"), prop("health")], 42),
     ]);
     const result = (updated.story as Record<string, unknown>).player as Record<string, unknown>;
@@ -161,7 +161,7 @@ describe("in-place watch patches", () => {
     const initial = snapshot({ player, alias: player });
 
     // A nested property patch still updates its existing parent in place.
-    expect(applyWatchPatches(initial, [
+    expect(applyVariablePatches(initial, [
       change([prop("player"), prop("health")], 20),
     ])).toBe(initial);
     expect(player.health).toBe(20);
@@ -170,7 +170,7 @@ describe("in-place watch patches", () => {
     const replacement: Record<string, unknown> = { health: 30, mp: 5 };
     replacement.self = replacement;
     const cloned = structuredClone(replacement);
-    applyWatchPatches(initial, [change([prop("player")], cloned)]);
+    applyVariablePatches(initial, [change([prop("player")], cloned)]);
 
     const story = initial.story as Record<string, unknown>;
     expect(story.player).toBe(cloned);
@@ -189,7 +189,7 @@ describe("in-place watch patches", () => {
     });
     const newMap = new Map([["two", 2]]);
     const newSet = new Set(["two"]);
-    applyWatchPatches(initial, [
+    applyVariablePatches(initial, [
       change([prop("map")], newMap),
       change([prop("set")], newSet),
     ]);
@@ -206,7 +206,7 @@ describe("in-place watch patches", () => {
     const player = { health: 10 } as Record<string, unknown>;
     const initial = snapshot({ player });
     const before = Object.keys(Object.prototype);
-    applyWatchPatches(initial, [change([prop("player"), prop("__proto__")], { bonus: 3 })]);
+    applyVariablePatches(initial, [change([prop("player"), prop("__proto__")], { bonus: 3 })]);
     expect(Object.getPrototypeOf(player)).toBe(Object.prototype);
     expect(Object.getOwnPropertyDescriptor(player, "__proto__")?.value).toEqual({ bonus: 3 });
     expect(Object.keys(Object.prototype)).toEqual(before);
@@ -217,7 +217,7 @@ describe("in-place watch patches", () => {
     Object.defineProperty(player, "locked", {
       value: 1, enumerable: true, configurable: false, writable: false,
     });
-    expect(() => applyWatchPatches(snapshot({ player }), [{
+    expect(() => applyVariablePatches(snapshot({ player }), [{
       op: "delete", path: [{ type: "property", key: "story" }, prop("player"), prop("locked")],
     }])).toThrow(TypeError);
   });

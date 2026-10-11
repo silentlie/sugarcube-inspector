@@ -1,7 +1,7 @@
-import { applyWatchPatches } from "./applyWatchPatches";
+import { applyVariablePatches } from "./applyVariablePatches";
 import { resolvePath, type PathResolution } from "./path";
 import type { SugarCubeSnapshot, SugarCubeVariables } from "../types";
-import type { VariablePath, WatchPatch } from "../watch/types";
+import type { VariablePath, VariablePatch } from "../watch/types";
 
 /** MAIN's private mutable last-synchronized graph, not the live SugarCube graph. */
 export class SynchronizedVariableStore {
@@ -27,8 +27,8 @@ export class SynchronizedVariableStore {
     return resolvePath(this.variables, path);
   }
 
-  apply(changes: WatchPatch[]): void {
+  apply(changes: VariablePatch[]): void {
     if (!this.variables) throw new Error("No synchronized snapshot has been captured.");
-    if (changes.length) applyWatchPatches(this.variables, changes);
+    if (changes.length) applyVariablePatches(this.variables, changes);
   }
 }
