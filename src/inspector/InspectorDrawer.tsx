@@ -53,7 +53,7 @@ function VariableList({ target }: { target: Target }) {
 
   useEffect(() => {
     let active = true;
-    const request: Request = {
+    const request: Extract<Request, { type: "inspector:inspect" }> = {
       type: "inspector:inspect", target: JSON.parse(targetKey) as Target, offset: 0,
     };
     async function load(): Promise<void> {
