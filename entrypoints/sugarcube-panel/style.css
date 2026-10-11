@@ -1,0 +1,16 @@
+:root {
+  font-family: system-ui, -apple-system, sans-serif;
+  color-scheme: light dark;
+  line-height: 1.5;
+  font-size: 13px;
+}
+body { margin: 0; }
+main { max-width: 640px; padding: 20px; }
+h1 { font-size: 21px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin-top: 24px; }
+p { max-width: 60ch; }
+.subtle { opacity: 0.75; }
+#status { padding: 10px 12px; border: 1px solid #888; border-radius: 6px; }
+button { padding: 7px 12px; font: inherit; cursor: pointer; }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+code { font-family: Consolas, monospace; }

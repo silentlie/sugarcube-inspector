@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SugarCube Inspector</title>
+  </head>
+  <body>
+    <main>
+      <h1>SugarCube Inspector</h1>
+      <p class="subtle">DevTools-native inspection proof of concept</p>
+      <p id="status" role="status">Checking inspected page…</p>
+      <button id="refresh" type="button">Refresh variables</button>
+      <h2>Inspect live variables</h2>
+      <p>In the <strong>Elements</strong> panel, select the <strong>SugarCube Story</strong>
+        or <strong>SugarCube Temporary</strong> sidebar tab.</p>
+      <p>Those panes use Chrome's own expandable JavaScript object inspector:
+        no snapshots, no custom cloning, and no extension debugger attachment.</p>
+      <p class="subtle">The Console can still inspect or modify the same live objects using
+        <code>SugarCube.State.variables</code> and <code>SugarCube.State.temporary</code>.</p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
