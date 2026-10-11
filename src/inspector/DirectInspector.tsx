@@ -118,7 +118,12 @@ export default function DirectInspector() {
       const store = getStore(scope);
       return isReference(store) && Reflect.ownKeys(store).length > 0;
     };
-    if (populated()) return;
+    // The store may have populated after React's render but before this
+    // effect runs. Refresh once even when it is already populated here.
+    if (populated()) {
+      refresh();
+      return;
+    }
 
     let attempts = 0;
     const timer = window.setInterval(() => {
