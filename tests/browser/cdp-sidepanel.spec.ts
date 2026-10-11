@@ -14,7 +14,12 @@ test("loads a real SugarCube story without mounting a page drawer", async ({ pag
   await page.goto(storyUrl);
   await expect(page.locator("#passages")).toContainText("Smoke story ready.");
   await expect(page.locator("sugarcube-inspector")).toHaveCount(0);
-  const score = await page.evaluate(() => SugarCube.State.variables.score);
+  const score = await page.evaluate(() => {
+    const game = globalThis as typeof globalThis & {
+      SugarCube?: { State: { variables: { score: number } } };
+    };
+    return game.SugarCube?.State.variables.score;
+  });
   expect(score).toBe(7);
 
   await page.locator("#passages").getByRole("link", { name: "Continue" }).click();
