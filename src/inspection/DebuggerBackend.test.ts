@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
     }
     return {};
   }),
-  onDetach: vi.fn((_handler: (source: { tabId?: number }) => void) => {}),
+  onDetach: vi.fn<(handler: (source: { tabId?: number }) => void) => void>(),
   onEvent: vi.fn(),
   getTab: vi.fn(async () => ({ id: 42, url: "file:///story.html" })),
 }));
