@@ -93,6 +93,20 @@ describe("recursive variable slots", () => {
       .toThrow("cannot be incremented");
   });
 
+
+  it("keeps collection tile identity when earlier Map and Set members disappear", () => {
+    const map = new Map([["first", 1], ["second", 2]]);
+    const second = listChildren(map).find((entry) => entry.name === "[1] value")!.id;
+    map.delete("first");
+    expect(listChildren(map).find((entry) => entry.name === "[0] value")!.id)
+      .toBe(second);
+
+    const set = new Set(["first", "second"]);
+    const secondSet = listChildren(set).find((entry) => entry.name === "[1]")!.id;
+    set.delete("first");
+    expect(listChildren(set)[0]!.id).toBe(secondSet);
+  });
+
   it("retains stable property IDs across object additions", () => {
     const obj: Record<string, unknown> = { first: 1 };
     const original = listChildren(obj)[0]!.id;

@@ -68,7 +68,7 @@ function VariableTile({
       )}
     </div>
   );
-});
+}
 
 /** Watches keys, collection membership and descriptors only while expanded. */
 export function VariableChildren({

@@ -5,10 +5,6 @@ import { variableWatcher } from "../inspection/variableWatcher";
 
 const noSubscription = () => () => {};
 
-function errorText(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause);
-}
-
 export function useVariable(slot: VariableSlot, visible: boolean) {
   const subscription = useMemo(
     () => variableWatcher.watch(() => readSlot(slot), sameSlot),

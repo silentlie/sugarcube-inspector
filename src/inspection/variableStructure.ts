@@ -6,18 +6,18 @@ export type TreeChild = { id: string; name: string; slot: VariableSlot };
 type StructurePart = { key: unknown; descriptor: string; length?: number };
 export type StructureSnapshot = { parts: readonly StructurePart[]; error?: string };
 
-const propertyIds = new WeakMap<object, Map<PropertyKey, string>>();
-let nextPropertyId = 0;
+const childIds = new WeakMap<object, Map<unknown, string>>();
+let nextChildId = 0;
 
-function idForProperty(owner: object, key: PropertyKey): string {
-  let ids = propertyIds.get(owner);
+function idForChild(owner: object, key: unknown): string {
+  let ids = childIds.get(owner);
   if (!ids) {
     ids = new Map();
-    propertyIds.set(owner, ids);
+    childIds.set(owner, ids);
   }
   let id = ids.get(key);
   if (!id) {
-    id = `property-${++nextPropertyId}`;
+    id = String(++nextChildId);
     ids.set(key, id);
   }
   return id;
@@ -77,10 +77,10 @@ export function listChildren(value: unknown): TreeChild[] {
     let i = 0;
     for (const key of Map.prototype.keys.call(value) as MapIterator<unknown>) {
       children.push({
-        id: `map-${i}-key`, name: `[${i}] key`,
+        id: `map-key-${idForChild(value, key)}`, name: `[${i}] key`,
         slot: { kind: "map-key", owner: value, key },
       }, {
-        id: `map-${i}-value`, name: `[${i}] value`,
+        id: `map-value-${idForChild(value, key)}`, name: `[${i}] value`,
         slot: { kind: "map-value", owner: value, key },
       });
       i++;
@@ -89,7 +89,7 @@ export function listChildren(value: unknown): TreeChild[] {
     let i = 0;
     for (const member of Set.prototype.values.call(value) as SetIterator<unknown>) {
       children.push({
-        id: `set-${i}`, name: `[${i}]`,
+        id: `set-${idForChild(value, member)}`, name: `[${i}]`,
         slot: { kind: "set-value", owner: value, member },
       });
       i++;
@@ -97,7 +97,7 @@ export function listChildren(value: unknown): TreeChild[] {
   }
   for (const key of Reflect.ownKeys(value)) {
     children.push({
-      id: idForProperty(value, key),
+      id: `property-${idForChild(value, key)}`,
       name: typeof key === "symbol" ? String(key) : key,
       slot: { kind: "property", owner: value, key },
     });
