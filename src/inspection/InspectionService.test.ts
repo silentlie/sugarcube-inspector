@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerInspectionService } from "./InspectionService";
 
+type TestMessage = {
+  data: unknown;
+  sender: { tab?: { id: number } };
+};
+
 const mocks = vi.hoisted(() => ({
-  handlers: new Map<string, (message: {
-    data: any;
-    sender: { tab?: { id: number } };
-  }) => unknown>(),
+  handlers: new Map<string, (message: TestMessage) => unknown>(),
   mode: vi.fn(() => ({ mode: "main" as const })),
   connect: vi.fn(async () => ({ mode: "cdp" as const, sessionId: "test" })),
   disconnect: vi.fn(async () => ({ mode: "main" as const })),
@@ -18,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./messaging", () => ({
-  onMessage: vi.fn((type: string, handler: (message: any) => unknown) => {
+  onMessage: vi.fn((type: string, handler: (message: TestMessage) => unknown) => {
     mocks.handlers.set(type, handler);
     return () => { mocks.handlers.delete(type); };
   }),
