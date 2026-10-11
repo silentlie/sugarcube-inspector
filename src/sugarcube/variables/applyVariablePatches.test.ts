@@ -89,7 +89,7 @@ describe("in-place variable patches", () => {
     const initial = snapshot({});
     const nested = change([prop("inventory"), prop("0")], "sword");
     expect(() => applyVariablePatches(initial, [nested])).toThrow(
-      "Cannot apply a watch patch through a missing or non-object ancestor.",
+      "Cannot apply a variable patch through a missing or non-object ancestor.",
     );
     expect(initial.story).toEqual({});
 

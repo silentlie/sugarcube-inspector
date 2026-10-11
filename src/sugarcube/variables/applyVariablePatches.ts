@@ -21,18 +21,14 @@ function writeProperty(target: object, key: PropertyKey, value: unknown): void {
   });
 }
 
-function mutate(root: unknown, path: readonly PathSegment[], patch: VariablePatch): unknown {
-  if (path.length === 0) {
-    return patch.op === "set" ? patch.value : undefined;
-  }
-
+function applyPatchAtPath(root: unknown, path: readonly PathSegment[], patch: VariablePatch): unknown {
   const part = path[0]!;
   const rest = path.slice(1);
   if (!isNonFunctionObject(root)) {
     // MAIN sends whole-value patches to restore missing ancestors; never
     // guess whether an absent intermediate container was an array or object.
     if (patch.op === "delete") return root;
-    throw new Error("Cannot apply a watch patch through a missing or non-object ancestor.");
+    throw new Error("Cannot apply a variable patch through a missing or non-object ancestor.");
   }
 
   if (part.type === "mapKey" || part.type === "mapValue") {
@@ -45,7 +41,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: VariablePatc
     } else {
       const old = entry[part.type === "mapKey" ? 0 : 1];
       const replacement = rest.length
-        ? mutate(old, rest, patch)
+        ? applyPatchAtPath(old, rest, patch)
         : (patch as Extract<VariablePatch, { op: "set" }>).value;
       entries[part.index] = part.type === "mapKey"
         ? [replacement, entry[1]] : [entry[0], replacement];
@@ -62,7 +58,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: VariablePatc
     if (rest.length === 0 && patch.op === "delete") values.splice(part.index, 1);
     else {
       values[part.index] = rest.length
-        ? mutate(values[part.index], rest, patch)
+        ? applyPatchAtPath(values[part.index], rest, patch)
         : (patch as Extract<VariablePatch, { op: "set" }>).value;
     }
     root.clear();
@@ -82,7 +78,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: VariablePatc
     const previous = readPathChild(root, part);
     const old = previous.status === "found" ? previous.value : undefined;
     const next = rest.length
-      ? mutate(old, rest, patch)
+      ? applyPatchAtPath(old, rest, patch)
       : (patch as Extract<VariablePatch, { op: "set" }>).value;
     // Do not fabricate missing ancestors when processing a deletion.
     if (rest.length && patch.op === "delete" && old === undefined) return root;
@@ -98,7 +94,7 @@ function mutate(root: unknown, path: readonly PathSegment[], patch: VariablePatc
  */
 export function applyVariablePatches(variables: SugarCubeVariables, patches: VariablePatch[]): SugarCubeVariables {
   for (const patch of patches) {
-    mutate(variables, patch.path, patch);
+    applyPatchAtPath(variables, patch.path, patch);
   }
   return variables;
 }
