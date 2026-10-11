@@ -23,10 +23,6 @@ export type Request =
   | { type: "inspector:disconnect"; tabId: number }
   | { type: "inspector:inspect"; target: Target; offset: number }
   | { type: "inspector:refresh" };
-export type Reply =
-  | { ok: true; data: InspectorMode | Inspection }
-  | { ok: false; error: string };
-export type ModeNotice = { type: "inspector:mode"; mode: InspectorMode };
 
 export function isRequest(value: unknown): value is Request {
   if (typeof value !== "object" || value === null) return false;

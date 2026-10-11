@@ -1,6 +1,7 @@
 import "./App.css";
 import { useCallback, useEffect, useState } from "react";
-import type { InspectorMode, ModeNotice, Reply, Request } from "@/src/inspection/protocol";
+import { onMessage, sendMessage } from "@/src/inspection/messaging";
+import type { InspectorMode } from "@/src/inspection/protocol";
 
 type View = {
   tabId?: number;
@@ -8,15 +9,6 @@ type View = {
   local: boolean;
   mode: InspectorMode;
 };
-
-async function request(message: Request): Promise<InspectorMode> {
-  const response = await browser.runtime.sendMessage(message) as Reply;
-  if (!response?.ok) {
-    throw new Error(response?.error ?? "Inspector service did not respond.");
-  }
-  if (!("mode" in response.data)) throw new Error("Unexpected inspector mode response.");
-  return response.data;
-}
 
 export default function App() {
   const [view, setView] = useState<View>({ local: false, mode: { mode: "main" } });
@@ -31,7 +23,7 @@ export default function App() {
     }
     const local = tab.url?.startsWith("file://") ?? false;
     const mode = local
-      ? await request({ type: "inspector:status", tabId: tab.id })
+      ? await sendMessage("inspector:status", { tabId: tab.id })
       : { mode: "main" as const };
     setView({ tabId: tab.id, title: tab.title, local, mode });
   }, []);
@@ -45,18 +37,14 @@ export default function App() {
     };
     // Keep initial async work outside the synchronous effect render.
     void Promise.resolve().then(check);
-    const listen = (message: unknown) => {
-      if (typeof message !== "object" || message === null) return;
-      const notice = message as Partial<ModeNotice> & { tabId?: number };
-      if (notice.type !== "inspector:mode" || !notice.mode) return;
-      setView((current) => current.tabId === notice.tabId
-        ? { ...current, mode: notice.mode! } : current);
-    };
-    browser.runtime.onMessage.addListener(listen);
+    const removeModeListener = onMessage("inspector:mode", ({ data }) => {
+      setView((current) => current.tabId === data.tabId
+        ? { ...current, mode: data.mode } : current);
+    });
     browser.tabs.onActivated.addListener(check);
     return () => {
       active = false;
-      browser.runtime.onMessage.removeListener(listen);
+      removeModeListener();
       browser.tabs.onActivated.removeListener(check);
     };
   }, [refresh]);
@@ -68,10 +56,9 @@ export default function App() {
     setBusy(true);
     setError(null);
     try {
-      const mode = await request({
-        type: connecting ? "inspector:connect" : "inspector:disconnect",
-        tabId,
-      });
+      const mode = connecting
+        ? await sendMessage("inspector:connect", { tabId })
+        : await sendMessage("inspector:disconnect", { tabId });
       setView((current) => current.tabId === tabId ? { ...current, mode } : current);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));

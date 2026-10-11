@@ -1,13 +1,7 @@
-import { browser } from "wxt/browser";
+import { onMessage, sendMessage } from "../inspection/messaging";
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import type { Entry, Inspection, InspectorMode, ModeNotice, Reply, Request, Target } from "../inspection/protocol";
-
-async function send(request: Request): Promise<InspectorMode | Inspection> {
-  const response = await browser.runtime.sendMessage(request) as Reply;
-  if (!response?.ok) throw new Error(response?.error ?? "Inspector background did not respond.");
-  return response.data;
-}
+import type { Entry, Inspection, InspectorMode, Target } from "../inspection/protocol";
 
 function errorText(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
@@ -53,13 +47,11 @@ function VariableList({ target }: { target: Target }) {
 
   useEffect(() => {
     let active = true;
-    const request: Extract<Request, { type: "inspector:inspect" }> = {
-      type: "inspector:inspect", target: JSON.parse(targetKey) as Target, offset: 0,
-    };
+    const request = { target: JSON.parse(targetKey) as Target, offset: 0 };
     async function load(): Promise<void> {
       for (let attempt = 0; attempt < 12 && active; attempt++) {
         try {
-          const value = await send(request) as Inspection;
+          const value = await sendMessage("inspector:inspect", request);
           // On a new passage the store may exist before SugarCube finishes
           // populating its variables. Retry an initially empty scope briefly.
           if (request.target.kind === "path" && request.target.path.segments.length === 0 &&
@@ -87,11 +79,10 @@ function VariableList({ target }: { target: Target }) {
     if (!data || loadingMore) return;
     setLoadingMore(true);
     try {
-      const next = await send({
-        type: "inspector:inspect",
+      const next = await sendMessage("inspector:inspect", {
         target,
         offset: data.entries.length,
-      }) as Inspection;
+      });
       setData((current) => current ? {
         ...next,
         offset: 0,
@@ -137,25 +128,21 @@ export default function InspectorDrawer() {
   useEffect(() => {
     let active = true;
     let noticeReceived = false;
-    const listener = (message: unknown) => {
-      if (typeof message !== "object" || message === null) return;
-      const notice = message as Partial<ModeNotice>;
-      if (notice.type !== "inspector:mode" || !notice.mode) return;
+    const removeModeListener = onMessage("inspector:mode", ({ data }) => {
       noticeReceived = true;
-      setMode(notice.mode);
+      setMode(data.mode);
       setError(null);
       setRevision((current) => current + 1);
-    };
-    browser.runtime.onMessage.addListener(listener);
-    void send({ type: "inspector:status" }).then(
+    });
+    void sendMessage("inspector:status", {}).then(
       (state) => {
-        if (active && !noticeReceived) setMode(state as InspectorMode);
+        if (active && !noticeReceived) setMode(state);
       },
       (cause: unknown) => { if (active) setError(errorText(cause)); },
     );
     return () => {
       active = false;
-      browser.runtime.onMessage.removeListener(listener);
+      removeModeListener();
     };
   }, []);
 
@@ -174,8 +161,8 @@ export default function InspectorDrawer() {
     setRefreshing(true);
     setError(null);
     try {
-      const next = await send({ type: "inspector:refresh" });
-      setMode(next as InspectorMode);
+      const next = await sendMessage("inspector:refresh");
+      setMode(next);
       setRevision((current) => current + 1);
     } catch (cause) {
       setError(errorText(cause));
