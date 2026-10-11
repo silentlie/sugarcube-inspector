@@ -13,48 +13,49 @@ export default function App() {
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const requestNumber = useRef(0);
-  const currentTab = useRef<number | null>(null);
+  const requestRef = useRef(0);
+  const currentTabRef = useRef<number | null>(null);
 
   const checkTab = useCallback(async () => {
-    const request = ++requestNumber.current;
+    const request = ++requestRef.current;
     setChecking(true);
     try {
       const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (request !== requestNumber.current) return;
+      if (request !== requestRef.current) return;
       const nextTab = active?.id === undefined ? null : {
         id: active.id,
         title: active.title ?? "Untitled tab",
         url: active.url ?? "",
       };
       setTab(nextTab);
-      currentTab.current = nextTab?.id ?? null;
+      currentTabRef.current = nextTab?.id ?? null;
       setSession(null);
       if (nextTab?.url.startsWith("file://")) {
         const state = await debuggerRequest({ type: "inspector:status", tabId: nextTab.id });
-        if (request !== requestNumber.current) return;
+        if (request !== requestRef.current) return;
         if (state.status === "connected") setSession(state);
       }
-      if (request === requestNumber.current) setNotice(null);
+      if (request === requestRef.current) setNotice(null);
     } catch (error) {
-      if (request === requestNumber.current) {
+      if (request === requestRef.current) {
         setNotice(error instanceof Error ? error.message : String(error));
       }
     } finally {
-      if (request === requestNumber.current) setChecking(false);
+      if (request === requestRef.current) setChecking(false);
     }
   }, []);
 
   useEffect(() => {
-    void checkTab();
+    // Schedule the initial check outside the effect's synchronous render phase.
+    void Promise.resolve().then(checkTab);
     const activated = () => { void checkTab(); };
     const updated = (tabId: number, info: chrome.tabs.TabChangeInfo) => {
-      if (tabId === currentTab.current && info.status === "complete") void checkTab();
+      if (tabId === currentTabRef.current && info.status === "complete") void checkTab();
     };
     const ended = (message: unknown) => {
       if (typeof message !== "object" || message === null) return;
       const event = message as Partial<InspectorSessionEnded>;
-      if (event.type !== "inspector:sessionEnded" || event.tabId !== currentTab.current) return;
+      if (event.type !== "inspector:sessionEnded" || event.tabId !== currentTabRef.current) return;
       setSession(null);
       setNotice(event.reason ?? "Debugger disconnected.");
     };
@@ -62,7 +63,7 @@ export default function App() {
     chrome.tabs.onUpdated.addListener(updated);
     chrome.runtime.onMessage.addListener(ended);
     return () => {
-      requestNumber.current++;
+      requestRef.current++;
       chrome.tabs.onActivated.removeListener(activated);
       chrome.tabs.onUpdated.removeListener(updated);
       chrome.runtime.onMessage.removeListener(ended);
@@ -80,7 +81,7 @@ export default function App() {
           ? { type: "inspector:connect", tabId: tab.id }
           : { type: "inspector:disconnect", tabId: tab.id };
       const result = await debuggerRequest(request);
-      if (currentTab.current !== tab.id) return;
+      if (currentTabRef.current !== tab.id) return;
       setSession(result.status === "connected" ? result : null);
       if (action === "disconnect") {
         setNotice("Disconnected. You can now open Chrome DevTools. Close DevTools before reconnecting.");
@@ -90,9 +91,9 @@ export default function App() {
       // Re-read the service state; a failed refresh doesn't necessarily detach.
       try {
         const state = await debuggerRequest({ type: "inspector:status", tabId: tab.id });
-        if (currentTab.current === tab.id) setSession(state.status === "connected" ? state : null);
+        if (currentTabRef.current === tab.id) setSession(state.status === "connected" ? state : null);
       } catch {
-        if (currentTab.current === tab.id) setSession(null);
+        if (currentTabRef.current === tab.id) setSession(null);
       }
     } finally {
       setBusy(null);
