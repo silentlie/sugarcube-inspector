@@ -2,9 +2,9 @@ import { browser as chrome } from "wxt/browser";
 import "./App.css";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { InspectorRequest, InspectorSession, InspectorSessionEnded, RemoteProperty } from "@/src/debugger/protocol";
+import type { InspectorRequest, InspectorSession, InspectorSessionEnded } from "@/src/debugger/protocol";
 import { debuggerRequest } from "@/src/sidepanel/debuggerClient";
-import { RemoteObjectTree } from "@/src/sidepanel/RemoteObjectTree";
+import { ConnectedInspector } from "@/src/sidepanel/ConnectedInspector";
 
 type ActiveTab = { id: number; title: string; url: string };
 
@@ -57,6 +57,7 @@ export default function App() {
       if (typeof message !== "object" || message === null) return;
       const event = message as Partial<InspectorSessionEnded>;
       if (event.type !== "inspector:sessionEnded" || event.tabId !== currentTabRef.current) return;
+      requestRef.current++;
       setSession(null);
       setNotice(event.reason ?? "Debugger disconnected.");
     };
@@ -73,8 +74,12 @@ export default function App() {
 
   const run = async (action: "connect" | "disconnect" | "refresh") => {
     if (!tab || busy) return;
+    // Cancel any tab-status request that could otherwise remount stale objects.
+    const requestId = ++requestRef.current;
+    setChecking(false);
     setBusy(action);
     setNotice(null);
+    if (action === "disconnect") setSession(null);
     try {
       const request: InspectorRequest = action === "refresh"
         ? { type: "inspector:refresh", tabId: tab.id, sessionId: session!.sessionId }
@@ -82,7 +87,8 @@ export default function App() {
           ? { type: "inspector:connect", tabId: tab.id }
           : { type: "inspector:disconnect", tabId: tab.id };
       const result = await debuggerRequest(request);
-      if (currentTabRef.current !== tab.id) return;
+      if (currentTabRef.current !== tab.id ||
+          (action !== "disconnect" && requestId !== requestRef.current)) return;
       setSession(result.status === "connected" ? result : null);
       if (action === "disconnect") {
         setNotice("Disconnected. You can now open Chrome DevTools. Close DevTools before reconnecting.");
@@ -101,17 +107,6 @@ export default function App() {
     }
   };
 
-  const inspect = useCallback(async (objectId: string): Promise<RemoteProperty[]> => {
-    if (!session) throw new Error("Not connected.");
-    const result = await debuggerRequest({
-      type: "inspector:properties",
-      tabId: session.tabId,
-      sessionId: session.sessionId,
-      objectId,
-    });
-    if (result.status !== "properties") throw new Error("Unexpected debugger response.");
-    return result.properties;
-  }, [session]);
 
   const eligible = tab?.url.startsWith("file://") ?? false;
 
@@ -159,15 +154,10 @@ export default function App() {
           {busy && <p className="inspector-caption">{busy === "connect" ? "Attaching debugger…" : `${busy}…`}</p>}
           {notice && <p role="status" className="inspector-warning">{notice}</p>}
           {session ? (
-            <section aria-label="Live SugarCube variables">
-              <h2>Live variables</h2>
-              <p className="inspector-caption">Expand to fetch properties directly from Chrome. Accessors are not invoked by expansion.</p>
-              <RemoteObjectTree
-                key={`${session.sessionId}:${session.revision}`}
-                items={session.roots}
-                inspect={inspect}
-              />
-            </section>
+            <ConnectedInspector
+              key={`${session.sessionId}:${session.revision}`}
+              session={session}
+            />
           ) : (
             <p className="inspector-caption">
               Connect to inspect live objects. Disconnect before opening DevTools;

@@ -73,6 +73,8 @@ describe("CDP side panel proof of concept", () => {
   it("connects, expands live objects, and manually disconnects", async () => {
     render(<App />);
     expect(await screen.findByRole("button", { name: "Connect" })).toBeDefined();
+    expect(screen.queryByRole("heading", { name: "Live variables" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Expand story" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
     expect(await screen.findByRole("heading", { name: "Live variables" })).toBeDefined();
@@ -87,6 +89,14 @@ describe("CDP side panel proof of concept", () => {
       expect(screen.getByText(/You can now open Chrome DevTools/)).toBeDefined();
     });
     expect(respond).toHaveBeenCalledWith({ type: "inspector:disconnect", tabId: 42 });
+    expect(screen.queryByRole("heading", { name: "Live variables" })).toBeNull();
+    expect(screen.queryByText("health")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    expect(await screen.findByRole("heading", { name: "Live variables" })).toBeDefined();
+    // A new inspector tree mounts from the new session, with no cached expansions.
+    expect(screen.queryByText("health")).toBeNull();
+    expect(screen.getByRole("button", { name: "Expand story" })).toBeDefined();
   });
 
   it("unmounts remote nodes if DevTools detaches unexpectedly", async () => {

@@ -1,36 +1,29 @@
 # CDP side panel proof of concept
 
-This experimental branch is based on `main`, independently of PR #2. It is an
-alternative to the synchronized snapshot architecture, not a completed migration.
+This experimental branch is based on `main`, independently of PR #2.
+**There is no snapshot fallback and no page-mounted drawer or MAIN-world bridge.**
+Only an established Chrome debugger session mounts the inspector's variable tree.
 
 ## Try it
 
-1. Build the extension with `npm ci && npm run build` and load `.output/chrome-mv3` in Chromium.
-2. In the extension details, enable **Allow access to file URLs**.
-3. Open a local SugarCube story, then click the extension action to open the side panel.
-4. Click **Connect**. Chrome shows a debugger warning while the session is attached.
-5. Expand **story** and **temporary**, then expand nested remote objects. Functions, accessor descriptors, non-enumerable properties, Map/Set internals, and private-property descriptors are available through CDP where the runtime reports them.
-6. Click **Refresh variables** to discard the old remote handles and reread the roots. This is manual in the proof of concept.
-7. Click **Disconnect**, open Chrome DevTools, close it, then click **Connect** again.
+1. Run `npm ci && npm run build` and load `.output/chrome-mv3` as an unpacked Chromium extension.
+2. In extension Details, enable **Allow access to file URLs**.
+3. Open a local SugarCube game and click the extension icon to open its side panel.
+4. Click **Connect**. Chrome displays a debugger warning while the tab is attached.
+5. Expand **story** and **temporary**, then their nested properties. Data is requested from the live runtime via CDP.
+6. Click **Refresh variables** to discard old handles and construct a new live tree.
+7. Click **Disconnect** to immediately unmount the tree and detach the debugger. Open DevTools, then close DevTools and click **Connect** to establish a new session.
 
-Opening DevTools without disconnecting will usually make Chrome detach the extension's
-debugger automatically; the side panel should then unmount live objects and explain why.
+If DevTools opens while connected, Chrome detaches the debugger. The tree unmounts and the side panel shows a reconnect prompt. Disconnection does not close the side panel.
 
-## Boundaries
+## Scope and limitations
 
-- The CDP backend runs in the background service worker. The side panel receives only
-  CDP-provided serializable descriptions and opaque remote object IDs, never cloned game objects.
-- The existing content-script drawer and bridge remain in the branch for comparison and
-  compatibility with existing tests. **This is not yet a full replacement.**
-- This proof of concept is read-only: editing, favorites, automatic watch polling,
-  breakpoints, persistence across reloads, and pagination beyond the first 200
-  displayed properties are deliberately deferred.
-- Remote object handles are valid only for the active debugging session and revision.
-  Manual refresh, page navigation, and detach invalidate them.
-- The `debugger` and `tabs` permissions are powerful. The UI requires an explicit
-  Connect action; the service also verifies a `file://` target before attaching.
-- DevTools and this extension generally cannot own the tab's debugger simultaneously.
-  The user must close DevTools before clicking Connect again.
+- The background owns debugger attachments and object groups. The side panel receives CDP property descriptions and opaque remote handles, not snapshot clones.
+- The inspector UI exists **only** while the side panel has a valid connected session. On disconnect, detach, context destruction, or tab change, the remote tree is unmounted. Reconnect obtains new handles.
+- Read-only prototype: no value editing, automatic watches, breakpoints, pagination beyond 200 displayed properties, or persistence of expansion/favorites.
+- Accessor descriptors are displayed without intentionally invoking getters; some debugger operations and runtime evaluations can still execute JavaScript.
+- Private/internal properties and Map/Set internal slots appear where Chrome's Runtime domain exposes them.
+- `debugger` and `tabs` permissions are required. We never silently attach.
+- Chrome DevTools and the extension generally cannot inspect the same tab at once. Manual Disconnect/Connect is the supported workflow.
 
-This branch is intended to confirm that native CDP property inspection behaves well
-with real SugarCube games before replacing the existing inspector UI.
+The CDP-specific behavior still needs manual validation against a real SugarCube game. The automated browser smoke test verifies no drawer/content script loads; unit tests cover connection gating, detach, and tree teardown.
