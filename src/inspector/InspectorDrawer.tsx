@@ -62,7 +62,7 @@ function VariableList({ target }: { target: Target }) {
           const value = await send(request) as Inspection;
           // On a new passage the store may exist before SugarCube finishes
           // populating its variables. Retry an initially empty scope briefly.
-          if (target.kind === "path" && target.path.segments.length === 0 &&
+          if (request.target.kind === "path" && request.target.path.segments.length === 0 &&
               value.total === 0 && attempt < 11) {
             await new Promise((resolve) => setTimeout(resolve, 250));
             continue;
