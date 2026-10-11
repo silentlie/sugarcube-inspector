@@ -20,15 +20,13 @@ export default defineContentScript({
     // own Shadow DOM and inline scoped CSS instead of createShadowRootUi().
     const host = document.createElement("sugarcube-inspector");
     host.style.cssText =
-      "position:fixed;top:0;left:0;width:0;height:0;" +
-      "pointer-events:none;z-index:2147483647";
+      "position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647";
     const shadow = host.attachShadow({ mode: "open" });
     const style = document.createElement("style");
     style.textContent = styles;
     shadow.append(style);
 
     const container = document.createElement("div");
-    container.style.pointerEvents = "auto";
     shadow.append(container);
     document.documentElement.append(host);
 
