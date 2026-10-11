@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { sugarcubeRPC } from "../../sugarcube/rpc";
 import type { SugarCubeSnapshot } from "../../sugarcube/types";
+import type { PathKey } from "../../sugarcube/variables/path";
 import type { VariablePath } from "../../sugarcube/watch/types";
 import { withTimeout } from "../../utils/withTimeout";
 import type { VariableStore } from "./VariableStore";
@@ -10,8 +11,8 @@ export const WATCH_INTERVAL_MS = 250;
 interface PollingOptions {
   snapshot: SugarCubeSnapshot;
   store: VariableStore;
-  favoritesRef: RefObject<ReadonlyMap<string, VariablePath>>;
-  visibleRef: RefObject<Map<string, VariablePath>>;
+  favoritesRef: RefObject<ReadonlyMap<PathKey, VariablePath>>;
+  visibleRef: RefObject<Map<PathKey, VariablePath>>;
   onResync?: () => void;
 }
 

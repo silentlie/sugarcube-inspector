@@ -11,13 +11,13 @@ import {
 import { VariableStore } from "./VariableStore";
 import { useWatchPolling } from "./useWatchPolling";
 import type { SugarCubeSnapshot, SugarCubeVariables } from "../../sugarcube/types";
-import { pathToKey } from "../../sugarcube/variables/path";
+import { pathToKey, type PathKey } from "../../sugarcube/variables/path";
 import type { VariablePath } from "../../sugarcube/watch/types";
 
 interface WatchContextValue {
   variables: SugarCubeVariables;
   store: VariableStore;
-  favorites: ReadonlyMap<string, VariablePath>;
+  favorites: ReadonlyMap<PathKey, VariablePath>;
   watchedPaths: readonly VariablePath[];
   toggleFavorite: (path: VariablePath, favorite: boolean) => void;
   setVisible: (path: VariablePath, visible: boolean) => void;
@@ -36,11 +36,11 @@ export function WatchProvider({
   children: ReactNode;
 }) {
   const store = useMemo(() => new VariableStore(snapshot.variables), [snapshot]);
-  const [favorites, setFavorites] = useState<ReadonlyMap<string, VariablePath>>(
+  const [favorites, setFavorites] = useState<ReadonlyMap<PathKey, VariablePath>>(
     () => new Map(),
   );
   const favoritesRef = useRef(favorites);
-  const visibleRef = useRef(new Map<string, VariablePath>());
+  const visibleRef = useRef(new Map<PathKey, VariablePath>());
 
   useEffect(() => {
     favoritesRef.current = favorites;

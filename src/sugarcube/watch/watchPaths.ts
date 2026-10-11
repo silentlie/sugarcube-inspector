@@ -1,8 +1,8 @@
-import { isPathPrefix, pathToKey } from "../variables/path";
+import { isPathPrefix, pathToKey, type PathKey } from "../variables/path";
 import type { VariablePath } from "./types";
 
 export function collectionPaths(paths: readonly VariablePath[]): VariablePath[] {
-  const collections = new Map<string, VariablePath>();
+  const collections = new Map<PathKey, VariablePath>();
   for (const path of paths) {
     for (let index = 1; index < path.length; index++) {
       const part = path[index]!;
@@ -16,7 +16,7 @@ export function collectionPaths(paths: readonly VariablePath[]): VariablePath[] 
 }
 
 export function structurePaths(visible: readonly VariablePath[]): VariablePath[] {
-  const paths = new Map<string, VariablePath>();
+  const paths = new Map<PathKey, VariablePath>();
   for (const path of visible) {
     // Explicit root registrations are structure-only, including when empty.
     if (path.length === 1) {

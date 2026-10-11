@@ -1,7 +1,7 @@
 import { isArray } from "@sindresorhus/is";
 import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 import { applyWatchPatches } from "../../sugarcube/variables/applyWatchPatches";
-import { isPathPrefix, pathToKey, readPathChild, resolvePath } from "../../sugarcube/variables/path";
+import { isPathPrefix, pathToKey, readPathChild, resolvePath, type PathKey } from "../../sugarcube/variables/path";
 import type { SugarCubeVariables } from "../../sugarcube/types";
 import type { PathSegment, VariablePath, WatchPatch } from "../../sugarcube/watch/types";
 
@@ -11,8 +11,8 @@ type Subscription = { path: VariablePath; listeners: Set<Listener> };
 /** A mutable graph with versioned, path-local React subscriptions. */
 export class VariableStore {
   readonly variables: SugarCubeVariables;
-  private subscriptions = new Map<string, Subscription>();
-  private versions = new Map<string, number>();
+  private subscriptions = new Map<PathKey, Subscription>();
+  private versions = new Map<PathKey, number>();
   private anyListeners = new Set<Listener>();
   private anyVersion = 0;
 
@@ -25,7 +25,7 @@ export class VariableStore {
     return result.exists ? result.value : undefined;
   }
 
-  getVersion(key: string): number {
+  getVersion(key: PathKey): number {
     return this.versions.get(key) ?? 0;
   }
 
@@ -52,7 +52,7 @@ export class VariableStore {
 
   apply(patches: WatchPatch[]): void {
     if (!patches.length) return;
-    const changed = new Set<string>();
+    const changed = new Set<PathKey>();
 
     for (const patch of patches) {
       const parent: VariablePath = patch.path.length === 1

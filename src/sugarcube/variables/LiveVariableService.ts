@@ -1,12 +1,12 @@
-import { pathToKey, resolvePath, type PathResolution } from "./path";
+import { pathToKey, resolvePath, type PathKey, type PathResolution } from "./path";
 import type { SugarCubeVariables } from "../types";
 import type { VariablePath } from "../watch/types";
 import type { CollectionMembers } from "../watch/structure";
 
 /** Reads live SugarCube paths and tracks collection entry identities between polls. */
 export class LiveVariableService {
-  private previousCollections = new Map<string, CollectionMembers>();
-  private pendingCollections = new Map<string, CollectionMembers>();
+  private previousCollections = new Map<PathKey, CollectionMembers>();
+  private pendingCollections = new Map<PathKey, CollectionMembers>();
 
   read(stores: SugarCubeVariables, path: VariablePath): PathResolution {
     return resolvePath(stores, path);

@@ -66,9 +66,14 @@ export function resolvePath(root: unknown, path: readonly PathSegment[]): PathRe
   return { exists: true, value };
 }
 
+declare const pathKeyBrand: unique symbol;
+
+/** A serialized variable path, distinct from arbitrary strings. */
+export type PathKey = string & { readonly [pathKeyBrand]: true };
+
 /** A stable, serializable key for the tagged path segments. */
-export function pathToKey(path: readonly PathSegment[]): string {
-  return JSON.stringify(path);
+export function pathToKey(path: readonly PathSegment[]): PathKey {
+  return JSON.stringify(path) as PathKey;
 }
 
 /** Compare only the fields that identify each tagged path segment. */

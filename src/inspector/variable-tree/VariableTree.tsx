@@ -2,7 +2,7 @@ import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 import { useCallback, useRef, useState } from "react";
 import VariableNode from "./VariableNode";
 import type { PathSegment, VariableAncestor, VariableScope } from "./types";
-import { pathToKey } from "../../sugarcube/variables/path";
+import { pathToKey, type PathKey } from "../../sugarcube/variables/path";
 import { getChildren } from "./valueChildren";
 import { useWatch } from "../watch/WatchProvider";
 import { useVariableVersion } from "../watch/useVariableVersion";
@@ -15,12 +15,12 @@ export default function VariableTree({ scope }: VariableTreeProps) {
   const watch = useWatch();
   useVariableVersion(watch.store, [{ type: "property", key: scope }]);
   const rootValue = watch.store.getValue([{ type: "property", key: scope }]);
-  const [expandedPaths, setExpandedPaths] = useState<ReadonlySet<string>>(
+  const [expandedPaths, setExpandedPaths] = useState<ReadonlySet<PathKey>>(
     () => new Set(),
   );
   const rootRef = useRef<HTMLDivElement>(null);
-  const rowRefs = useRef(new Map<string, HTMLDivElement>());
-  const registerNode = useCallback((id: string, element: HTMLDivElement | null) => {
+  const rowRefs = useRef(new Map<PathKey, HTMLDivElement>());
+  const registerNode = useCallback((id: PathKey, element: HTMLDivElement | null) => {
     if (element) rowRefs.current.set(id, element);
     else rowRefs.current.delete(id);
   }, []);
@@ -32,7 +32,7 @@ export default function VariableTree({ scope }: VariableTreeProps) {
     node?.focus();
   }, [scope]);
 
-  const toggle = useCallback((id: string) => {
+  const toggle = useCallback((id: PathKey) => {
     setExpandedPaths((current) => {
       const next = new Set(current);
 

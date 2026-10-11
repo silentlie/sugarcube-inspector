@@ -1,12 +1,12 @@
 import { circularDeepEqual, deepEqual } from "fast-equals";
 import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
-import { pathToKey, type PathResolution } from "../variables/path";
+import { pathToKey, type PathKey, type PathResolution } from "../variables/path";
 
 export function sameValue(
   previous: unknown,
   current: unknown,
-  key: string,
-  circularPaths: Set<string>,
+  key: PathKey,
+  circularPaths: Set<PathKey>,
 ): boolean {
   if (Object.is(previous, current)) return true;
   if (!isNonFunctionObject(previous) || !isNonFunctionObject(current)) {
@@ -25,8 +25,8 @@ export function sameValue(
 export function sameEntry(
   previous: PathResolution,
   current: PathResolution,
-  key: string,
-  circularPaths: Set<string>,
+  key: PathKey,
+  circularPaths: Set<PathKey>,
 ): boolean {
   if (previous.exists) {
     return current.exists && sameValue(previous.value, current.value, key, circularPaths);

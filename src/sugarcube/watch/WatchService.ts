@@ -3,7 +3,7 @@ import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./ty
 import { collectionPaths, minimizeWatchPaths, structurePaths } from "./watchPaths";
 import { sameEntry, sameValue } from "./comparison";
 import { collectionMembers, structureOf } from "./structure";
-import { isPathPrefix, pathToKey, resolvePath } from "../variables/path";
+import { isPathPrefix, pathToKey, resolvePath, type PathKey } from "../variables/path";
 import { LiveVariableService } from "../variables/LiveVariableService";
 import { SynchronizedVariableStore } from "../variables/SynchronizedVariableStore";
 
@@ -11,7 +11,7 @@ import { SynchronizedVariableStore } from "../variables/SynchronizedVariableStor
 export class WatchService {
   private readonly synchronized = new SynchronizedVariableStore();
   private readonly live = new LiveVariableService();
-  private readonly circularPaths = new Set<string>();
+  private readonly circularPaths = new Set<PathKey>();
 
   capture(snapshot: SugarCubeSnapshot): number {
     const generation = this.synchronized.capture(snapshot);

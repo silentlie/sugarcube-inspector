@@ -6,18 +6,18 @@ import { getChildren, isExpandable } from "./valueChildren";
 import { formatVariablePath } from "./formatVariablePath";
 import { useWatch } from "../watch/WatchProvider";
 import { useVariableVersion } from "../watch/useVariableVersion";
-import { pathToKey } from "../../sugarcube/variables/path";
+import { pathToKey, type PathKey } from "../../sugarcube/variables/path";
 import type { VariablePath } from "../../sugarcube/watch/types";
 
 interface VariableNodeProps {
   name: string;
   scope: VariableScope;
   path: readonly PathSegment[];
-  expandedPaths: ReadonlySet<string>;
-  onToggle: (id: string) => void;
+  expandedPaths: ReadonlySet<PathKey>;
+  onToggle: (id: PathKey) => void;
   ancestors?: readonly VariableAncestor[];
   onNavigate: (path: readonly PathSegment[]) => void;
-  registerNode: (id: string, element: HTMLDivElement | null) => void;
+  registerNode: (id: PathKey, element: HTMLDivElement | null) => void;
 }
 
 function VariableNode({
