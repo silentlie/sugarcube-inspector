@@ -55,7 +55,7 @@ export class InspectionService {
         name: entry.name,
         preview: entry.preview,
         expandable: entry.expandable,
-        nonEnumerable: entry.nonEnumerable,
+        ...(entry.nonEnumerable && { nonEnumerable: true }),
         ...(entry.expandable && {
           target: {
             kind: "path" as const,

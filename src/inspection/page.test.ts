@@ -30,6 +30,39 @@ describe("live MAIN-world descriptor inspection", () => {
       .entries.map(e => e.name)).toContain("health");
   });
 
+  it("omits absent optional fields even if the game serializes undefined as arrays", () => {
+    const getter = vi.fn(() => 33);
+    const variables = { day: 2 };
+    Object.defineProperty(variables, "computed", { get: getter, enumerable: false });
+    vi.stubGlobal("SugarCube", { State: { variables, temporary: {} } });
+
+    // Some SugarCube stories override JSON.stringify to transform undefined.
+    const stringify = JSON.stringify;
+    vi.stubGlobal("JSON", {
+      ...JSON,
+      stringify(value: unknown) {
+        return stringify(value, (_key, item) => item === undefined ? [] : item);
+      },
+    });
+
+    const entries = read(root).entries;
+    expect(entries.find((entry) => entry.name === "day")).toEqual({
+      name: "day",
+      segment: { kind: "property", key: "day" },
+      preview: "2",
+      expandable: false,
+    });
+    expect(entries.find((entry) => entry.name === "computed")).toEqual({
+      name: "computed",
+      segment: { kind: "property", key: "computed" },
+      preview: "[getter]",
+      expandable: false,
+      nonEnumerable: true,
+      accessor: "getter",
+    });
+    expect(getter).not.toHaveBeenCalled();
+  });
+
   it("inspects nested Map and Set entries on demand", () => {
     vi.stubGlobal("SugarCube", { State: { variables: {
       map: new Map([["value", new Set(["one"])]]),

@@ -89,8 +89,8 @@ export function inspectInPage(path: Path, offset: number): string {
         segment: part,
         preview: display.preview,
         expandable: display.expandable,
-        nonEnumerable: !descriptor.enumerable || undefined,
-        accessor,
+        ...(!descriptor.enumerable && { nonEnumerable: true }),
+        ...(accessor && { accessor }),
       });
     }
     return items;
