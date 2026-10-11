@@ -9,7 +9,7 @@ export default function MissingWatches({ scope }: { scope: VariableScope }) {
   const watch = useWatch();
   useAnyVariableVersion(watch.store);
   const targets = watch.watchedPaths.filter((path) =>
-    path[0].key === scope && !resolvePath(watch.variables, path).exists,
+    path[0].key === scope && resolvePath(watch.variables, path).status !== "found",
   );
   if (targets.length === 0) return null;
   return (

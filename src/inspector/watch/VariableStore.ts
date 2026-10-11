@@ -22,7 +22,7 @@ export class VariableStore {
 
   getValue(path: VariablePath): unknown {
     const result = resolvePath(this.variables, path);
-    return result.exists ? result.value : undefined;
+    return result.status === "found" ? result.value : undefined;
   }
 
   getVersion(key: PathKey): number {

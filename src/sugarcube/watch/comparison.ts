@@ -28,13 +28,17 @@ export function sameEntry(
   key: PathKey,
   circularPaths: Set<PathKey>,
 ): boolean {
-  if (previous.exists) {
-    return current.exists && sameValue(previous.value, current.value, key, circularPaths);
+  switch (previous.status) {
+    case "found":
+      return current.status === "found" &&
+        sameValue(previous.value, current.value, key, circularPaths);
+    case "missing":
+      return current.status === "missing" &&
+        pathToKey(previous.path) === pathToKey(current.path);
+    case "blocked":
+      return current.status === "blocked" &&
+        pathToKey(previous.path) === pathToKey(current.path) &&
+        sameValue(previous.value, current.value, key, circularPaths);
   }
-  if (current.exists) return false;
-  if (pathToKey(previous.missingPath) !== pathToKey(current.missingPath) ||
-      Boolean(previous.blockedExists) !== Boolean(current.blockedExists)) return false;
-  return !previous.blockedExists || !current.blockedExists ||
-    sameValue(previous.blocked, current.blocked, key, circularPaths);
 }
 

@@ -42,8 +42,8 @@ export class WatchService {
       const key = pathToKey(path);
       const previous = this.synchronized.read(path);
       const current = this.live.read(stores, path);
-      const oldMembers = previous.exists ? collectionMembers(previous.value) : null;
-      const newMembers = current.exists ? collectionMembers(current.value) : null;
+      const oldMembers = previous.status === "found" ? collectionMembers(previous.value) : null;
+      const newMembers = current.status === "found" ? collectionMembers(current.value) : null;
 
       const entriesChanged = this.live.collectionChanged(
         path, oldMembers, newMembers,
@@ -54,17 +54,17 @@ export class WatchService {
       // If the container itself changed type or became missing, restore the
       // nearest real ancestor instead of fabricating intermediate containers.
       if (!oldMembers || !newMembers || oldMembers.kind !== newMembers.kind) {
-        const restorePath = (!previous.exists ? previous.missingPath
-          : !current.exists ? current.missingPath : path) as VariablePath;
+        const restorePath = (previous.status !== "found" ? previous.path
+          : current.status !== "found" ? current.path : path) as VariablePath;
         const restored = this.live.read(stores, restorePath);
-        collectionChanges.push(restored.exists
+        collectionChanges.push(restored.status === "found"
           ? { op: "set", path: restorePath, value: structuredClone(restored.value) }
           : { op: "delete", path: restorePath });
         replacedCollections.push(restorePath);
         continue;
       }
 
-      if (entriesChanged && current.exists) {
+      if (entriesChanged && current.status === "found") {
         collectionChanges.push({ op: "set", path, value: structuredClone(current.value) });
         replacedCollections.push(path);
       }
@@ -80,8 +80,8 @@ export class WatchService {
           replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
       const oldEntry = this.synchronized.read(path);
       const liveEntry = this.live.read(stores, path);
-      const previous = structureOf(oldEntry.exists ? oldEntry.value : undefined);
-      const current = structureOf(liveEntry.exists ? liveEntry.value : undefined);
+      const previous = structureOf(oldEntry.status === "found" ? oldEntry.value : undefined);
+      const current = structureOf(liveEntry.status === "found" ? liveEntry.value : undefined);
       if (!previous && !current) continue;
       const add = (value: unknown) => {
         structuralChanges.push({
@@ -89,14 +89,14 @@ export class WatchService {
         });
       };
       if (!previous || !current || previous.kind !== current.kind) {
-        if (liveEntry.exists) add(liveEntry.value);
+        if (liveEntry.status === "found") add(liveEntry.value);
         else structuralChanges.push({ op: "delete", path });
         continue;
       }
       if (current.kind === "map" || current.kind === "set") {
         const oldKeys = previous.keys;
         const newKeys = current.keys;
-        if (liveEntry.exists && (oldKeys.length !== newKeys.length ||
+        if (liveEntry.status === "found" && (oldKeys.length !== newKeys.length ||
             oldKeys.some((old, i) => !sameValue(old, newKeys[i], key, this.circularPaths)))) {
           add(liveEntry.value);
         }
@@ -115,7 +115,7 @@ export class WatchService {
         if (!before.has(childKey)) {
           const childPath: VariablePath = [...path, { type: "property", key: childKey }];
           const added = this.live.read(stores, childPath);
-          if (!added.exists) throw new Error("Added watch child disappeared during polling.");
+          if (added.status !== "found") throw new Error("Added watch child disappeared during polling.");
           structuralChanges.push({
             op: "set", path: childPath,
             value: structuredClone(added.value),
@@ -146,15 +146,15 @@ export class WatchService {
       const current = this.live.read(stores, path);
       if (sameEntry(previous, current, key, this.circularPaths)) continue;
 
-      if (!current.exists) {
+      if (current.status !== "found") {
         // A previously absent/blocked parent may now be present, even when
         // the leaf remains missing. Replace that parent to repair the tree.
-        const restorePrevious = !previous.exists &&
-          previous.missingPath.length < current.missingPath.length;
-        const patchPath = (restorePrevious ? previous.missingPath : current.missingPath) as VariablePath;
+        const restorePrevious = previous.status !== "found" &&
+          previous.path.length < current.path.length;
+        const patchPath = (restorePrevious ? previous.path : current.path) as VariablePath;
         const parent = this.live.read(stores, patchPath);
-        const copy = parent.exists ? structuredClone(parent.value) : undefined;
-        valueChanges.push(parent.exists
+        const copy = parent.status === "found" ? structuredClone(parent.value) : undefined;
+        valueChanges.push(parent.status === "found"
           ? { op: "set", path: patchPath, value: copy }
           : { op: "delete", path: patchPath });
         continue;
@@ -162,13 +162,13 @@ export class WatchService {
 
       // If an ancestor was deleted, restore the whole ancestor, not just a
       // leaf that would leave an incomplete, invented object in the UI.
-      const restorePath = (!previous.exists && previous.missingPath.length < path.length
-        ? previous.missingPath
+      const restorePath = (previous.status !== "found" && previous.path.length < path.length
+        ? previous.path
         : path) as VariablePath;
       const restored = this.live.read(stores, restorePath);
-      if (!restored.exists) throw new Error("Watch path disappeared during polling.");
+      if (restored.status !== "found") throw new Error("Watch path disappeared during polling.");
       const cloned = structuredClone(restored.value);
-      if (!resolvePath(cloned, path.slice(restorePath.length)).exists) {
+      if (resolvePath(cloned, path.slice(restorePath.length)).status !== "found") {
         throw new Error("Cloned watch path is missing.");
       }
       valueChanges.push({ op: "set", path: restorePath, value: cloned });

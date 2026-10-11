@@ -4,9 +4,9 @@ import type { PathSegment } from "../watch/types";
 
 /** Existing undefined values are found; missing and blocked paths are distinct. */
 export type PathResolution =
-  | { exists: true; value: unknown }
-  | { exists: false; missingPath: PathSegment[]; blockedExists?: false }
-  | { exists: false; missingPath: PathSegment[]; blockedExists: true; blocked: unknown };
+  | { status: "found"; value: unknown }
+  | { status: "missing"; path: PathSegment[] }
+  | { status: "blocked"; path: PathSegment[]; value: unknown };
 
 /** Reading a path child distinguishes type incompatibility from absence. */
 export type ChildResult =
@@ -53,17 +53,16 @@ export function resolvePath(root: unknown, path: readonly PathSegment[]): PathRe
         value = next.value;
         break;
       case "missing":
-        return { exists: false, missingPath: path.slice(0, index + 1) };
+        return { status: "missing", path: path.slice(0, index + 1) };
       case "blocked":
         return {
-          exists: false,
-          missingPath: path.slice(0, index),
-          blockedExists: true,
-          blocked: value,
+          status: "blocked",
+          path: path.slice(0, index),
+          value,
         };
     }
   }
-  return { exists: true, value };
+  return { status: "found", value };
 }
 
 declare const pathKeyBrand: unique symbol;

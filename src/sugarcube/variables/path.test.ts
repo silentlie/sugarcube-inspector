@@ -16,10 +16,10 @@ describe("shared path operations", () => {
     player.score = undefined;
     const stores = { story: { player }, temporary: {} };
     expect(resolvePath(stores, story(prop("player"), prop("score")))).toEqual({
-      exists: true, value: undefined,
+      status: "found", value: undefined,
     });
     expect(resolvePath(stores, story(prop("player"), prop("missing")))).toEqual({
-      exists: false, missingPath: story(prop("player"), prop("missing")),
+      status: "missing", path: story(prop("player"), prop("missing")),
     });
     expect(readPathChild(player, prop("inherited"))).toEqual({ status: "missing" });
     expect(readPathChild(player, prop("score"))).toEqual({ status: "found", value: undefined });
@@ -29,13 +29,12 @@ describe("shared path operations", () => {
     const path = story(prop("player"), prop("hp"));
     const result = resolvePath({ story: { player: null }, temporary: {} }, path);
     expect(result).toEqual({
-      exists: false,
-      missingPath: story(prop("player")),
-      blockedExists: true,
-      blocked: null,
+      status: "blocked",
+      path: story(prop("player")),
+      value: null,
     });
     expect(resolvePath({ story: { player: {} }, temporary: {} }, path)).toEqual({
-      exists: false, missingPath: path,
+      status: "missing", path: path,
     });
   });
 
@@ -43,16 +42,15 @@ describe("shared path operations", () => {
     const stores = { story: { player: { hp: undefined }, empty: {}, blocked: null }, temporary: {} };
 
     expect(resolvePath(stores, story(prop("player"), prop("hp")))).toEqual({
-      exists: true, value: undefined,
+      status: "found", value: undefined,
     });
     expect(resolvePath(stores, story(prop("empty"), prop("hp")))).toEqual({
-      exists: false, missingPath: story(prop("empty"), prop("hp")),
+      status: "missing", path: story(prop("empty"), prop("hp")),
     });
     expect(resolvePath(stores, story(prop("blocked"), prop("hp")))).toEqual({
-      exists: false,
-      missingPath: story(prop("blocked")),
-      blockedExists: true,
-      blocked: null,
+      status: "blocked",
+      path: story(prop("blocked")),
+      value: null,
     });
   });
 
@@ -71,16 +69,16 @@ describe("shared path operations", () => {
     const members = new Set<unknown>([undefined, key]);
     const stores = { story: { collection, members }, temporary: {} };
     expect(resolvePath(stores, story(prop("collection"), { type: "mapKey", index: 0 }))).toEqual({
-      exists: true, value: key,
+      status: "found", value: key,
     });
     expect(resolvePath(stores, story(prop("collection"), { type: "mapValue", index: 0 }))).toEqual({
-      exists: true, value: undefined,
+      status: "found", value: undefined,
     });
-    expect(resolvePath(stores, story(prop("collection"), { type: "mapValue", index: 1 })).exists).toBe(false);
+    expect(resolvePath(stores, story(prop("collection"), { type: "mapValue", index: 1 })).status).toBe("missing");
     expect(resolvePath(stores, story(prop("members"), { type: "setValue", index: 0 }))).toEqual({
-      exists: true, value: undefined,
+      status: "found", value: undefined,
     });
-    expect(resolvePath(stores, story(prop("members"), { type: "setValue", index: 2 })).exists).toBe(false);
+    expect(resolvePath(stores, story(prop("members"), { type: "setValue", index: 2 })).status).toBe("missing");
   });
 
   it("distinguishes incompatible segment types from missing Map and Set entries", () => {
