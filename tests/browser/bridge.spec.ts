@@ -29,8 +29,9 @@ test("refresh retrieves current game values without functions breaking inspectio
   await page.goto(storyUrl);
   const drawer = await openDrawer(page);
   await page.evaluate(() => {
-    SugarCube.State.variables.score = 55;
-    SugarCube.State.variables.uncloneable = () => 1;
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    vars.score = 55;
+    vars.uncloneable = () => 1;
   });
 
   await drawer.getByRole("button", { name: "Refresh variables" }).click();
