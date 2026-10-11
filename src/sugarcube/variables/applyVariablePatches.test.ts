@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { applyVariablePatches } from "./applyVariablePatches";
 import type { PathSegment, VariablePatch } from "../watch/types";
 import type { SugarCubeSnapshot } from "../types";
@@ -403,6 +403,79 @@ describe("in-place variable patches", () => {
     ]);
     expect([...map]).toEqual([["player", { hp: 40 }]]);
     expect([...set]).toEqual([{ hp: 50 }]);
+  });
+
+
+  it("updates and deletes Map entries without rebuilding the Map", () => {
+    const key = { id: "old" };
+    const value = { hp: 10 };
+    const map = new Map<unknown, unknown>([[key, value], ["second", 2], ["third", 3]]);
+    const clear = vi.spyOn(map, "clear");
+    const stores = snapshot({ map });
+
+    applyVariablePatches(stores, [
+      change([prop("map"), { type: "mapKey", index: 0 }, prop("id")], "new"),
+      change([prop("map"), { type: "mapValue", index: 0 }, prop("hp")], 20),
+      change([prop("map"), { type: "mapValue", index: 1 }], 4),
+      { op: "delete", path: [{ type: "property", key: "story" }, prop("map"), { type: "mapKey", index: 2 }] },
+    ]);
+
+    expect(clear).not.toHaveBeenCalled();
+    expect([...map]).toEqual([[key, value], ["second", 4]]);
+    expect([...map.keys()][0]).toBe(key);
+    expect(map.get(key)).toBe(value);
+    expect(key.id).toBe("new");
+    expect(value.hp).toBe(20);
+  });
+
+  it("mutates nested Set values and deletes members without rebuilding the Set", () => {
+    const first = { hp: 10 };
+    const second = { hp: 20 };
+    const third = { hp: 30 };
+    const set = new Set([first, second, third]);
+    const clear = vi.spyOn(set, "clear");
+    const stores = snapshot({ set });
+
+    applyVariablePatches(stores, [
+      change([prop("set"), { type: "setValue", index: 0 }, prop("hp")], 15),
+      { op: "delete", path: [{ type: "property", key: "story" }, prop("set"), { type: "setValue", index: 1 }] },
+    ]);
+
+    expect(clear).not.toHaveBeenCalled();
+    expect([...set]).toEqual([first, third]);
+    expect([...set][0]).toBe(first);
+    expect(first.hp).toBe(15);
+    expect(set.has(second)).toBe(false);
+  });
+
+  it("preserves Map and Set entry order when replacing a key or member", () => {
+    const map = new Map([["first", 1], ["second", 2], ["third", 3]]);
+    const set = new Set(["first", "second", "third"]);
+    const mapClear = vi.spyOn(map, "clear");
+    const setClear = vi.spyOn(set, "clear");
+
+    applyVariablePatches(snapshot({ map, set }), [
+      change([prop("map"), { type: "mapKey", index: 1 }], "replacement"),
+      change([prop("set"), { type: "setValue", index: 1 }], "replacement"),
+    ]);
+
+    expect([...map]).toEqual([["first", 1], ["replacement", 2], ["third", 3]]);
+    expect([...set]).toEqual(["first", "replacement", "third"]);
+    expect(mapClear).toHaveBeenCalledTimes(1);
+    expect(setClear).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps native Map and Set uniqueness when replacements collide", () => {
+    const map = new Map([["first", 1], ["second", 2], ["third", 3]]);
+    const set = new Set(["first", "second", "third"]);
+
+    applyVariablePatches(snapshot({ map, set }), [
+      change([prop("map"), { type: "mapKey", index: 1 }], "first"),
+      change([prop("set"), { type: "setValue", index: 1 }], "first"),
+    ]);
+
+    expect([...map]).toEqual([["first", 2], ["third", 3]]);
+    expect([...set]).toEqual(["first", "third"]);
   });
 
   it("throws instead of silently ignoring deletion of a nonconfigurable property", () => {

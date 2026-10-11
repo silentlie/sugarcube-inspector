@@ -38,20 +38,20 @@ function applyPatchAtPath(root: unknown, path: readonly PathSegment[], patch: Va
     if (!Number.isInteger(part.index) || part.index < 0 || part.index >= entries.length) {
       throw new RangeError(`Map entry index out of bounds: ${part.index}`);
     }
-    const entry = entries[part.index]!;
+    const [key, value] = entries[part.index]!;
     if (rest.length > 0) {
-      const old = entry[part.type === "mapKey" ? 0 : 1];
-      const replacement = applyPatchAtPath(old, rest, patch);
-      entries[part.index] = part.type === "mapKey"
-        ? [replacement, entry[1]] : [entry[0], replacement];
+      // Nested patches mutate the existing key or value without replacing the entry.
+      applyPatchAtPath(part.type === "mapKey" ? key : value, rest, patch);
     } else if (patch.op === "delete") {
-      entries.splice(part.index, 1);
+      root.delete(key);
+    } else if (part.type === "mapValue") {
+      root.set(key, patch.value);
     } else {
-      entries[part.index] = part.type === "mapKey"
-        ? [patch.value, entry[1]] : [entry[0], patch.value];
+      // Replacing a key must preserve its position in the Map.
+      entries[part.index] = [patch.value, value];
+      root.clear();
+      for (const [entryKey, entryValue] of entries) root.set(entryKey, entryValue);
     }
-    root.clear();
-    for (const [key, value] of entries) root.set(key, value);
     return root;
   }
 
@@ -63,15 +63,18 @@ function applyPatchAtPath(root: unknown, path: readonly PathSegment[], patch: Va
     if (!Number.isInteger(part.index) || part.index < 0 || part.index >= values.length) {
       throw new RangeError(`Set entry index out of bounds: ${part.index}`);
     }
+    const value = values[part.index];
     if (rest.length > 0) {
-      values[part.index] = applyPatchAtPath(values[part.index], rest, patch);
+      // A nested patch changes the existing member object in place.
+      applyPatchAtPath(value, rest, patch);
     } else if (patch.op === "delete") {
-      values.splice(part.index, 1);
+      root.delete(value);
     } else {
+      // Replacing a member must preserve its position in the Set.
       values[part.index] = patch.value;
+      root.clear();
+      for (const member of values) root.add(member);
     }
-    root.clear();
-    for (const value of values) root.add(value);
     return root;
   }
 
