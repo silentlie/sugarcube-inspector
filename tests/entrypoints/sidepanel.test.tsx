@@ -1,119 +1,104 @@
 // @vitest-environment happy-dom
 
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { browser } from "wxt/browser";
 import App from "../../entrypoints/sidepanel/App";
 
-const localTab = {
-  id: 42,
-  index: 0,
-  windowId: 1,
-  active: true,
-  highlighted: true,
-  pinned: false,
-  incognito: false,
-  url: "file:///story.html",
+const tab = { id: 42, url: "file:///game.html", title: "SugarCube story" };
+const session = {
+  status: "connected" as const,
+  tabId: 42,
+  sessionId: "session-1",
+  revision: 0,
+  roots: [
+    { kind: "own" as const, name: "story", value: { type: "object", objectId: "story-root", description: "Object" } },
+    { kind: "own" as const, name: "temporary", value: { type: "object", objectId: "temp-root", description: "Object" } },
+  ],
 };
 
-const scriptResult = {
-  frameId: 0,
-  result: {
-    detected: true,
-    storyName: "Test Story",
-    ifid: "TEST-IFID",
-    passage: "Start",
-  },
-};
+const respond = vi.fn(async (request: { type: string }) => {
+  if (request.type === "inspector:connect") return { ok: true, data: session };
+  if (request.type === "inspector:disconnect") {
+    return { ok: true, data: { status: "disconnected", tabId: 42 } };
+  }
+  if (request.type === "inspector:properties") {
+    return { ok: true, data: { status: "properties", properties: [
+      { name: "health", kind: "own", value: { type: "number", value: 100 } },
+      { name: "percent", kind: "own", getter: true },
+    ] } };
+  }
+  return { ok: true, data: { status: "disconnected", tabId: 42 } };
+});
 
-describe("side panel detection", () => {
-  beforeEach(() => {
-    vi.spyOn(browser.tabs, "query").mockImplementation(async () => [localTab]);
-    vi.spyOn(browser.scripting, "executeScript").mockImplementation(
-      async () => [scriptResult],
-    );
-  });
+let onMessage: ((message: unknown) => void) | undefined;
 
-  afterEach(() => {
-    cleanup();
-    vi.restoreAllMocks();
-  });
-
-  it("starts in checking, displays story metadata, and checks again on Refresh", async () => {
-    const initial = Promise.withResolvers<(typeof localTab)[]>();
-    const refresh = Promise.withResolvers<(typeof localTab)[]>();
-    vi.mocked(browser.tabs.query)
-      .mockImplementationOnce(() => initial.promise)
-      .mockImplementationOnce(() => refresh.promise);
-    render(<App />);
-
-    expect(screen.getByText("Checking current page...")).toBeDefined();
-    expect(browser.tabs.query).toHaveBeenCalledExactlyOnceWith({
-      active: true,
-      currentWindow: true,
-    });
-    expect(browser.scripting.executeScript).not.toHaveBeenCalled();
-
-    await act(async () => {
-      initial.resolve([localTab]);
-    });
-    expect(screen.getByText("✅ SugarCube detected")).toBeDefined();
-    expect(screen.getByText("Test Story")).toBeDefined();
-    expect(screen.getByText("Start")).toBeDefined();
-    expect(screen.getByText("TEST-IFID")).toBeDefined();
-    expect(browser.scripting.executeScript).toHaveBeenCalledExactlyOnceWith({
-      target: { tabId: 42 },
-      world: "MAIN",
-      func: expect.any(Function),
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
-    expect(screen.getByText("Checking current page...")).toBeDefined();
-    expect(screen.queryByText("Test Story")).toBeNull();
-    expect(browser.tabs.query).toHaveBeenCalledTimes(2);
-
-    await act(async () => {
-      refresh.resolve([{ ...localTab, url: "https://example.com/story.html" }]);
-    });
-    expect(
-      screen.getByText("Open a local HTML file to use the inspector."),
-    ).toBeDefined();
-    expect(browser.scripting.executeScript).toHaveBeenCalledTimes(1);
-  });
-
-  it.each([
-    new Error("Tab query threw synchronously"),
-    "Tab query threw synchronously",
-  ])(
-    "handles a synchronous browser API throw (%s) after initialization and recovers on Refresh",
-    async (cause) => {
-      vi.mocked(browser.tabs.query).mockImplementationOnce(() => {
-        throw cause;
-      });
-      render(<App />);
-
-      expect(screen.getByText("Checking current page...")).toBeDefined();
-      expect(screen.queryByText("⚠️ Unable to inspect page")).toBeNull();
-
-      await act(async () => {});
-
-      expect(screen.getByText("⚠️ Unable to inspect page")).toBeDefined();
-      expect(screen.getByText("Tab query threw synchronously")).toBeDefined();
-      expect(browser.scripting.executeScript).not.toHaveBeenCalled();
-
-      fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
-      expect(screen.getByText("Checking current page...")).toBeDefined();
-      await act(async () => {});
-
-      expect(screen.queryByText("⚠️ Unable to inspect page")).toBeNull();
-      expect(screen.getByText("Test Story")).toBeDefined();
-      expect(browser.tabs.query).toHaveBeenCalledTimes(2);
+beforeEach(() => {
+  respond.mockClear();
+  onMessage = undefined;
+  vi.stubGlobal("chrome", {
+    tabs: {
+      query: vi.fn(async () => [tab]),
+      onActivated: { addListener: vi.fn(), removeListener: vi.fn() },
+      onUpdated: { addListener: vi.fn(), removeListener: vi.fn() },
     },
-  );
+    runtime: {
+      sendMessage: respond,
+      onMessage: {
+        addListener: vi.fn((listener: (message: unknown) => void) => { onMessage = listener; }),
+        removeListener: vi.fn(),
+      },
+    },
+  });
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+describe("CDP side panel proof of concept", () => {
+  it("connects, expands live objects, and manually disconnects", async () => {
+    render(<App />);
+    expect(await screen.findByRole("button", { name: "Connect" })).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    expect(await screen.findByRole("heading", { name: "Live variables" })).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand story" }));
+    expect(await screen.findByText("health")).toBeDefined();
+    expect(screen.getByText("[Getter]")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Connect" })).toBeDefined();
+      expect(screen.getByText(/You can now open Chrome DevTools/)).toBeDefined();
+    });
+    expect(respond).toHaveBeenCalledWith({ type: "inspector:disconnect", tabId: 42 });
+  });
+
+  it("unmounts remote nodes if DevTools detaches unexpectedly", async () => {
+    render(<App />);
+    await screen.findByRole("button", { name: "Connect" });
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await screen.findByRole("heading", { name: "Live variables" });
+
+    await act(async () => {
+      onMessage?.({
+        type: "inspector:sessionEnded",
+        tabId: 42,
+        reason: "Chrome DevTools opened or debugging was cancelled.",
+      });
+    });
+
+    expect(screen.queryByRole("heading", { name: "Live variables" })).toBeNull();
+    expect(screen.getByText(/Chrome DevTools opened or debugging was cancelled/)).toBeDefined();
+  });
+
+  it("does not attach to a non-local tab", async () => {
+    vi.mocked(chrome.tabs.query).mockResolvedValueOnce([{ ...tab, url: "https://example.com/" }] as chrome.tabs.Tab[]);
+    render(<App />);
+    await screen.findByRole("button", { name: "Connect" });
+    expect(screen.getByRole("button", { name: "Connect" }).hasAttribute("disabled")).toBe(true);
+    expect(respond).not.toHaveBeenCalledWith(expect.objectContaining({ type: "inspector:connect" }));
+  });
 });

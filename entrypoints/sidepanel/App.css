@@ -1,42 +1,31 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+.inspector-panel {
+  padding: 18px;
+  min-width: 280px;
+  color: var(--text);
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+.inspector-header { display: grid; gap: 4px; margin-bottom: 20px; }
+.inspector-header h1 { margin: 0; font-size: 1.3rem; }
+.inspector-caption { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+.inspector-target { overflow-wrap: anywhere; }
+.inspector-warning { padding: 10px; border: 1px solid #aa6b42; border-radius: 6px; background: #8a54161a; line-height: 1.5; font-size: 0.9rem; }
+.inspector-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; }
+.inspector-connected { font-size: 0.8rem; color: #42a568; margin-right: 4px; }
+.inspector-disconnected { font-size: 0.8rem; color: var(--muted); margin-right: 4px; }
+.inspector-toolbar button {
+  padding: 6px 9px; border: 1px solid var(--border); border-radius: 5px;
+  color: var(--text); background: var(--surface); cursor: pointer;
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #54bc4ae0);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
+.inspector-toolbar button:hover { background: var(--hover); }
+.inspector-toolbar button:disabled { cursor: not-allowed; opacity: 0.5; }
+.inspector-panel h2 { font-size: 1rem; margin-top: 24px; }
+.remote-list { margin: 0; padding: 0; list-style: none; }
+.remote-line { display: flex; align-items: baseline; min-height: 27px; gap: 5px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.remote-expand { cursor: pointer; width: 19px; flex: 0 0 19px; padding: 1px; border: 0; color: var(--muted); background: transparent; text-align: center; }
+.remote-expand:hover { color: var(--text); }
+.remote-spacer { display: inline-block; width: 19px; flex: 0 0 19px; }
+.remote-name { color: var(--text); overflow-wrap: anywhere; }
+.remote-value { color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+.remote-tag { color: var(--muted); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; padding: 1px 3px; }
+.remote-hint, .remote-error { padding: 4px 12px; color: var(--muted); font-size: 12px; }
+.remote-error { color: #c36666; }
