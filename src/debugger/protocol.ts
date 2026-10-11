@@ -60,7 +60,8 @@ export type InspectorSessionEnded = {
 export function isInspectorRequest(input: unknown): input is InspectorRequest {
   if (typeof input !== "object" || input === null) return false;
   const request = input as Record<string, unknown>;
-  if (!Number.isSafeInteger(request.tabId) || (request.tabId as number) < 0) return false;
+  if (typeof request.tabId !== "number" ||
+      !Number.isSafeInteger(request.tabId) || request.tabId < 0) return false;
   switch (request.type) {
     case "inspector:status":
     case "inspector:connect":
