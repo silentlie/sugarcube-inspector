@@ -83,7 +83,8 @@ test("automatically reacts to game writes without manual refresh", async ({ page
   await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
 
   await page.evaluate(() => {
-    SugarCube.State.variables.score = 44;
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    vars.score = 44;
   });
   await expect(drawer.getByTitle("44", { exact: true })).toBeVisible();
 
@@ -129,7 +130,8 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
   await drawer.getByRole("button", { name: "Expand inventory" }).click();
 
   await page.evaluate(() => {
-    SugarCube.State.variables.inventory.push("torch");
+    const vars = SugarCube.State.variables as unknown as { inventory: string[] };
+    vars.inventory.push("torch");
   });
   await expect(drawer.getByTitle("Array(3)", { exact: true })).toBeVisible();
   await expect(drawer.getByTitle('"torch"', { exact: true })).toBeVisible();
