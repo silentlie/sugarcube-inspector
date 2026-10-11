@@ -1,5 +1,6 @@
 import { browser } from "wxt/browser";
 import { mountPanelDashboard } from "@/src/devtools/panelDashboard";
+import { detectSugarCube } from "@/src/devtools/detectSugarCube";
 import "./style.css";
 
 const status = document.querySelector<HTMLElement>("#status");
@@ -8,13 +9,9 @@ if (!status || !refreshButton) throw new Error("Missing DevTools panel controls.
 
 mountPanelDashboard(status, refreshButton, {
   async detectSugarCube(): Promise<boolean> {
-    const response: unknown = await browser.devtools.inspectedWindow.eval(
-      "Boolean(globalThis.SugarCube && globalThis.SugarCube.State)",
+    return detectSugarCube((expression) =>
+      browser.devtools.inspectedWindow.eval(expression),
     );
-    if (!Array.isArray(response)) throw new Error("Unexpected DevTools evaluation response.");
-    const [value, exception] = response;
-    if (exception) throw new Error("DevTools evaluation failed.");
-    return value === true;
   },
   async refreshSidebars(): Promise<void> {
     const response: unknown = await browser.runtime.sendMessage({
