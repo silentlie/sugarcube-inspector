@@ -13,7 +13,7 @@ const snapshot = (story: Record<string, unknown>): Stores => ({
   story, temporary: {},
 });
 
-describe("in-place watch patches", () => {
+describe("in-place variable patches", () => {
   it("uses the first path element to select the scope, including root replacement", () => {
     const originalTemporary = { score: 2 };
     const stores = { story: { score: 1 }, temporary: originalTemporary };
@@ -121,6 +121,54 @@ describe("in-place watch patches", () => {
     const after = (replaced.story as Record<string, unknown>).player as Record<string, unknown>;
     expect(Object.getPrototypeOf(after)).toBeNull();
     expect(Object.getOwnPropertyDescriptor(after, "__proto__")?.value).toEqual({ note: "updated" });
+  });
+
+  it("updates an existing data property without changing its descriptor flags", () => {
+    const player = {};
+    Object.defineProperty(player, "health", {
+      value: 10, writable: true, enumerable: false, configurable: false,
+    });
+
+    applyVariablePatches(snapshot({ player }), [
+      change([prop("player"), prop("health")], 20),
+    ]);
+
+    expect(Object.getOwnPropertyDescriptor(player, "health")).toEqual({
+      value: 20, writable: true, enumerable: false, configurable: false,
+    });
+  });
+
+  it("rejects changed values for non-writable properties", () => {
+    const player = {};
+    Object.defineProperty(player, "health", {
+      value: 10, writable: false, enumerable: true, configurable: false,
+    });
+    const stores = snapshot({ player });
+
+    expect(() => applyVariablePatches(stores, [
+      change([prop("player"), prop("health")], 20),
+    ])).toThrow(TypeError);
+    expect(Object.getOwnPropertyDescriptor(player, "health")?.value).toBe(10);
+  });
+
+  it("replaces configurable accessors without invoking their setters", () => {
+    let setterCalls = 0;
+    const player = {};
+    Object.defineProperty(player, "health", {
+      get: () => 10,
+      set: () => { setterCalls++; },
+      enumerable: false,
+      configurable: true,
+    });
+
+    applyVariablePatches(snapshot({ player }), [
+      change([prop("player"), prop("health")], 20),
+    ]);
+
+    expect(setterCalls).toBe(0);
+    expect(Object.getOwnPropertyDescriptor(player, "health")).toEqual({
+      value: 20, writable: true, enumerable: false, configurable: true,
+    });
   });
 
   it("keeps nonenumerable and readonly property descriptors unchanged on other patches", () => {

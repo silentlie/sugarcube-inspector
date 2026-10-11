@@ -4,14 +4,20 @@ import type { PathSegment, VariablePatch } from "../watch/types";
 import type { SugarCubeVariables } from "../types";
 import { readPathChild } from "./path";
 
-function writeProperty(target: object, key: string | number, value: unknown) {
+function writeProperty(target: object, key: PropertyKey, value: unknown): void {
   const descriptor = Object.getOwnPropertyDescriptor(target, key);
-  if (descriptor && "value" in descriptor && Object.is(descriptor.value, value)) return;
+  if (descriptor && "value" in descriptor) {
+    if (Object.is(descriptor.value, value)) return;
+
+    Object.defineProperty(target, key, { value });
+    return;
+  }
+
   Object.defineProperty(target, key, {
     value,
-    writable: descriptor && "writable" in descriptor ? descriptor.writable : true,
-    configurable: descriptor?.configurable ?? true,
+    writable: true,
     enumerable: descriptor?.enumerable ?? true,
+    configurable: descriptor?.configurable ?? true,
   });
 }
 
