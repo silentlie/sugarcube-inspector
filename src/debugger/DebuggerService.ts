@@ -112,7 +112,7 @@ export class DebuggerService {
     void chrome.runtime.sendMessage(notification).catch(() => {});
   }
 
-  private async command<T>(tabId: number, method: string, params?: object): Promise<T> {
+  private async command<T>(tabId: number, method: string, params?: Record<string, unknown>): Promise<T> {
     return await chrome.debugger.sendCommand({ tabId }, method, params) as T;
   }
 

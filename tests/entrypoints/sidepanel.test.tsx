@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 
-import { browser, type Browser } from "wxt/browser";
 vi.mock("wxt/browser", () => ({
   browser: new Proxy({}, {
     get(_target, key: string) {
@@ -27,6 +26,8 @@ const session = {
   ],
 };
 
+const queryTab = vi.fn(async () => [tab]);
+
 const respond = vi.fn(async (request: { type: string }) => {
   if (request.type === "inspector:connect") return { ok: true, data: session };
   if (request.type === "inspector:disconnect") {
@@ -45,10 +46,11 @@ let onMessage: ((message: unknown) => void) | undefined;
 
 beforeEach(() => {
   respond.mockClear();
+  queryTab.mockClear();
   onMessage = undefined;
   vi.stubGlobal("chrome", {
     tabs: {
-      query: vi.fn(async () => [tab]),
+      query: queryTab,
       onActivated: { addListener: vi.fn(), removeListener: vi.fn() },
       onUpdated: { addListener: vi.fn(), removeListener: vi.fn() },
     },
@@ -106,7 +108,7 @@ describe("CDP side panel proof of concept", () => {
   });
 
   it("does not attach to a non-local tab", async () => {
-    vi.mocked(browser.tabs.query).mockResolvedValueOnce([{ ...tab, url: "https://example.com/" }] as Browser.tabs.Tab[]);
+    queryTab.mockResolvedValueOnce([{ ...tab, url: "https://example.com/" }]);
     render(<App />);
     await screen.findByRole("button", { name: "Connect" });
     expect(screen.getByRole("button", { name: "Connect" }).hasAttribute("disabled")).toBe(true);
