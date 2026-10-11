@@ -104,6 +104,7 @@ export function inspectInPage(path: InspectPath, offset: number): string {
     const cube = (globalThis as typeof globalThis & {
       SugarCube?: { State?: { variables?: unknown; temporary?: unknown } };
     }).SugarCube;
+    if (!cube?.State) throw new Error("SugarCube initialization pending.");
     let value: unknown = path.root === "story"
       ? cube?.State?.variables
       : cube?.State?.temporary;

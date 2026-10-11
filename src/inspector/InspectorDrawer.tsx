@@ -56,14 +56,23 @@ function VariableList({ target }: { target: Target }) {
     const request: Request = {
       type: "inspector:inspect", target: JSON.parse(targetKey) as Target, offset: 0,
     };
-    void send(request).then(
-      (value) => {
-        if (active) setData(value as Inspection);
-      },
-      (cause: unknown) => {
-        if (active) setError(errorText(cause));
-      },
-    );
+    async function load(): Promise<void> {
+      for (let attempt = 0; attempt < 12 && active; attempt++) {
+        try {
+          const value = await send(request);
+          if (active) setData(value as Inspection);
+          return;
+        } catch (cause) {
+          const message = errorText(cause);
+          if (!message.includes("SugarCube initialization pending.") || attempt === 11) {
+            if (active) setError(message);
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+      }
+    }
+    void load();
     return () => { active = false; };
   }, [targetKey]);
 
