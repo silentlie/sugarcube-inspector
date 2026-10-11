@@ -23,10 +23,10 @@ describe("MAIN synchronized state", () => {
     const store = new SynchronizedVariableStore();
     expect(store.hasSnapshot).toBe(false);
     expect(store.capture(snapshot(7))).toBe(1);
-    expect(store.read(path)).toEqual({ exists: true, value: 7 });
+    expect(store.read(path)).toEqual({ status: "found", value: 7 });
     store.apply([{ op: "set", path, value: 42 }]);
-    expect(store.read(path)).toEqual({ exists: true, value: 42 });
+    expect(store.read(path)).toEqual({ status: "found", value: 42 });
     expect(store.capture(snapshot(8))).toBe(2);
-    expect(store.read(path)).toEqual({ exists: true, value: 8 });
+    expect(store.read(path)).toEqual({ status: "found", value: 8 });
   });
 });
