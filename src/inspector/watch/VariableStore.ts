@@ -50,57 +50,53 @@ export class VariableStore {
 
   getAnyVersion = (): number => this.anyVersion;
 
-  apply(patches: WatchPatch[]): void {
-    if (!patches.length) return;
-    const changed = new Set<PathKey>();
+  /** Collect impacted subscriptions before a patch mutates the graph. */
+  private collectAffectedSubscriptions(patch: WatchPatch, changed: Set<PathKey>): void {
+    const parent: VariablePath = patch.path.length === 1
+      ? patch.path
+      : patch.path.slice(0, -1) as VariablePath;
+    const parentValue = this.getValue(parent);
+    const lastPart = patch.path.length > 1 ? patch.path.at(-1) as PathSegment : undefined;
+    const hadKey = lastPart?.type === "property"
+      && isNonFunctionObject(parentValue)
+      && Object.hasOwn(parentValue, lastPart.key);
+    const arrayLengthChanged = lastPart?.type === "property" &&
+      lastPart.key === "length" && isArray(parentValue);
+    const structureChanged = arrayLengthChanged || patch.path.length === 1 ||
+      (lastPart && (lastPart.type === "mapKey" || lastPart.type === "mapValue" || lastPart.type === "setValue")) ||
+      (patch.op === "delete" ? Boolean(hadKey) : !hadKey);
 
-    for (const patch of patches) {
-      const parent: VariablePath = patch.path.length === 1
-        ? patch.path
-        : patch.path.slice(0, -1) as VariablePath;
-      const parentValue = this.getValue(parent);
-      const lastPart = patch.path.length > 1 ? patch.path.at(-1) as PathSegment : undefined;
-      const hadKey = lastPart?.type === "property"
-        && isNonFunctionObject(parentValue)
-        && Object.hasOwn(parentValue, lastPart.key);
-      const arrayLengthChanged = lastPart?.type === "property" &&
-        lastPart.key === "length" && isArray(parentValue);
-      const structureChanged = arrayLengthChanged || patch.path.length === 1 ||
-        (lastPart && (lastPart.type === "mapKey" || lastPart.type === "mapValue" || lastPart.type === "setValue")) ||
-        (patch.op === "delete" ? Boolean(hadKey) : !hadKey);
-
-      // Collect impacted subscribers BEFORE mutating the graph, so aliases
-      // can be identified by their existing object identity.
-      for (const [key, { path: watched }] of this.subscriptions) {
-        if (isPathPrefix(patch.path, watched) ||
-            (structureChanged && isPathPrefix(watched, patch.path) &&
-              watched.length === patch.path.length - 1)) {
-          changed.add(key);
-          continue;
-        }
-
-        // A shared object may also be visible under another path or scope.
-        // Only traverse registered paths, never the whole SugarCube graph.
-        let value: unknown = this.variables;
-        for (let i = 0; i <= watched.length; i++) {
-          // Whole-value replacement only changes the patched path. Notify
-          // aliases when a nested patch actually mutates their shared parent.
-          if (i > 1 && parent.length > 1 &&
-              isNonFunctionObject(parentValue) &&
-              value === parentValue) {
-            changed.add(key);
-            break;
-          }
-          if (i < watched.length) {
-            const child = readPathChild(value, watched[i] as PathSegment);
-            value = child.status === "found" ? child.value : undefined;
-          }
-        }
+    // Collect impacted subscribers BEFORE mutating the graph, so aliases
+    // can be identified by their existing object identity.
+    for (const [key, { path: watched }] of this.subscriptions) {
+      if (isPathPrefix(patch.path, watched) ||
+          (structureChanged && isPathPrefix(watched, patch.path) &&
+            watched.length === patch.path.length - 1)) {
+        changed.add(key);
+        continue;
       }
 
-      applyWatchPatches(this.variables, [patch]);
+      // A shared object may also be visible under another path or scope.
+      // Only traverse registered paths, never the whole SugarCube graph.
+      let value: unknown = this.variables;
+      for (let i = 0; i <= watched.length; i++) {
+        // Whole-value replacement only changes the patched path. Notify
+        // aliases when a nested patch actually mutates their shared parent.
+        if (i > 1 && parent.length > 1 &&
+            isNonFunctionObject(parentValue) &&
+            value === parentValue) {
+          changed.add(key);
+          break;
+        }
+        if (i < watched.length) {
+          const child = readPathChild(value, watched[i] as PathSegment);
+          value = child.status === "found" ? child.value : undefined;
+        }
+      }
     }
+  }
 
+  private notify(changed: Set<PathKey>): void {
     for (const key of changed) {
       this.versions.set(key, (this.versions.get(key) ?? 0) + 1);
       for (const listener of this.subscriptions.get(key)?.listeners ?? []) listener();
@@ -108,5 +104,17 @@ export class VariableStore {
     this.anyVersion++;
     for (const listener of this.anyListeners) listener();
   }
-}
 
+  apply(patches: WatchPatch[]): void {
+    if (!patches.length) return;
+    const changed = new Set<PathKey>();
+
+    for (const patch of patches) {
+      // Subscriptions and aliases are checked before each mutation.
+      this.collectAffectedSubscriptions(patch, changed);
+      applyWatchPatches(this.variables, [patch]);
+    }
+
+    this.notify(changed);
+  }
+}

@@ -24,11 +24,7 @@ export default defineContentScript({
       watchService.poll(data),
     );
 
-    sugarcubeRPC.onMessage("getSnapshot", () => {
-      const snapshot = sugarcubeService.createSnapshot();
-      const watchGeneration = watchService.capture(snapshot);
-      return { ...snapshot, watchGeneration };
-    });
+    sugarcubeRPC.onMessage("getSnapshot", () => watchService.captureSnapshot());
 
     $(document).on(":passageend.sugarcubeInspector", () => {
       void sugarcubeRPC

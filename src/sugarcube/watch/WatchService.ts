@@ -1,9 +1,10 @@
 import type { SugarCubeSnapshot } from "../types";
 import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./types";
 import { collectionPaths, minimizeWatchPaths, structurePaths } from "./watchPaths";
-import { sameEntry, sameValue } from "./comparison";
+import { circularDeepEqual, deepEqual } from "fast-equals";
+import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 import { collectionStructure, sameStructure, structureOf, type CollectionStructure } from "./structure";
-import { isPathPrefix, pathToKey, resolvePath, type PathKey } from "../variables/path";
+import { isPathPrefix, pathToKey, resolvePath, type PathKey, type PathResolution } from "../variables/path";
 import { SugarCubeService } from "../SugarCubeService";
 import { SynchronizedVariableStore } from "../variables/SynchronizedVariableStore";
 
@@ -15,6 +16,34 @@ export class WatchService {
   private readonly circularPaths = new Set<PathKey>();
 
   constructor(private readonly sugarcube: SugarCubeService) {}
+
+  /** Deep comparison remembers paths requiring circular-safe equality. */
+  private sameValue(previous: unknown, current: unknown, key: PathKey): boolean {
+    if (Object.is(previous, current)) return true;
+    if (!isNonFunctionObject(previous) || !isNonFunctionObject(current)) return false;
+    if (this.circularPaths.has(key)) return circularDeepEqual(previous, current);
+    try {
+      return deepEqual(previous, current);
+    } catch (error) {
+      if (!(error instanceof RangeError)) throw error;
+      this.circularPaths.add(key);
+      return circularDeepEqual(previous, current);
+    }
+  }
+
+  private sameEntry(previous: PathResolution, current: PathResolution, key: PathKey): boolean {
+    switch (previous.status) {
+      case "found":
+        return current.status === "found" && this.sameValue(previous.value, current.value, key);
+      case "missing":
+        return current.status === "missing" &&
+          pathToKey(previous.path) === pathToKey(current.path);
+      case "blocked":
+        return current.status === "blocked" &&
+          pathToKey(previous.path) === pathToKey(current.path) &&
+          this.sameValue(previous.value, current.value, key);
+    }
+  }
 
   /** Compare live collection member identities once a collection has been observed. */
   private collectionChanged(
@@ -46,6 +75,12 @@ export class WatchService {
     return generation;
   }
 
+  /** Capture a full runtime snapshot and establish its watch generation. */
+  captureSnapshot(): SugarCubeSnapshot {
+    const snapshot = this.sugarcube.createSnapshot();
+    return { ...snapshot, watchGeneration: this.capture(snapshot) };
+  }
+
   poll(request: WatchRequest): WatchResponse {
     const generation = this.synchronized.generation;
     if (!this.synchronized.hasSnapshot || request.generation !== generation) {
@@ -73,7 +108,7 @@ export class WatchService {
 
       const entriesChanged = this.collectionChanged(
         path, oldStructure, newStructure,
-        (previous, current) => sameValue(previous, current, key, this.circularPaths),
+        (previous, current) => this.sameValue(previous, current, key),
       );
       if (!oldStructure && !newStructure) continue;
 
@@ -109,7 +144,7 @@ export class WatchService {
       const previous = structureOf(oldEntry.status === "found" ? oldEntry.value : undefined);
       const current = structureOf(liveEntry.status === "found" ? liveEntry.value : undefined);
       if (sameStructure(previous, current, (left, right) =>
-        sameValue(left, right, key, this.circularPaths))) continue;
+        this.sameValue(left, right, key))) continue;
       const add = (value: unknown) => {
         structuralChanges.push({
           op: "set", path, value: structuredClone(value),
@@ -166,7 +201,7 @@ export class WatchService {
       const key = pathToKey(path);
       const previous = this.synchronized.read(path);
       const current = this.sugarcube.resolveVariable(path);
-      if (sameEntry(previous, current, key, this.circularPaths)) continue;
+      if (this.sameEntry(previous, current, key)) continue;
 
       if (current.status !== "found") {
         // A previously absent/blocked parent may now be present, even when
