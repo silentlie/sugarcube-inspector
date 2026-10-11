@@ -478,6 +478,56 @@ describe("in-place variable patches", () => {
     expect([...set]).toEqual(["first", "third"]);
   });
 
+  it("retains collection-specific errors while traversing nested Map and Set members", () => {
+    const map = new Map([["hero", { hp: 10 }]]);
+    const set = new Set([{ hp: 10 }]);
+    const stores = snapshot({ map, set, notMap: {}, notSet: [] });
+
+    for (const type of ["mapKey", "mapValue", "setValue"] as const) {
+      const collection = type === "setValue" ? "set" : "map";
+      const path: VariablePatch["path"] = [
+        { type: "property", key: "story" },
+        prop(collection),
+        { type, index: 1 },
+        prop("hp"),
+      ];
+      expect(() => applyVariablePatches(stores, [{ op: "set", path, value: 20 }]))
+        .toThrow(RangeError);
+
+      const wrongTypePath: VariablePatch["path"] = [
+        { type: "property", key: "story" },
+        prop(type === "setValue" ? "notSet" : "notMap"),
+        { type, index: 0 },
+        prop("hp"),
+      ];
+      expect(() => applyVariablePatches(stores, [
+        { op: "set", path: wrongTypePath, value: 20 },
+      ])).toThrow(TypeError);
+    }
+
+    expect([...map]).toEqual([["hero", { hp: 10 }]]);
+    expect([...set]).toEqual([{ hp: 10 }]);
+  });
+
+  it("preserves accessor conversion when updating a nested property", () => {
+    const child = { hp: 10 };
+    const player = {};
+    Object.defineProperty(player, "child", {
+      get: () => child,
+      enumerable: false,
+      configurable: true,
+    });
+
+    applyVariablePatches(snapshot({ player }), [
+      change([prop("player"), prop("child"), prop("hp")], 20),
+    ]);
+
+    expect(child.hp).toBe(20);
+    expect(Object.getOwnPropertyDescriptor(player, "child")).toEqual({
+      value: child, writable: true, enumerable: false, configurable: true,
+    });
+  });
+
   it("throws instead of silently ignoring deletion of a nonconfigurable property", () => {
     const player = {};
     Object.defineProperty(player, "locked", {
