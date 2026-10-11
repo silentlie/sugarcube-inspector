@@ -27,15 +27,18 @@ function applyPatchAtPath(root: unknown, path: readonly PathSegment[], patch: Va
   if (!isNonFunctionObject(root)) {
     // MAIN sends whole-value patches to restore missing ancestors; never
     // guess whether an absent intermediate container was an array or object.
-    if (patch.op === "delete") return root;
-    throw new Error("Cannot apply a variable patch through a missing or non-object ancestor.");
+    throw new TypeError("Cannot apply a variable patch through a missing or non-object ancestor.");
   }
 
   if (part.type === "mapKey" || part.type === "mapValue") {
-    if (!isMap(root)) return root;
+    if (!isMap(root)) {
+      throw new TypeError("Expected a Map when applying a variable patch.");
+    }
     const entries = [...root.entries()];
-    const entry = entries[part.index];
-    if (!entry) return root;
+    if (!Number.isInteger(part.index) || part.index < 0 || part.index >= entries.length) {
+      throw new RangeError(`Map entry index out of bounds: ${part.index}`);
+    }
+    const entry = entries[part.index]!;
     if (rest.length === 0 && patch.op === "delete") {
       entries.splice(part.index, 1);
     } else {
@@ -52,9 +55,13 @@ function applyPatchAtPath(root: unknown, path: readonly PathSegment[], patch: Va
   }
 
   if (part.type === "setValue") {
-    if (!isSet(root)) return root;
+    if (!isSet(root)) {
+      throw new TypeError("Expected a Set when applying a variable patch.");
+    }
     const values = [...root];
-    if (part.index < 0 || part.index >= values.length) return root;
+    if (!Number.isInteger(part.index) || part.index < 0 || part.index >= values.length) {
+      throw new RangeError(`Set entry index out of bounds: ${part.index}`);
+    }
     if (rest.length === 0 && patch.op === "delete") values.splice(part.index, 1);
     else {
       values[part.index] = rest.length
@@ -74,15 +81,15 @@ function applyPatchAtPath(root: unknown, path: readonly PathSegment[], patch: Va
     }
   } else if (rest.length === 0 && key === "length" && isArray(root)) {
     if (patch.op === "set") root.length = patch.value as number;
-  } else {
+  } else if (rest.length) {
     const previous = readPathChild(root, part);
-    const old = previous.status === "found" ? previous.value : undefined;
-    const next = rest.length
-      ? applyPatchAtPath(old, rest, patch)
-      : (patch as Extract<VariablePatch, { op: "set" }>).value;
-    // Do not fabricate missing ancestors when processing a deletion.
-    if (rest.length && patch.op === "delete" && old === undefined) return root;
+    if (previous.status !== "found") {
+      throw new Error("Variable patch ancestor does not exist.");
+    }
+    const next = applyPatchAtPath(previous.value, rest, patch);
     writeProperty(record, key, next);
+  } else if (patch.op === "set") {
+    writeProperty(record, key, patch.value);
   }
   return root;
 }

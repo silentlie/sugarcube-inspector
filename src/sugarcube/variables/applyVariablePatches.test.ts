@@ -260,6 +260,116 @@ describe("in-place variable patches", () => {
     expect(Object.keys(Object.prototype)).toEqual(before);
   });
 
+  it("treats deletion of a missing final property as an idempotent no-op", () => {
+    const shared = { health: 100 };
+    const stores = snapshot({ player: shared, leader: shared });
+
+    const deleteHealth = (name: string): VariablePatch => ({
+      op: "delete",
+      path: [{ type: "property", key: "story" }, prop(name), prop("health")],
+    });
+
+    applyVariablePatches(stores, [deleteHealth("player"), deleteHealth("leader")]);
+    expect(shared).toEqual({});
+    expect(Object.hasOwn(shared, "health")).toBe(false);
+
+    expect(() => applyVariablePatches(stores, [deleteHealth("player")])).not.toThrow();
+    expect(stores.story).toEqual({ player: shared, leader: shared });
+  });
+
+  it("rejects deletion through a missing or undefined intermediate property", () => {
+    const stores = snapshot({ player: undefined });
+    const missingParent: VariablePatch = {
+      op: "delete",
+      path: [{ type: "property", key: "story" }, prop("absent"), prop("health")],
+    };
+    const undefinedParent: VariablePatch = {
+      op: "delete",
+      path: [{ type: "property", key: "story" }, prop("player"), prop("health")],
+    };
+
+    expect(() => applyVariablePatches(stores, [missingParent])).toThrow(
+      "Variable patch ancestor does not exist.",
+    );
+    expect(() => applyVariablePatches(stores, [undefinedParent])).toThrow(TypeError);
+    expect(stores.story).toEqual({ player: undefined });
+  });
+
+  it("rejects deletion through a primitive ancestor", () => {
+    const stores = snapshot({ player: 42 });
+    expect(() => applyVariablePatches(stores, [{
+      op: "delete",
+      path: [{ type: "property", key: "story" }, prop("player"), prop("health")],
+    }])).toThrow(TypeError);
+    expect(stores.story).toEqual({ player: 42 });
+  });
+
+  it("throws on Map and Set type mismatches instead of silently skipping patches", () => {
+    const stores = snapshot({ map: {}, set: [] });
+    const badMap: VariablePatch = {
+      op: "delete",
+      path: [{ type: "property", key: "story" }, prop("map"), { type: "mapValue", index: 0 }],
+    };
+    const badSet: VariablePatch = {
+      op: "delete",
+      path: [{ type: "property", key: "story" }, prop("set"), { type: "setValue", index: 0 }],
+    };
+
+    expect(() => applyVariablePatches(stores, [badMap])).toThrow(TypeError);
+    expect(() => applyVariablePatches(stores, [badSet])).toThrow(TypeError);
+    expect(() => applyVariablePatches(stores, [{ ...badMap, op: "set", value: 42 }])).toThrow(TypeError);
+    expect(() => applyVariablePatches(stores, [{ ...badSet, op: "set", value: 42 }])).toThrow(TypeError);
+    expect(stores.story).toEqual({ map: {}, set: [] });
+  });
+
+  it("throws on invalid Map and Set entry indices without changing either collection", () => {
+    const map = new Map([["hero", { hp: 10 }]]);
+    const set = new Set([{ hp: 10 }]);
+    const stores = snapshot({ map, set });
+
+    for (const index of [-1, 1, 0.5, Number.NaN]) {
+      for (const type of ["mapKey", "mapValue", "setValue"] as const) {
+        const collection = type === "setValue" ? "set" : "map";
+        const path: VariablePatch["path"] = [
+          { type: "property", key: "story" },
+          prop(collection),
+          { type, index },
+        ];
+        expect(() => applyVariablePatches(stores, [{ op: "delete", path }])).toThrow(RangeError);
+        expect(() => applyVariablePatches(stores, [{ op: "set", path, value: "replacement" }])).toThrow(RangeError);
+      }
+    }
+
+    expect([...map]).toEqual([["hero", { hp: 10 }]]);
+    expect([...set]).toEqual([{ hp: 10 }]);
+  });
+
+  it("still deletes valid Map and Set entries and their nested properties", () => {
+    const map = new Map([["hero", { hp: 10 }]]);
+    const set = new Set([{ hp: 10 }]);
+    const stores = snapshot({ map, set });
+    const mapPath: VariablePatch["path"] = [
+      { type: "property", key: "story" }, prop("map"), { type: "mapValue", index: 0 },
+    ];
+    const setPath: VariablePatch["path"] = [
+      { type: "property", key: "story" }, prop("set"), { type: "setValue", index: 0 },
+    ];
+
+    applyVariablePatches(stores, [
+      { op: "delete", path: [...mapPath, prop("hp")] },
+      { op: "delete", path: [...setPath, prop("hp")] },
+    ]);
+    expect([...map.values()]).toEqual([{}]);
+    expect([...set.values()]).toEqual([{}]);
+
+    applyVariablePatches(stores, [
+      { op: "delete", path: mapPath },
+      { op: "delete", path: setPath },
+    ]);
+    expect(map.size).toBe(0);
+    expect(set.size).toBe(0);
+  });
+
   it("throws instead of silently ignoring deletion of a nonconfigurable property", () => {
     const player = {};
     Object.defineProperty(player, "locked", {
