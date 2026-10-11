@@ -40,6 +40,26 @@ test("refresh retrieves current game values without functions breaking inspectio
   await expect(drawer.getByTitle("[Function]", { exact: true })).toBeVisible();
 });
 
+test("handles games that serialize undefined property metadata as arrays", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openDrawer(page);
+
+  await page.evaluate(() => {
+    const originalStringify = JSON.stringify.bind(JSON);
+    Object.defineProperty(JSON, "stringify", {
+      configurable: true,
+      writable: true,
+      value(value: unknown) {
+        return originalStringify(value, (_key, item) => item === undefined ? [] : item);
+      },
+    });
+  });
+
+  await drawer.getByRole("button", { name: "Refresh variables" }).click();
+  await expect(drawer.getByText("score", { exact: true })).toBeVisible();
+  await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
+});
+
 test("reinitializes a single drawer after page reload", async ({ page }) => {
   await page.goto(storyUrl);
   for (let i = 0; i < 3; i++) {
