@@ -15,7 +15,7 @@ function PropertyRow({
   entry, ancestors, onWrite,
 }: {
   entry: DirectEntry;
-  ancestors: readonly (object | Function)[];
+  ancestors: readonly object[];
   onWrite: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -69,7 +69,7 @@ function VariableList({
   value, ancestors, onWrite,
 }: {
   value: unknown;
-  ancestors: readonly (object | Function)[];
+  ancestors: readonly object[];
   onWrite: () => void;
 }) {
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -84,8 +84,8 @@ function VariableList({
 
   return (
     <div>
-      {entries.slice(0, limit).map((entry, index) => (
-        <PropertyRow key={index} entry={entry} ancestors={nextAncestors} onWrite={onWrite} />
+      {entries.slice(0, limit).map((entry) => (
+        <PropertyRow key={entry.name} entry={entry} ancestors={nextAncestors} onWrite={onWrite} />
       ))}
       {limit < entries.length && (
         <button type="button" className="p-2 text-xs text-sky-300"

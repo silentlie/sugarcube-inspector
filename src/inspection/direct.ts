@@ -20,7 +20,7 @@ export function getStore(scope: Scope): unknown {
   return scope === "story" ? cube?.State?.variables : cube?.State?.temporary;
 }
 
-export function isReference(value: unknown): value is object | Function {
+export function isReference(value: unknown): value is object {
   return value !== null && (typeof value === "object" || typeof value === "function");
 }
 
