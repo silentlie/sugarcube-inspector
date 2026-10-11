@@ -1,6 +1,6 @@
 {
-  "name": "wxt-react-starter",
-  "description": "manifest.json description",
+  "name": "sugarcube-inspector",
+  "description": "Live SugarCube story inspector for Chromium",
   "private": true,
   "version": "0.0.0",
   "type": "module",

@@ -1,8 +1,10 @@
-# Deferred feature: Side-panel active-tab and multi-window synchronisation
+# Historical design notes: Side-panel active-tab and multi-window synchronisation
 
-**Status:** Deferred / not implemented  
+**Status:** Historical design notes; implementation details below predate the current dual-mode inspector  
 **Recorded:** 2026-10-09  
 **Scope:** SugarCube Inspector's Chromium extension side panel
+
+> This document describes an older design. References to `detectSugarCube`, bridge checks, or snapshots do not describe the current implementation. Its multi-window requirements remain relevant but need re-evaluation before implementation.
 
 ## Why this exists
 
