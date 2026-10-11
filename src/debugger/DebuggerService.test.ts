@@ -1,3 +1,12 @@
+vi.mock("wxt/browser", () => ({
+  browser: new Proxy({}, {
+    get(_target, key: string) {
+      const fake = (globalThis as unknown as { chrome: Record<string, unknown> }).chrome;
+      return fake[key];
+    },
+  }),
+}));
+
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { DebuggerService } from "./DebuggerService";
 

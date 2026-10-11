@@ -1,3 +1,4 @@
+import { browser as chrome } from "wxt/browser";
 import { DebuggerService } from "@/src/debugger/DebuggerService";
 import { isInspectorRequest, type InspectorReply } from "@/src/debugger/protocol";
 

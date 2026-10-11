@@ -1,5 +1,16 @@
 // @vitest-environment happy-dom
 
+import { browser, type Browser } from "wxt/browser";
+vi.mock("wxt/browser", () => ({
+  browser: new Proxy({}, {
+    get(_target, key: string) {
+      const fake = (globalThis as unknown as { chrome: Record<string, unknown> }).chrome;
+      return fake[key];
+    },
+  }),
+}));
+
+
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../../entrypoints/sidepanel/App";
@@ -95,7 +106,7 @@ describe("CDP side panel proof of concept", () => {
   });
 
   it("does not attach to a non-local tab", async () => {
-    vi.mocked(chrome.tabs.query).mockResolvedValueOnce([{ ...tab, url: "https://example.com/" }] as chrome.tabs.Tab[]);
+    vi.mocked(browser.tabs.query).mockResolvedValueOnce([{ ...tab, url: "https://example.com/" }] as Browser.tabs.Tab[]);
     render(<App />);
     await screen.findByRole("button", { name: "Connect" });
     expect(screen.getByRole("button", { name: "Connect" }).hasAttribute("disabled")).toBe(true);

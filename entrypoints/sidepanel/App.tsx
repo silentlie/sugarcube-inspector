@@ -1,3 +1,4 @@
+import { browser as chrome, type Browser } from "wxt/browser";
 import "./App.css";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -49,7 +50,7 @@ export default function App() {
     // Schedule the initial check outside the effect's synchronous render phase.
     void Promise.resolve().then(checkTab);
     const activated = () => { void checkTab(); };
-    const updated = (tabId: number, info: chrome.tabs.TabChangeInfo) => {
+    const updated = (tabId: number, info: Browser.tabs.TabChangeInfo) => {
       if (tabId === currentTabRef.current && info.status === "complete") void checkTab();
     };
     const ended = (message: unknown) => {

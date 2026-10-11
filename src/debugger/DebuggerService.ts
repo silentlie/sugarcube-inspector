@@ -1,3 +1,4 @@
+import { browser as chrome } from "wxt/browser";
 import type {
   InspectorData,
   InspectorDisconnected,

@@ -1,3 +1,4 @@
+import { browser as chrome } from "wxt/browser";
 import type { InspectorData, InspectorReply, InspectorRequest } from "../debugger/protocol";
 
 export async function debuggerRequest(request: InspectorRequest): Promise<InspectorData> {
