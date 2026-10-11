@@ -53,7 +53,7 @@ describe("same-context native and custom inspector refresh", () => {
   it("does not block a refresh on unresolved hidden native panes", async () => {
     const test = setup();
     test.host.createSidebarPane.mockImplementation(async () => ({
-      setExpression: () => new Promise<void>(() => {}),
+      setExpression: vi.fn(() => new Promise<void>(() => {})),
       onShown: { addListener: vi.fn() },
     }));
     await initializeDevtoolsPanel(test.status, test.button, test.variables, test.host);

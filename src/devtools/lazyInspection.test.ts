@@ -93,6 +93,6 @@ describe("one-level live page inspection", () => {
     vi.stubGlobal("SugarCube", { State: { variables: { health: 100 }, temporary: {} } });
     const value = inspectInPage(root, 0);
     expect(JSON.parse(value).entries[0].preview).toBe("100");
-    expect(inspect(root).entries[0].preview).toBe("100");
+    expect(inspect(root).entries[0]?.preview).toBe("100");
   });
 });

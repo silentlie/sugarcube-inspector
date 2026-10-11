@@ -8,7 +8,9 @@
 export type PathPart =
   | { kind: "property"; key: string }
   | { kind: "symbol"; index: number }
-  | { kind: "mapKey" | "mapValue" | "setValue"; index: number };
+  | { kind: "mapKey"; index: number }
+  | { kind: "mapValue"; index: number }
+  | { kind: "setValue"; index: number };
 
 export type InspectPath = {
   root: "story" | "temporary";
