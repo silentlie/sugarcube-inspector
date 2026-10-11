@@ -1,3 +1,4 @@
+import type {} from "twine-sugarcube";
 import type { Page } from "@playwright/test";
 import { expect, storyUrl, test } from "./fixtures";
 
