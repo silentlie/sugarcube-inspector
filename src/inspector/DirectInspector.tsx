@@ -121,8 +121,8 @@ export default function DirectInspector() {
     // The store may have populated after React's render but before this
     // effect runs. Refresh once even when it is already populated here.
     if (populated()) {
-      refresh();
-      return;
+      const timer = window.setTimeout(refresh, 0);
+      return () => window.clearTimeout(timer);
     }
 
     let attempts = 0;
