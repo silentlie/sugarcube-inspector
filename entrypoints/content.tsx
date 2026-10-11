@@ -1,31 +1,42 @@
 import Drawer from "@/src/inspector/Drawer";
-import InspectorDrawer from "@/src/inspector/InspectorDrawer";
-import "@/src/styles/tailwind.css";
+import DirectInspector from "@/src/inspector/DirectInspector";
+import styles from "@/src/styles/tailwind.css?inline";
 import ReactDOM from "react-dom/client";
 
+/**
+ * React and its SugarCube data layer both execute in the page's MAIN world.
+ * Chrome's content-script isolation, RPC and executeScript are not involved.
+ */
 export default defineContentScript({
   matches: ["file:///*"],
-  cssInjectionMode: "ui",
+  world: "MAIN",
   runAt: "document_idle",
 
-  async main(ctx) {
+  main() {
     if (!document.querySelector('tw-storydata[format="SugarCube"]')) return;
-    const ui = await createShadowRootUi(ctx, {
-      name: "sugarcube-inspector",
-      position: "overlay",
-      alignment: "top-right",
-      zIndex: 2147483647,
-      onMount(container) {
-        const root = ReactDOM.createRoot(container);
-        root.render(
-          <Drawer initialWidth={380}>
-            <InspectorDrawer />
-          </Drawer>,
-        );
-        return root;
-      },
-      onRemove(root) { root?.unmount(); },
-    });
-    ui.mount();
+    if (document.querySelector("sugarcube-inspector")) return;
+
+    // MAIN scripts do not receive a WXT content-script context. Mount our
+    // own Shadow DOM and inline scoped CSS instead of createShadowRootUi().
+    const host = document.createElement("sugarcube-inspector");
+    host.style.cssText =
+      "position:fixed;top:0;left:0;width:0;height:0;" +
+      "pointer-events:none;z-index:2147483647";
+    const shadow = host.attachShadow({ mode: "open" });
+    const style = document.createElement("style");
+    style.textContent = styles;
+    shadow.append(style);
+
+    const container = document.createElement("div");
+    container.style.pointerEvents = "auto";
+    shadow.append(container);
+    document.documentElement.append(host);
+
+    const root = ReactDOM.createRoot(container);
+    root.render(
+      <Drawer initialWidth={380}>
+        <DirectInspector />
+      </Drawer>,
+    );
   },
 });

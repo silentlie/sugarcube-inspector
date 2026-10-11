@@ -1,9 +1,0 @@
-#root { width: 100%; }
-main { max-width: 460px; padding: 20px; }
-h1 { font-size: 20px; margin: 0 0 12px; }
-p { line-height: 1.5; overflow-wrap: anywhere; }
-button { padding: 8px 12px; border: 1px solid #888; border-radius: 6px; cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: 0.5; }
-.secondary { display: block; margin-top: 16px; }
-.notice { margin-top: 14px; font-size: 12px; opacity: 0.75; }
-.error { color: #f87171; }

@@ -1,60 +1,44 @@
-# SugarCube Inspector: dual-mode proof of concept
+# SugarCube Inspector: direct MAIN-world proof of concept
 
-An on-page **SugarCube Inspector** drawer with two interchangeable live-inspection
-backends. This experimental branch is based on `main` and does not alter the
-existing snapshot, CDP-only, or DevTools-only draft PRs.
+This experiment branches from `feat/dual-mode-inspector-poc` but **does not run
+its CDP debugger or messaging bridge**. The entire inspector React tree runs in
+Chrome's MAIN JavaScript world, next to SugarCube itself.
 
-## Modes
+## What this proves
 
-- **MAIN world (default):** Inspect live SugarCube values using
-  `browser.scripting.executeScript({ world: "MAIN" })`. Descriptors are read
-  one level at a time and only small, JSON-compatible property summaries cross
-  extension messaging. Functions and accessors are labelled without invoking
-  ordinary getters. There is no whole-state snapshot or RPC cloning bridge.
-- **Debugger (opt-in session):** The **extension side panel** provides
-  **Connect debugger** / **Disconnect debugger**. While attached, the **same
-  on-page drawer** uses CDP `Runtime.evaluate` / `Runtime.getProperties`,
-  including remote object handles and private/internal property descriptions.
-  Returning to MAIN mode unmounts the CDP tree, invalidates old handles, and
-  reloads the live values from JavaScript.
+- React components call `SugarCube.State.variables` and
+  `SugarCube.State.temporary` directly, holding the original objects.
+- Nested lists receive **actual JS references**, not JSON or CDP object IDs.
+- Aliases and cycles stay referentially identical; accessors are described
+  without invoking their getters.
+- A deliberately limited `+1` button mutates a writable numeric property
+  **in the game itself**. The proof is observable in both the UI and the page.
+- No `browser.scripting.executeScript`, RPC, background inspection service,
+  side panel, or debugger attachment occurs during inspection.
 
-The drawer remains on the right edge of the game page in both modes.
-The side panel is only a backend controller. No custom DevTools tab is
-registered and neither backend transfers complete SugarCube objects.
+## How it works
 
-## Permissions and security
+`entrypoints/content.tsx` has `world: "MAIN"`. Because MAIN-world scripts do
+not receive WXT's usual content-script context, it creates a ShadowRoot
+directly, inlines compiled CSS, and mounts React into it.
 
-Chrome requires `debugger` permission to be **declared at install time**;
-Chrome does not allow it as an optional runtime permission. We still attach
-only after you click **Connect debugger**. Chrome shows its security banner
-while attached, and dismissing the banner disconnects the session. The drawer
-automatically returns to MAIN-world inspection when CDP detaches.
-
-Full Chrome DevTools and extension CDP sessions may conflict. Disconnect in
-the side panel if you want to use DevTools normally. Do not suppress the
-debugging warning in a regular browser profile.
+The drawer is isolated visually with Shadow DOM, **not** in JavaScript.
+The game and inspector now share a JS realm. A hostile or buggy game can
+interfere with the inspector, and inspector code can affect the game.
+Do not use this POC on untrusted pages.
 
 ## Try it
 
-1. With Node.js 24, run `npm ci && npm run build`.
-2. Load `.output/chrome-mv3` as an unpacked extension and enable access to
-   file URLs in its Details page.
-3. Open a local SugarCube HTML game. Hover over the right edge to reveal the
-   inspector. The default label is **MAIN world**.
-4. Expand the story/temporary trees and click **Refresh variables** to obtain
-   new values. The current tree is read-only; it never writes to the game.
-5. Click the extension icon to open its side panel, then **Connect debugger**.
-   The same drawer changes its label to **Debugger (CDP)**.
-6. Expand objects in debugger mode. Click **Disconnect debugger**, or allow
-   Chrome to detach the session, to return to MAIN-world inspection.
+1. Run `npm ci && npm run build`.
+2. Load `.output/chrome-mv3` in `chrome://extensions` and allow access to
+   local file URLs.
+3. Open a SugarCube HTML game and reveal the right-edge drawer.
+4. Expand any object, then click `+1` next to a writable number. The
+   actual game variable changes immediately.
+5. Test with `npm run lint && npm run compile && npm test &&
+   npm run test:browser`.
 
-## Scope
-
-Read-only dual-mode proof of concept. No editor, automatic watches, or
-persistent expansion state yet. Proxies can execute traps during reflection.
-CDP object handles expire when the session ends, the inspected context
-changes, or the tree is refreshed.
-
-Run `npm run lint`, `npm run compile`, `npm test`, and
-`npm run test:browser`. Browser CI exercises MAIN-world inspection. Manual
-Chrome testing is still needed for CDP attachment and DevTools coexistence.
+This is a **limited writable POC**, not a full variable editor. Getter
+execution, setters, arbitrary function invocation, and automatic deep
+watching are deliberately omitted. Variable lists refresh on passage
+navigation, manual refresh, and explicit edits.
