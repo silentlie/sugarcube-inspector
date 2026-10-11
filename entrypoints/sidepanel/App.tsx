@@ -1,167 +1,114 @@
 import "./App.css";
-
 import { useCallback, useEffect, useState } from "react";
-import type { SugarCubeObject } from "twine-sugarcube";
+import type { InspectorMode, ModeNotice, Reply, Request } from "@/src/inspection/protocol";
 
-type DetectionState =
-  | { status: "checking" }
-  | { status: "not-local" }
-  | { status: "not-detected" }
-  | {
-      status: "detected";
-      storyName?: string;
-      ifid?: string;
-      passage?: string;
-    }
-  | {
-      status: "error";
-      message: string;
-    };
+type View = {
+  tabId?: number;
+  title?: string;
+  local: boolean;
+  mode: InspectorMode;
+};
 
-async function readDetection(): Promise<DetectionState> {
-  const [tab] = await browser.tabs.query({
-    active: true,
-    currentWindow: true,
-  });
-
-  if (!tab || tab.id == null) {
-    return {
-      status: "error",
-      message: "No active tab found.",
-    };
+async function request(message: Request): Promise<InspectorMode> {
+  const response = await browser.runtime.sendMessage(message) as Reply;
+  if (!response?.ok) {
+    throw new Error(response?.error ?? "Inspector service did not respond.");
   }
-
-  if (!tab.url?.startsWith("file://")) {
-    return {
-      status: "not-local",
-    };
-  }
-
-  const [result] = await browser.scripting.executeScript({
-    target: {
-      tabId: tab.id,
-    },
-    world: "MAIN",
-    func: () => {
-      const page = globalThis as typeof globalThis & {
-        SugarCube?: SugarCubeObject;
-      };
-
-      const sc = page.SugarCube;
-
-      if (!sc?.State) {
-        return {
-          detected: false,
-        };
-      }
-
-      const storyData = document.querySelector("tw-storydata");
-
-      return {
-        detected: true,
-
-        version:
-          sc.version?.toString?.() ??
-          storyData?.getAttribute("format-version") ??
-          "",
-
-        storyName:
-          sc.Story?.name ??
-          sc.Story?.title ??
-          storyData?.getAttribute("name") ??
-          document.title,
-
-        ifid: sc.Story?.ifId ?? storyData?.getAttribute("ifid") ?? "",
-
-        passage: sc.State?.passage ?? "",
-
-        variableCount: Object.keys(sc.State?.variables ?? {}).length,
-      };
-    },
-  });
-
-  const info = result?.result;
-
-  if (!info?.detected) {
-    return {
-      status: "not-detected",
-    };
-  }
-
-  return {
-    status: "detected",
-    storyName: info.storyName,
-    ifid: info.ifid,
-    passage: info.passage,
-  };
+  if (!("mode" in response.data)) throw new Error("Unexpected inspector mode response.");
+  return response.data;
 }
 
 export default function App() {
-  const [detection, setDetection] = useState<DetectionState>({
-    status: "checking",
-  });
+  const [view, setView] = useState<View>({ local: false, mode: { mode: "main" } });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const readSugarCube = useCallback(() => {
-    void readDetection().then(setDetection, (error: unknown) => {
-      setDetection({
-        status: "error",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    });
+  const refresh = useCallback(async () => {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) {
+      setView({ local: false, mode: { mode: "main" } });
+      return;
+    }
+    const local = tab.url?.startsWith("file://") ?? false;
+    const mode = local
+      ? await request({ type: "inspector:status", tabId: tab.id })
+      : { mode: "main" as const };
+    setView({ tabId: tab.id, title: tab.title, local, mode });
   }, []);
 
-  function detectSugarCube() {
-    setDetection({ status: "checking" });
-    void readSugarCube();
-  }
-
   useEffect(() => {
-    void readSugarCube();
-  }, [readSugarCube]);
+    let active = true;
+    const check = () => {
+      void refresh().catch((cause: unknown) => {
+        if (active) setError(cause instanceof Error ? cause.message : String(cause));
+      });
+    };
+    // Keep initial async work outside the synchronous effect render.
+    void Promise.resolve().then(check);
+    const listen = (message: unknown) => {
+      if (typeof message !== "object" || message === null) return;
+      const notice = message as Partial<ModeNotice> & { tabId?: number };
+      if (notice.type !== "inspector:mode" || !notice.mode) return;
+      setView((current) => current.tabId === notice.tabId
+        ? { ...current, mode: notice.mode! } : current);
+    };
+    browser.runtime.onMessage.addListener(listen);
+    browser.tabs.onActivated.addListener(check);
+    return () => {
+      active = false;
+      browser.runtime.onMessage.removeListener(listen);
+      browser.tabs.onActivated.removeListener(check);
+    };
+  }, [refresh]);
+
+  async function switchMode() {
+    if (!view.tabId || busy) return;
+    const tabId = view.tabId;
+    const connecting = view.mode.mode === "main";
+    setBusy(true);
+    setError(null);
+    try {
+      const mode = await request({
+        type: connecting ? "inspector:connect" : "inspector:disconnect",
+        tabId,
+      });
+      setView((current) => current.tabId === tabId ? { ...current, mode } : current);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <main>
       <h1>SugarCube Inspector</h1>
-
-      {detection.status === "checking" && <p>Checking current page...</p>}
-
-      {detection.status === "not-local" && (
-        <p>Open a local HTML file to use the inspector.</p>
-      )}
-
-      {detection.status === "not-detected" && <p>❌ SugarCube not detected</p>}
-
-      {detection.status === "detected" && (
+      <p>The variable drawer stays on the right edge of the game page in both modes.</p>
+      {view.title && <p><strong>Tab:</strong> {view.title}</p>}
+      {!view.local ? (
+        <p>Open a local SugarCube HTML game to use the inspector.</p>
+      ) : (
         <>
-          <p>✅ SugarCube detected</p>
-
-          <dl>
-            <dt>Story</dt>
-            <dd>{detection.storyName || "Unknown"}</dd>
-
-            <dt>Passage</dt>
-            <dd>{detection.passage || "Unknown"}</dd>
-
-            {detection.ifid && (
-              <>
-                <dt>IFID</dt>
-                <dd>{detection.ifid}</dd>
-              </>
-            )}
-          </dl>
+          <p><strong>Inspection backend:</strong> {
+            view.mode.mode === "cdp" ? "Chrome debugger (CDP)" : "MAIN-world JavaScript"
+          }</p>
+          <button type="button" disabled={busy} onClick={() => { void switchMode(); }}>
+            {busy ? "Switching..." : view.mode.mode === "main"
+              ? "Connect debugger" : "Disconnect debugger"}
+          </button>
+          <p className="notice">
+            Debugger mode uses Chrome's debugging permission and displays a Chrome
+            security banner. Closing that banner disconnects the session and
+            returns the drawer to MAIN-world inspection.
+          </p>
         </>
       )}
-
-      {detection.status === "error" && (
-        <>
-          <p>⚠️ Unable to inspect page</p>
-          <pre>{detection.message}</pre>
-        </>
-      )}
-
-      <button type="button" onClick={detectSugarCube}>
-        Refresh
-      </button>
+      {error && <p role="alert" className="error">{error}</p>}
+      <button type="button" className="secondary" onClick={() => {
+        void refresh().catch((cause: unknown) => {
+          setError(cause instanceof Error ? cause.message : String(cause));
+        });
+      }}>Refresh status</button>
     </main>
   );
 }

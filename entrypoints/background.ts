@@ -1,7 +1,8 @@
+import { registerInspectionService } from "@/src/inspection/InspectionService";
+
 export default defineBackground(() => {
-  browser.sidePanel
-    .setPanelBehavior({
-      openPanelOnActionClick: true,
-    })
-    .catch(console.error);
+  registerInspectionService();
+  void browser.sidePanel.setPanelBehavior({
+    openPanelOnActionClick: true,
+  }).catch(console.error);
 });
