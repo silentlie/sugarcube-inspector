@@ -39,15 +39,16 @@ function applyPatchAtPath(root: unknown, path: readonly PathSegment[], patch: Va
       throw new RangeError(`Map entry index out of bounds: ${part.index}`);
     }
     const entry = entries[part.index]!;
-    if (rest.length === 0 && patch.op === "delete") {
-      entries.splice(part.index, 1);
-    } else {
+    if (rest.length > 0) {
       const old = entry[part.type === "mapKey" ? 0 : 1];
-      const replacement = rest.length
-        ? applyPatchAtPath(old, rest, patch)
-        : (patch as Extract<VariablePatch, { op: "set" }>).value;
+      const replacement = applyPatchAtPath(old, rest, patch);
       entries[part.index] = part.type === "mapKey"
         ? [replacement, entry[1]] : [entry[0], replacement];
+    } else if (patch.op === "delete") {
+      entries.splice(part.index, 1);
+    } else {
+      entries[part.index] = part.type === "mapKey"
+        ? [patch.value, entry[1]] : [entry[0], patch.value];
     }
     root.clear();
     for (const [key, value] of entries) root.set(key, value);
@@ -62,11 +63,12 @@ function applyPatchAtPath(root: unknown, path: readonly PathSegment[], patch: Va
     if (!Number.isInteger(part.index) || part.index < 0 || part.index >= values.length) {
       throw new RangeError(`Set entry index out of bounds: ${part.index}`);
     }
-    if (rest.length === 0 && patch.op === "delete") values.splice(part.index, 1);
-    else {
-      values[part.index] = rest.length
-        ? applyPatchAtPath(values[part.index], rest, patch)
-        : (patch as Extract<VariablePatch, { op: "set" }>).value;
+    if (rest.length > 0) {
+      values[part.index] = applyPatchAtPath(values[part.index], rest, patch);
+    } else if (patch.op === "delete") {
+      values.splice(part.index, 1);
+    } else {
+      values[part.index] = patch.value;
     }
     root.clear();
     for (const value of values) root.add(value);
@@ -75,20 +77,20 @@ function applyPatchAtPath(root: unknown, path: readonly PathSegment[], patch: Va
 
   const key = part.key;
   const record = root as Record<string | number, unknown>;
-  if (rest.length === 0 && patch.op === "delete") {
-    if (!Reflect.deleteProperty(record, key)) {
-      throw new TypeError(`Cannot delete non-configurable property: ${String(key)}`);
-    }
-  } else if (rest.length === 0 && key === "length" && isArray(root)) {
-    if (patch.op === "set") root.length = patch.value as number;
-  } else if (rest.length) {
+  if (rest.length > 0) {
     const previous = readPathChild(root, part);
     if (previous.status !== "found") {
       throw new Error("Variable patch ancestor does not exist.");
     }
     const next = applyPatchAtPath(previous.value, rest, patch);
     writeProperty(record, key, next);
-  } else if (patch.op === "set") {
+  } else if (patch.op === "delete") {
+    if (!Reflect.deleteProperty(record, key)) {
+      throw new TypeError(`Cannot delete non-configurable property: ${String(key)}`);
+    }
+  } else if (key === "length" && isArray(root)) {
+    root.length = patch.value as number;
+  } else {
     writeProperty(record, key, patch.value);
   }
   return root;

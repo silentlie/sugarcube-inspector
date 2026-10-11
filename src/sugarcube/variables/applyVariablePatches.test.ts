@@ -370,6 +370,41 @@ describe("in-place variable patches", () => {
     expect(set.size).toBe(0);
   });
 
+  it("rejects deletion of the non-configurable array length property", () => {
+    const inventory = ["sword", "shield"];
+    const stores = snapshot({ inventory });
+
+    expect(() => applyVariablePatches(stores, [{
+      op: "delete",
+      path: [{ type: "property", key: "story" }, prop("inventory"), prop("length")],
+    }])).toThrow(TypeError);
+
+    expect(inventory).toEqual(["sword", "shield"]);
+    expect(inventory.length).toBe(2);
+  });
+
+  it("applies terminal and nested Map and Set updates", () => {
+    const map = new Map([["hero", { hp: 10 }]]);
+    const set = new Set([{ hp: 10 }]);
+    const stores = snapshot({ map, set });
+    const scope = { type: "property" as const, key: "story" as const };
+
+    applyVariablePatches(stores, [
+      { op: "set", path: [scope, prop("map"), { type: "mapKey", index: 0 }], value: "player" },
+      { op: "set", path: [scope, prop("map"), { type: "mapValue", index: 0 }, prop("hp")], value: 20 },
+      { op: "set", path: [scope, prop("set"), { type: "setValue", index: 0 }, prop("hp")], value: 30 },
+    ]);
+    expect([...map]).toEqual([["player", { hp: 20 }]]);
+    expect([...set]).toEqual([{ hp: 30 }]);
+
+    applyVariablePatches(stores, [
+      { op: "set", path: [scope, prop("map"), { type: "mapValue", index: 0 }], value: { hp: 40 } },
+      { op: "set", path: [scope, prop("set"), { type: "setValue", index: 0 }], value: { hp: 50 } },
+    ]);
+    expect([...map]).toEqual([["player", { hp: 40 }]]);
+    expect([...set]).toEqual([{ hp: 50 }]);
+  });
+
   it("throws instead of silently ignoring deletion of a nonconfigurable property", () => {
     const player = {};
     Object.defineProperty(player, "locked", {
