@@ -47,6 +47,13 @@ function VariableList({ target }: { target: Target }) {
 
   useEffect(() => {
     let active = true;
+    let retryTimer: number | undefined;
+    const delay = () => new Promise<void>((resolve) => {
+      retryTimer = window.setTimeout(() => {
+        retryTimer = undefined;
+        resolve();
+      }, 250);
+    });
     const request = { target: JSON.parse(targetKey) as Target, offset: 0 };
     async function load(): Promise<void> {
       for (let attempt = 0; attempt < 12 && active; attempt++) {
@@ -56,7 +63,7 @@ function VariableList({ target }: { target: Target }) {
           // populating its variables. Retry an initially empty scope briefly.
           if (request.target.kind === "path" && request.target.path.segments.length === 0 &&
               value.total === 0 && attempt < 11) {
-            await new Promise((resolve) => setTimeout(resolve, 250));
+            await delay();
             continue;
           }
           if (active) setData(value);
@@ -67,12 +74,15 @@ function VariableList({ target }: { target: Target }) {
             if (active) setError(message);
             return;
           }
-          await new Promise((resolve) => setTimeout(resolve, 250));
+          await delay();
         }
       }
     }
     void load();
-    return () => { active = false; };
+    return () => {
+      active = false;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
   }, [targetKey]);
 
   async function loadMore() {

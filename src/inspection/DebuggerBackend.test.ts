@@ -101,6 +101,9 @@ describe("CDP opt-in inspection", () => {
     }, 0);
     const player = roots.entries.find((entry) => entry.name === "player")!;
     const reset = await backend.reset(42);
+    if (first.mode !== "cdp" || reset.mode !== "cdp") {
+      throw new Error("Expected a debugger session.");
+    }
     expect(reset.sessionId).not.toBe(first.sessionId);
     await expect(backend.inspect(42, player.target!, 0))
       .rejects.toThrow("Remote object handle expired");
