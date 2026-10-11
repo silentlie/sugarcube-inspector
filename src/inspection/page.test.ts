@@ -32,7 +32,7 @@ describe("live MAIN-world descriptor inspection", () => {
 
   it("inspects nested Map and Set entries on demand", () => {
     vi.stubGlobal("SugarCube", { State: { variables: {
-      map: new Map([["value", new Set(["one"])]),
+      map: new Map([["value", new Set(["one"])]]),
     }, temporary: { choice: "north" } } });
     const values = read({ root: "story", segments: [{ kind: "property", key: "map" }] });
     expect(values.entries.map(e => e.name)).toContain("[0] value");

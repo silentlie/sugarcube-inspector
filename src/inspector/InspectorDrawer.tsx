@@ -53,7 +53,9 @@ function VariableList({ target }: { target: Target }) {
 
   useEffect(() => {
     let active = true;
-    const request: Request = { type: "inspector:inspect", target, offset: 0 };
+    const request: Request = {
+      type: "inspector:inspect", target: JSON.parse(targetKey) as Target, offset: 0,
+    };
     void send(request).then(
       (value) => {
         if (active) setData(value as Inspection);
@@ -63,8 +65,6 @@ function VariableList({ target }: { target: Target }) {
       },
     );
     return () => { active = false; };
-    // targetKey changes only when the target address changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetKey]);
 
   async function loadMore() {
@@ -93,8 +93,8 @@ function VariableList({ target }: { target: Target }) {
   if (data.total === 0) return <p className="p-2 text-xs text-zinc-500">No properties</p>;
   return (
     <div>
-      {data.entries.map((entry, index) => (
-        <VariableRow key={entry.name + ":" + entry.category + ":" + index} entry={entry}/>
+      {data.entries.map((entry) => (
+        <VariableRow key={entry.name + ":" + entry.category} entry={entry}/>
       ))}
       {data.entries.length < data.total && (
         <button
