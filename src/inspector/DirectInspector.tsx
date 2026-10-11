@@ -7,27 +7,36 @@ import {
   incrementSlot, listChildren, readSlot, readStructure, sameSlot,
   sameStructure, variableWatcher, type VariableSlot,
 } from "../inspection/variableTree";
+import { useObservedVisibility } from "./useObservedVisibility";
 
 const PAGE_SIZE = 100;
+
+const noSubscription = () => () => {};
 
 function errorText(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
-function useVariable(slot: VariableSlot) {
+function useVariable(slot: VariableSlot, visible: boolean) {
   const subscription = useMemo(
     () => variableWatcher.watch(() => readSlot(slot), sameSlot),
-    [slot],
+    [slot, visible],
   );
-  return useSyncExternalStore(subscription.subscribe, subscription.getSnapshot);
+  return useSyncExternalStore(
+    visible ? subscription.subscribe : noSubscription,
+    subscription.getSnapshot,
+  );
 }
 
-function useStructure(value: object) {
+function useStructure(value: object, visible: boolean) {
   const subscription = useMemo(
     () => variableWatcher.watch(() => readStructure(value), sameStructure),
-    [value],
+    [value, visible],
   );
-  return useSyncExternalStore(subscription.subscribe, subscription.getSnapshot);
+  return useSyncExternalStore(
+    visible ? subscription.subscribe : noSubscription,
+    subscription.getSnapshot,
+  );
 }
 
 /** Each row subscribes to its own live location, not a copied parent entry. */
@@ -38,7 +47,8 @@ const VariableTile = memo(function VariableTile({
   name: string;
   ancestors: readonly object[];
 }) {
-  const current = useVariable(slot);
+  const { ref, visible } = useObservedVisibility();
+  const current = useVariable(slot, visible);
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const circular = current.expandable && ancestors.includes(current.value as object);
@@ -54,7 +64,7 @@ const VariableTile = memo(function VariableTile({
   }
 
   return (
-    <div>
+    <div ref={ref}>
       <div className="flex min-w-0 items-baseline gap-2 rounded px-2 py-1.5 text-xs hover:bg-zinc-800">
         {current.expandable && !circular ? (
           <button type="button"
@@ -95,7 +105,8 @@ function VariableChildren({
   value: object;
   ancestors: readonly object[];
 }) {
-  const structure = useStructure(value);
+  const { ref, visible } = useObservedVisibility();
+  const structure = useStructure(value, visible);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const lineage = useMemo(() => [...ancestors, value], [ancestors, value]);
   const children = useMemo(() => {
@@ -107,42 +118,48 @@ function VariableChildren({
     }
   }, [value, structure]);
 
-  if (structure.error) {
-    return <p role="alert" className="p-2 text-xs text-red-400">{structure.error}</p>;
-  }
-  if (children.length === 0) {
-    return <p className="p-2 text-xs text-zinc-500">No properties</p>;
-  }
-
   return (
-    <div>
-      {children.slice(0, limit).map((child) => (
-        <VariableTile key={child.id} slot={child.slot} name={child.name}
-          ancestors={lineage} />
-      ))}
-      {limit < children.length && (
-        <button type="button" className="p-2 text-xs text-sky-300"
-          onClick={() => setLimit((current) => current + PAGE_SIZE)}>
-          Load more ({Math.min(limit, children.length)}/{children.length})
-        </button>
+    <div ref={ref}>
+      {structure.error ? (
+        <p role="alert" className="p-2 text-xs text-red-400">{structure.error}</p>
+      ) : children.length === 0 ? (
+        <p className="p-2 text-xs text-zinc-500">No properties</p>
+      ) : (
+        <>
+          {children.slice(0, limit).map((child) => (
+            <VariableTile key={child.id} slot={child.slot} name={child.name}
+              ancestors={lineage} />
+          ))}
+          {limit < children.length && (
+            <button type="button" className="p-2 text-xs text-sky-300"
+              onClick={() => setLimit((current) => current + PAGE_SIZE)}>
+              Load more ({Math.min(limit, children.length)}/{children.length})
+            </button>
+          )}
+        </>
       )}
     </div>
   );
 }
 
 function VariableTree({ scope }: { scope: Scope }) {
+  const { ref, visible } = useObservedVisibility();
   const slot = useMemo<VariableSlot>(() => ({ kind: "root", scope }), [scope]);
-  const root = useVariable(slot);
-  if (!root.exists) {
-    return <p className="p-2 text-xs text-zinc-500">Waiting for SugarCube...</p>;
-  }
-  if (root.error) {
-    return <p role="alert" className="p-2 text-xs text-red-400">{root.error}</p>;
-  }
-  if (!isReference(root.value)) {
-    return <p className="p-2 text-xs text-zinc-500">{root.preview}</p>;
-  }
-  return <VariableChildren value={root.value} ancestors={[]} />;
+  const root = useVariable(slot, visible);
+
+  return (
+    <div ref={ref}>
+      {!root.exists ? (
+        <p className="p-2 text-xs text-zinc-500">Waiting for SugarCube...</p>
+      ) : root.error ? (
+        <p role="alert" className="p-2 text-xs text-red-400">{root.error}</p>
+      ) : isReference(root.value) ? (
+        <VariableChildren value={root.value} ancestors={[]} />
+      ) : (
+        <p className="p-2 text-xs text-zinc-500">{root.preview}</p>
+      )}
+    </div>
+  );
 }
 
 /** Entire tree and all subscriptions run in SugarCube's MAIN JS world. */
