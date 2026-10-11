@@ -1,12 +1,12 @@
 import { pathToKey, resolvePath, type PathKey, type PathResolution } from "./path";
 import type { SugarCubeVariables } from "../types";
 import type { VariablePath } from "../watch/types";
-import type { CollectionMembers } from "../watch/structure";
+import type { CollectionStructure } from "../watch/structure";
 
 /** Reads live SugarCube paths and tracks collection entry identities between polls. */
 export class LiveVariableService {
-  private previousCollections = new Map<PathKey, CollectionMembers>();
-  private pendingCollections = new Map<PathKey, CollectionMembers>();
+  private previousCollections = new Map<PathKey, CollectionStructure>();
+  private pendingCollections = new Map<PathKey, CollectionStructure>();
 
   read(stores: SugarCubeVariables, path: VariablePath): PathResolution {
     return resolvePath(stores, path);
@@ -19,8 +19,8 @@ export class LiveVariableService {
   /** Compare live identities after initial clone-to-live content comparison. */
   collectionChanged(
     path: VariablePath,
-    synchronized: CollectionMembers | null,
-    current: CollectionMembers | null,
+    synchronized: CollectionStructure | null,
+    current: CollectionStructure | null,
     sameValue: (previous: unknown, current: unknown) => boolean,
   ): boolean {
     const key = pathToKey(path);
@@ -29,13 +29,13 @@ export class LiveVariableService {
 
     // The synchronized collection contains clones; it cannot compare live identity.
     const tracked = this.previousCollections.get(key);
-    const previousEntries = tracked?.kind === current.kind ? tracked.entries : synchronized.entries;
+    const previousMembers = tracked?.kind === current.kind ? tracked.members : synchronized.members;
     const useLiveReferences = tracked?.kind === current.kind;
-    return previousEntries.length !== current.entries.length ||
-      previousEntries.some((member, index) =>
+    return previousMembers.length !== current.members.length ||
+      previousMembers.some((member, index) =>
         useLiveReferences
-          ? !Object.is(member, current.entries[index])
-          : !sameValue(member, current.entries[index]),
+          ? !Object.is(member, current.members[index])
+          : !sameValue(member, current.members[index]),
       );
   }
 

@@ -12,48 +12,48 @@ describe("live collection identity tracking", () => {
     const service = new LiveVariableService();
     const first = { hp: 100 };
     const replacement = { hp: 100 };
-    const baseline = { kind: "set" as const, entries: [{ hp: 100 }] };
+    const baseline = { kind: "set" as const, members: [{ hp: 100 }] };
     const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
     service.beginPoll();
-    expect(service.collectionChanged(path, baseline, { kind: "set", entries: [first] }, equal)).toBe(false);
+    expect(service.collectionChanged(path, baseline, { kind: "set", members: [first] }, equal)).toBe(false);
     service.commitPoll();
 
     service.beginPoll();
-    expect(service.collectionChanged(path, baseline, { kind: "set", entries: [replacement] }, equal)).toBe(true);
+    expect(service.collectionChanged(path, baseline, { kind: "set", members: [replacement] }, equal)).toBe(true);
     service.commitPoll();
   });
 
   it("does not treat mutations within the same member as membership changes", () => {
     const service = new LiveVariableService();
     const member = { hp: 100 };
-    const baseline = { kind: "set" as const, entries: [{ hp: 100 }] };
+    const baseline = { kind: "set" as const, members: [{ hp: 100 }] };
     service.beginPoll();
-    service.collectionChanged(path, baseline, { kind: "set", entries: [member] }, () => true);
+    service.collectionChanged(path, baseline, { kind: "set", members: [member] }, () => true);
     service.commitPoll();
 
     member.hp = 50;
     service.beginPoll();
-    expect(service.collectionChanged(path, baseline, { kind: "set", entries: [member] }, () => false)).toBe(false);
+    expect(service.collectionChanged(path, baseline, { kind: "set", members: [member] }, () => false)).toBe(false);
   });
 
   it("forgets collections no longer observed and resets on snapshots", () => {
     const service = new LiveVariableService();
-    const baseline = { kind: "set" as const, entries: [{ hp: 100 }] };
+    const baseline = { kind: "set" as const, members: [{ hp: 100 }] };
     const first = { hp: 100 };
     const other = { hp: 100 };
     service.beginPoll();
-    service.collectionChanged(path, baseline, { kind: "set", entries: [first] }, () => true);
+    service.collectionChanged(path, baseline, { kind: "set", members: [first] }, () => true);
     service.commitPoll();
 
     service.beginPoll();
     service.commitPoll();
     service.beginPoll();
-    expect(service.collectionChanged(path, baseline, { kind: "set", entries: [other] }, () => true)).toBe(false);
+    expect(service.collectionChanged(path, baseline, { kind: "set", members: [other] }, () => true)).toBe(false);
     service.commitPoll();
 
     service.reset();
     service.beginPoll();
-    expect(service.collectionChanged(path, baseline, { kind: "set", entries: [first] }, () => true)).toBe(false);
+    expect(service.collectionChanged(path, baseline, { kind: "set", members: [first] }, () => true)).toBe(false);
   });
 });

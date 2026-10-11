@@ -2,7 +2,7 @@ import type { SugarCubeSnapshot, SugarCubeVariables } from "../types";
 import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./types";
 import { collectionPaths, minimizeWatchPaths, structurePaths } from "./watchPaths";
 import { sameEntry, sameValue } from "./comparison";
-import { collectionMembers, sameStructure, structureOf } from "./structure";
+import { collectionStructure, sameStructure, structureOf } from "./structure";
 import { isPathPrefix, pathToKey, resolvePath, type PathKey } from "../variables/path";
 import { LiveVariableService } from "../variables/LiveVariableService";
 import { SynchronizedVariableStore } from "../variables/SynchronizedVariableStore";
@@ -42,18 +42,18 @@ export class WatchService {
       const key = pathToKey(path);
       const previous = this.synchronized.read(path);
       const current = this.live.read(stores, path);
-      const oldMembers = previous.status === "found" ? collectionMembers(previous.value) : null;
-      const newMembers = current.status === "found" ? collectionMembers(current.value) : null;
+      const oldStructure = previous.status === "found" ? collectionStructure(previous.value) : null;
+      const newStructure = current.status === "found" ? collectionStructure(current.value) : null;
 
       const entriesChanged = this.live.collectionChanged(
-        path, oldMembers, newMembers,
+        path, oldStructure, newStructure,
         (previous, current) => sameValue(previous, current, key, this.circularPaths),
       );
-      if (!oldMembers && !newMembers) continue;
+      if (!oldStructure && !newStructure) continue;
 
       // If the container itself changed type or became missing, restore the
       // nearest real ancestor instead of fabricating intermediate containers.
-      if (!oldMembers || !newMembers || oldMembers.kind !== newMembers.kind) {
+      if (!oldStructure || !newStructure || oldStructure.kind !== newStructure.kind) {
         const restorePath = (previous.status !== "found" ? previous.path
           : current.status !== "found" ? current.path : path) as VariablePath;
         const restored = this.live.read(stores, restorePath);

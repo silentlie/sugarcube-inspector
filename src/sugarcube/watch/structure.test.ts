@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { sameStructure, structureOf } from "./structure";
+import { collectionStructure, sameStructure, structureOf } from "./structure";
 
 const identical = Object.is;
 
 describe("sameStructure", () => {
+  it("reuses the same collection representation for structural and live tracking", () => {
+    const map = new Map<unknown, unknown>([["hp", 10], ["mp", 5]]);
+    const set = new Set<unknown>(["hp", "mp"]);
+    expect(collectionStructure(map)).toEqual({ kind: "map", members: ["hp", "mp"] });
+    expect(collectionStructure(set)).toEqual({ kind: "set", members: ["hp", "mp"] });
+    expect(structureOf(map)).toEqual(collectionStructure(map));
+    expect(structureOf(set)).toEqual(collectionStructure(set));
+    expect(collectionStructure({ hp: 10 })).toBeNull();
+  });
+
   it("treats object keys as unordered and ignores existing property values", () => {
     const before = structureOf({ hp: 100, mp: 50 });
     expect(sameStructure(before, structureOf({ mp: 10, hp: 20 }), identical)).toBe(true);

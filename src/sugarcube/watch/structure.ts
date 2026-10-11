@@ -1,18 +1,31 @@
 import { isArray, isArrayBuffer, isDate, isError, isMap, isRegExp, isSet, isWeakMap, isWeakSet } from "@sindresorhus/is";
 import { isNonFunctionObject } from "../../utils/isNonFunctionObject";
 
+/** Map keys and Set values identify positional collection entries. */
+export type CollectionStructure = {
+  kind: "map" | "set";
+  members: unknown[];
+};
+
 type Structure =
   | { kind: "object"; keys: string[] }
   | { kind: "array"; keys: string[]; length: number }
-  | { kind: "map" | "set"; keys: unknown[] };
+  | CollectionStructure;
+
+/** Extract the ordered members used to identify Map/Set entries. */
+export function collectionStructure(value: unknown): CollectionStructure | null {
+  if (isMap(value)) return { kind: "map", members: [...value.keys()] };
+  if (isSet(value)) return { kind: "set", members: [...value.values()] };
+  return null;
+}
 
 export function structureOf(value: unknown): Structure | null {
   if (!isNonFunctionObject(value)) return null;
   if (isArray(value)) {
     return { kind: "array", keys: Object.keys(value), length: value.length };
   }
-  if (isMap(value)) return { kind: "map", keys: [...value.keys()] };
-  if (isSet(value)) return { kind: "set", keys: [...value.values()] };
+  const collection = collectionStructure(value);
+  if (collection) return collection;
   if (isDate(value) || isRegExp(value) || isError(value) ||
       isArrayBuffer(value) || ArrayBuffer.isView(value) ||
       isWeakMap(value) || isWeakSet(value)) return null;
@@ -31,10 +44,13 @@ export function sameStructure(
   if (!previous || !current) return previous === current;
   if (previous.kind !== current.kind) return false;
 
-  if (previous.kind === "map" || previous.kind === "set") {
-    return previous.keys.length === current.keys.length &&
-      previous.keys.every((member, index) => sameMember(member, current.keys[index]));
+  if ("members" in previous) {
+    if (!("members" in current)) return false;
+    return previous.members.length === current.members.length &&
+      previous.members.every((member, index) => sameMember(member, current.members[index]));
   }
+
+  if ("members" in current) return false;
 
   if (previous.kind === "array" && current.kind === "array" &&
       previous.length !== current.length) return false;
@@ -44,12 +60,4 @@ export function sameStructure(
     previous.keys.every((key) => currentKeys.has(key));
 }
 
-/** Map keys and Set values define the meaning of positional entry paths. */
-export type CollectionMembers = { kind: "map" | "set"; entries: unknown[] };
-
-export function collectionMembers(value: unknown): CollectionMembers | null {
-  if (isMap(value)) return { kind: "map", entries: [...value.keys()] };
-  if (isSet(value)) return { kind: "set", entries: [...value.values()] };
-  return null;
-}
 
