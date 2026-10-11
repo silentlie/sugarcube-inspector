@@ -27,6 +27,7 @@
     "lucide-react": "^1.54.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-intersection-observer": "^11.0.1",
     "tailwindcss": "^4.3.3",
     "zod": "^4.6.5"
   },

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { incrementSlot, type VariableSlot } from "../inspection/variableSlots";
 import { listChildren } from "../inspection/variableStructure";
 import { variableWatcher } from "../inspection/variableWatcher";
-import { useObservedVisibility } from "./useObservedVisibility";
+import { useInView } from "react-intersection-observer";
 import { useStructure, useVariable } from "./useVariableWatch";
 
 const PAGE_SIZE = 100;
@@ -19,7 +19,7 @@ function VariableTile({
   name: string;
   ancestors: readonly object[];
 }) {
-  const { ref, visible } = useObservedVisibility();
+  const { ref, inView: visible } = useInView();
   const current = useVariable(slot, visible);
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +77,7 @@ export function VariableChildren({
   value: object;
   ancestors: readonly object[];
 }) {
-  const { ref, visible } = useObservedVisibility();
+  const { ref, inView: visible } = useInView();
   const structure = useStructure(value, visible);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const lineage = useMemo(() => [...ancestors, value], [ancestors, value]);

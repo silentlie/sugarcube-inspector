@@ -2,11 +2,11 @@ import { useMemo } from "react";
 import { isReference, type Scope } from "../inspection/direct";
 import type { VariableSlot } from "../inspection/variableSlots";
 import { VariableChildren } from "./VariableTile";
-import { useObservedVisibility } from "./useObservedVisibility";
+import { useInView } from "react-intersection-observer";
 import { useVariable } from "./useVariableWatch";
 
 export default function VariableTree({ scope }: { scope: Scope }) {
-  const { ref, visible } = useObservedVisibility();
+  const { ref, inView: visible } = useInView();
   const slot = useMemo<VariableSlot>(() => ({ kind: "root", scope }), [scope]);
   const root = useVariable(slot, visible);
 
