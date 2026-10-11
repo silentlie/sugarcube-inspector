@@ -1,19 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { isRequest } from "./protocol";
+import {
+  InspectRequestSchema, StatusRequestSchema, TabRequestSchema,
+} from "./protocol";
 
-describe("inspector request types", () => {
-  it("accepts connect, status, refresh and bounded inspect", () => {
-    expect(isRequest({ type: "inspector:connect", tabId: 1 })).toBe(true);
-    expect(isRequest({ type: "inspector:status" })).toBe(true);
-    expect(isRequest({ type: "inspector:refresh" })).toBe(true);
-    expect(isRequest({ type: "inspector:inspect", target: {
-      kind: "path", path: { root: "story", segments: [] },
-    }, offset: 0 })).toBe(true);
+describe("inspector request validation", () => {
+  it("accepts valid requests", () => {
+    expect(StatusRequestSchema.safeParse({}).success).toBe(true);
+    expect(TabRequestSchema.safeParse({ tabId: 1 }).success).toBe(true);
+    expect(InspectRequestSchema.safeParse({
+      target: { kind: "path", path: { root: "story", segments: [] } },
+      offset: 0,
+    }).success).toBe(true);
   });
-  it("rejects invalid messages", () => {
-    expect(isRequest(null)).toBe(false);
-    expect(isRequest({ type: "inspector:connect", tabId: -1 })).toBe(false);
-    expect(isRequest({ type: "inspector:inspect", target: {}, offset: -2 })).toBe(false);
-    expect(isRequest({ type: "legacy:getSnapshot" })).toBe(false);
+
+  it("rejects malformed tabs, offsets and nested targets", () => {
+    expect(TabRequestSchema.safeParse({ tabId: -1 }).success).toBe(false);
+    expect(StatusRequestSchema.safeParse({ tabId: -1 }).success).toBe(false);
+    expect(InspectRequestSchema.safeParse({
+      target: { kind: "path", path: { root: "invalid", segments: [] } },
+      offset: 0,
+    }).success).toBe(false);
+    expect(InspectRequestSchema.safeParse({
+      target: { kind: "path", path: { root: "story", segments: [] } },
+      offset: -2,
+    }).success).toBe(false);
+    expect(InspectRequestSchema.safeParse({
+      target: { kind: "remote", objectId: "object" },
+      offset: 0,
+    }).success).toBe(false);
   });
 });

@@ -2,7 +2,10 @@ import { browser } from "wxt/browser";
 import { DebuggerBackend } from "./DebuggerBackend";
 import { onMessage, sendMessage } from "./messaging";
 import { decodeInspection, inspectInPage } from "./page";
-import { isRequest, type InspectorMode, type Inspection } from "./protocol";
+import {
+  InspectRequestSchema, StatusRequestSchema, TabRequestSchema,
+  type InspectorMode, type Inspection, type Target,
+} from "./protocol";
 
 export class InspectionService {
   private readonly debugger = new DebuggerBackend((tabId) => {
@@ -65,11 +68,6 @@ export class InspectionService {
       })),
     };
   }
-
-}
-
-function assertValidRequest(request: unknown): void {
-  if (!isRequest(request)) throw new Error("Invalid inspector request.");
 }
 
 function requireTabId(tabId: number | undefined): number {
@@ -81,27 +79,26 @@ export function registerInspectionService(): void {
   const inspection = new InspectionService();
 
   onMessage("inspector:status", ({ data, sender }) => {
-    assertValidRequest({ type: "inspector:status", ...data });
-    return inspection.mode(requireTabId(data.tabId ?? sender.tab?.id));
+    const { tabId } = StatusRequestSchema.parse(data);
+    return inspection.mode(requireTabId(tabId ?? sender.tab?.id));
   });
 
   onMessage("inspector:connect", ({ data }) => {
-    assertValidRequest({ type: "inspector:connect", ...data });
-    return inspection.connect(data.tabId);
+    const { tabId } = TabRequestSchema.parse(data);
+    return inspection.connect(tabId);
   });
 
   onMessage("inspector:disconnect", ({ data }) => {
-    assertValidRequest({ type: "inspector:disconnect", ...data });
-    return inspection.disconnect(data.tabId);
+    const { tabId } = TabRequestSchema.parse(data);
+    return inspection.disconnect(tabId);
   });
 
   onMessage("inspector:refresh", ({ sender }) => {
-    assertValidRequest({ type: "inspector:refresh" });
     return inspection.refresh(requireTabId(sender.tab?.id));
   });
 
   onMessage("inspector:inspect", ({ data, sender }) => {
-    assertValidRequest({ type: "inspector:inspect", ...data });
-    return inspection.inspect(requireTabId(sender.tab?.id), data.target, data.offset);
+    const { target, offset } = InspectRequestSchema.parse(data);
+    return inspection.inspect(requireTabId(sender.tab?.id), target, offset);
   });
 }

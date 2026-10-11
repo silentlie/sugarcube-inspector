@@ -1,13 +1,54 @@
-export type Scope = "story" | "temporary";
-export type Segment =
-  | { kind: "property"; key: string }
-  | { kind: "symbol"; index: number }
-  | { kind: "mapKey" | "mapValue" | "setValue"; index: number };
-export type Path = { root: Scope; segments: Segment[] };
-export type Target =
-  | { kind: "path"; path: Path }
-  | { kind: "remote"; sessionId: string; objectId: string };
-export type InspectorMode = { mode: "main" | "cdp"; sessionId?: string };
+import { z } from "zod";
+
+const indexSchema = z.number().int().nonnegative();
+
+export const SegmentSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("property"), key: z.string() }),
+  z.object({ kind: z.literal("symbol"), index: indexSchema }),
+  z.object({ kind: z.literal("mapKey"), index: indexSchema }),
+  z.object({ kind: z.literal("mapValue"), index: indexSchema }),
+  z.object({ kind: z.literal("setValue"), index: indexSchema }),
+]);
+
+export const PathSchema = z.object({
+  root: z.enum(["story", "temporary"]),
+  segments: z.array(SegmentSchema),
+});
+
+export const TargetSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("path"), path: PathSchema }),
+  z.object({
+    kind: z.literal("remote"),
+    sessionId: z.string(),
+    objectId: z.string(),
+  }),
+]);
+
+export const StatusRequestSchema = z.object({
+  tabId: indexSchema.optional(),
+});
+
+export const TabRequestSchema = z.object({
+  tabId: indexSchema,
+});
+
+export const InspectRequestSchema = z.object({
+  target: TargetSchema,
+  offset: indexSchema.max(100_000),
+});
+
+export type Scope = z.infer<typeof PathSchema>["root"];
+export type Segment = z.infer<typeof SegmentSchema>;
+export type Path = z.infer<typeof PathSchema>;
+export type Target = z.infer<typeof TargetSchema>;
+export type StatusRequest = z.infer<typeof StatusRequestSchema>;
+export type TabRequest = z.infer<typeof TabRequestSchema>;
+export type InspectRequest = z.infer<typeof InspectRequestSchema>;
+
+export type InspectorMode =
+  | { mode: "main" }
+  | { mode: "cdp"; sessionId: string };
+
 export type Entry = {
   name: string;
   preview: string;
@@ -16,28 +57,5 @@ export type Entry = {
   nonEnumerable?: boolean;
   category?: "own" | "internal" | "private";
 };
-export type Inspection = { entries: Entry[]; total: number; offset: number };
-export type Request =
-  | { type: "inspector:status"; tabId?: number }
-  | { type: "inspector:connect"; tabId: number }
-  | { type: "inspector:disconnect"; tabId: number }
-  | { type: "inspector:inspect"; target: Target; offset: number }
-  | { type: "inspector:refresh" };
 
-export function isRequest(value: unknown): value is Request {
-  if (typeof value !== "object" || value === null) return false;
-  const v = value as Record<string, unknown>;
-  switch (v.type) {
-    case "inspector:status":
-      return v.tabId === undefined || (typeof v.tabId === "number" && Number.isInteger(v.tabId));
-    case "inspector:connect":
-    case "inspector:disconnect":
-      return typeof v.tabId === "number" && Number.isInteger(v.tabId) && v.tabId >= 0;
-    case "inspector:inspect":
-      return typeof v.offset === "number" && Number.isSafeInteger(v.offset) &&
-        v.offset >= 0 && v.offset <= 100000 &&
-        typeof v.target === "object" && v.target !== null;
-    case "inspector:refresh": return true;
-    default: return false;
-  }
-}
+export type Inspection = { entries: Entry[]; total: number; offset: number };

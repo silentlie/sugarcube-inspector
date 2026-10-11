@@ -1,13 +1,15 @@
 import { defineExtensionMessaging } from "@webext-core/messaging";
-import type { Inspection, InspectorMode, Target } from "./protocol";
+import type {
+  InspectRequest, Inspection, InspectorMode, StatusRequest, TabRequest,
+} from "./protocol";
 
 interface InspectionMessages {
-  "inspector:status"(data: { tabId?: number }): InspectorMode;
-  "inspector:connect"(data: { tabId: number }): InspectorMode;
-  "inspector:disconnect"(data: { tabId: number }): InspectorMode;
+  "inspector:status"(data: StatusRequest): InspectorMode;
+  "inspector:connect"(data: TabRequest): InspectorMode;
+  "inspector:disconnect"(data: TabRequest): InspectorMode;
   "inspector:refresh"(): InspectorMode;
-  "inspector:inspect"(data: { target: Target; offset: number }): Inspection;
-  "inspector:mode"(data: { mode: InspectorMode; tabId?: number }): void;
+  "inspector:inspect"(data: InspectRequest): Inspection;
+  "inspector:mode"(data: { mode: InspectorMode; tabId: number }): void;
 }
 
 export const { sendMessage, onMessage } =
