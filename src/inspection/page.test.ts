@@ -39,7 +39,7 @@ describe("live MAIN-world descriptor inspection", () => {
     // Some SugarCube stories override JSON.stringify to transform undefined.
     const stringify = JSON.stringify;
     vi.stubGlobal("JSON", {
-      ...JSON,
+      parse: JSON.parse,
       stringify(value: unknown) {
         return stringify(value, (_key, item) => item === undefined ? [] : item);
       },
