@@ -27,6 +27,14 @@ Chrome's MAIN JavaScript world, next to SugarCube itself.
 
 ## How it works
 
+The inspection logic is split into direct MAIN-world utilities
+(`src/inspection/direct.ts`), live location reads/writes
+(`variableSlots.ts`), child/structure discovery (`variableStructure.ts`),
+and the shared polling scheduler (`variableWatcher.ts`). React's
+`VariableTree.tsx` and `VariableTile.tsx` render the recursive tree, with
+`useVariableWatch.ts` connecting subscriptions to React.
+
+
 `entrypoints/content.tsx` has `world: "MAIN"`. Because MAIN-world scripts do
 not receive WXT's usual content-script context, it creates a ShadowRoot
 directly, inlines compiled CSS, and mounts React into it.
@@ -47,9 +55,8 @@ Do not use this POC on untrusted pages.
 5. Test with `npm run lint && npm run compile && npm test &&
    npm run test:browser`.
 
-This is a **limited writable POC**, not a full variable editor. Getter
-execution, setters, arbitrary function invocation, and automatic deep
-getter watching are deliberately omitted. Active tiles automatically detect
+This is a **limited writable POC**, not a full variable editor. Invoking
+getters, setters, and arbitrary functions is deliberately omitted. Active tiles automatically detect
 changes on a shared 250ms polling interval **while visible**. Scrolling a tile
 back into view re-reads its current value. Expanded container structures are
 observed while their subtree is visible, so scrolling into the tree detects new

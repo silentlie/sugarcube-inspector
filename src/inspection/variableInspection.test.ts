@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  VariableWatcher, incrementSlot, listChildren, readSlot, readStructure,
-  sameSlot, sameStructure,
-} from "./variableTree";
+import { incrementSlot, readSlot, sameSlot } from "./variableSlots";
+import { listChildren, readStructure, sameStructure } from "./variableStructure";
+import { VariableWatcher } from "./variableWatcher";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -79,6 +78,19 @@ describe("recursive variable slots", () => {
     const getterSlot = listChildren(parent).find((item) => item.name === "derived")!;
     expect(readSlot(getterSlot.slot).preview).toBe("[getter]");
     expect(getter).not.toHaveBeenCalled();
+  });
+
+
+  it("rejects writes to missing and readonly properties", () => {
+    const object = {};
+    Object.defineProperty(object, "readonly", {
+      value: 5, writable: false, enumerable: true,
+    });
+    const readonly = listChildren(object)[0]!.slot;
+    expect(readSlot(readonly).writableNumber).toBe(false);
+    expect(() => incrementSlot(readonly)).toThrow("cannot be incremented");
+    expect(() => incrementSlot({ kind: "property", owner: object, key: "missing" }))
+      .toThrow("cannot be incremented");
   });
 
   it("retains stable property IDs across object additions", () => {
