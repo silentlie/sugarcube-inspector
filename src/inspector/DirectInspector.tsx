@@ -112,12 +112,19 @@ export default function DirectInspector() {
   }, [refresh]);
 
   useEffect(() => {
-    if (getStore(scope) !== undefined) return;
+    // SugarCube can publish its stores before the startup passage populates
+    // them. A present but initially empty store is not yet ready to display.
+    const populated = () => {
+      const store = getStore(scope);
+      return isReference(store) && Reflect.ownKeys(store).length > 0;
+    };
+    if (populated()) return;
+
+    let attempts = 0;
     const timer = window.setInterval(() => {
-      if (getStore(scope) !== undefined) {
-        window.clearInterval(timer);
-        refresh();
-      }
+      attempts++;
+      refresh();
+      if (populated() || attempts >= 20) window.clearInterval(timer);
     }, 250);
     return () => window.clearInterval(timer);
   }, [scope, refresh]);
