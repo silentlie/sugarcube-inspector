@@ -1,43 +1,39 @@
+import { z } from "zod";
+import { SegmentSchema, type Path, type Segment } from "./protocol";
+
 /**
- * This runs INSIDE the inspected game via devtools.inspectedWindow.eval().
- *
- * Keep it self-contained: the extension sends its source as an expression.
- * It returns only a JSON string of ONE LEVEL of property metadata, never live
- * objects/functions. Property descriptors avoid intentionally calling getters.
+ * Runs in the page's MAIN world via scripting.executeScript().
+ * Keep inspectInPage self-contained; it cannot rely on module runtime values.
+ * Only one level of property metadata is returned, without invoking getters.
  */
-export type PathPart =
-  | { kind: "property"; key: string }
-  | { kind: "symbol"; index: number }
-  | { kind: "mapKey"; index: number }
-  | { kind: "mapValue"; index: number }
-  | { kind: "setValue"; index: number };
-
-export type InspectPath = {
-  root: "story" | "temporary";
-  segments: PathPart[];
-};
-
 export type InspectEntry = {
   name: string;
-  segment: PathPart;
+  segment: Segment;
   preview: string;
   expandable: boolean;
   nonEnumerable?: boolean;
   accessor?: "getter" | "setter" | "getter/setter";
 };
 
-export type InspectResult = {
-  entries: InspectEntry[];
-  total: number;
-  offset: number;
-};
+const InspectResultSchema = z.object({
+  entries: z.array(z.object({
+    name: z.string(),
+    segment: SegmentSchema,
+    preview: z.string(),
+    expandable: z.boolean(),
+    nonEnumerable: z.boolean().optional(),
+    accessor: z.enum(["getter", "setter", "getter/setter"]).optional(),
+  })),
+  total: z.number().int().nonnegative(),
+  offset: z.number().int().nonnegative(),
+});
 
-export const PAGE_SIZE = 100;
+export type InspectResult = z.infer<typeof InspectResultSchema>;
 
-export function inspectInPage(path: InspectPath, offset: number): string {
+export function inspectInPage(path: Path, offset: number): string {
   // All functions and constants used in this body must live here, not in the
   // extension closure. Evaluation takes place in a different JS world.
-  type Part = PathPart;
+  type Part = Segment;
   type Entry = InspectEntry;
   const limit = 100;
 
@@ -182,35 +178,14 @@ export function inspectInPage(path: InspectPath, offset: number): string {
   }
 }
 
-export function inspectExpression(path: InspectPath, offset = 0): string {
-  return `(${inspectInPage.toString()})(${JSON.stringify(path)}, ${offset})`;
-}
-
 export function decodeInspection(response: unknown): InspectResult {
-  const raw = response && typeof response === "object" && "result" in response
-    ? (response as { result: unknown }).result
-    : response;
-  if (typeof raw !== "string") throw new Error("Unexpected DevTools inspection response.");
-  const data: unknown = JSON.parse(raw);
-  if (typeof data !== "object" || data === null) {
-    throw new Error("Invalid inspection response.");
+  if (typeof response !== "string") {
+    throw new Error("Unexpected MAIN-world inspection response.");
   }
-  if ("error" in data && typeof data.error === "string") {
+  const data: unknown = JSON.parse(response);
+  if (typeof data === "object" && data !== null &&
+      "error" in data && typeof data.error === "string") {
     throw new Error(data.error);
   }
-  if (!("entries" in data) || !Array.isArray(data.entries) ||
-      !("total" in data) || typeof data.total !== "number" ||
-      !("offset" in data) || typeof data.offset !== "number") {
-    throw new Error("Invalid inspection response.");
-  }
-  for (const entry of data.entries) {
-    if (typeof entry !== "object" || entry === null ||
-        typeof entry.name !== "string" ||
-        typeof entry.preview !== "string" ||
-        typeof entry.expandable !== "boolean" ||
-        typeof entry.segment !== "object" || entry.segment === null) {
-      throw new Error("Invalid property in inspection response.");
-    }
-  }
-  return data as InspectResult;
+  return InspectResultSchema.parse(data);
 }

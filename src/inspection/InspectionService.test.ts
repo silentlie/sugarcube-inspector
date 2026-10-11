@@ -85,14 +85,16 @@ describe("inspection extension messaging", () => {
   });
 
   it("rejects invalid requests and missing sender tabs", async () => {
-    await expect(dispatch("inspector:connect", { tabId: -1 })).rejects.toThrow(
-      "Invalid inspector request",
-    );
+    await expect(dispatch("inspector:connect", { tabId: -1 })).rejects.toThrow();
     await expect(dispatch("inspector:inspect", {
       target: { kind: "path" }, offset: -1,
-    }, 23)).rejects.toThrow("Invalid inspector request");
+    }, 23)).rejects.toThrow();
     await expect(dispatch("inspector:refresh", undefined)).rejects.toThrow(
       "No inspected game tab was found",
     );
+    await expect(dispatch("inspector:inspect", {
+      target: { kind: "path", path: { root: "invalid", segments: [] } },
+      offset: 0,
+    }, 23)).rejects.toThrow();
   });
 });

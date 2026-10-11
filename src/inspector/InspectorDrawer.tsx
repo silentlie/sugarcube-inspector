@@ -1,6 +1,6 @@
-import { onMessage, sendMessage } from "../inspection/messaging";
-import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { onMessage, sendMessage } from "../inspection/messaging";
 import type { Entry, Inspection, InspectorMode, Target } from "../inspection/protocol";
 
 function errorText(cause: unknown): string {
@@ -171,7 +171,7 @@ export default function InspectorDrawer() {
     }
   }, []);
 
-  const key = `${mode.mode}:${mode.sessionId ?? "main"}:${revision}:${scope}`;
+  const key = `${mode.mode}:${mode.mode === "cdp" ? mode.sessionId : "main"}:${revision}:${scope}`;
   const target: Target = { kind: "path", path: { root: scope, segments: [] } };
 
   return (
