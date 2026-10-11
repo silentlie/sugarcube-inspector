@@ -1,3 +1,4 @@
+import type {} from "twine-sugarcube";
 import type { Page } from "@playwright/test";
 import { expect, storyUrl, test } from "./fixtures";
 
@@ -29,7 +30,10 @@ test("the UI edits the actual game object without messaging or serialization", a
 
   await drawer.getByRole("button", { name: "Increment score" }).click();
   await expect(drawer.getByTitle("8", { exact: true })).toBeVisible();
-  expect(await page.evaluate(() => SugarCube.State.variables.score)).toBe(8);
+  expect(await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    return vars.score;
+  })).toBe(8);
 
   // A function and an object with circular references are not serializable
   // through ordinary JSON, but direct inspection still works.
@@ -49,7 +53,7 @@ test("the UI edits the actual game object without messaging or serialization", a
   await drawer.getByRole("button", { name: "Increment health" }).click();
   expect(await page.evaluate(() => {
     const vars = SugarCube.State.variables as unknown as Record<string, { health: number }>;
-    return vars.player.health === 101 && vars.leader.health === 101 &&
+    return vars.player?.health === 101 && vars.leader?.health === 101 &&
       Object.is(vars.player, vars.leader);
   })).toBe(true);
 });
