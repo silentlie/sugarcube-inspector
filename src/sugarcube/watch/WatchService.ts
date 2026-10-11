@@ -1,32 +1,58 @@
-import type { SugarCubeSnapshot, SugarCubeVariables } from "../types";
+import type { SugarCubeSnapshot } from "../types";
 import type { WatchPatch, WatchRequest, WatchResponse, VariablePath } from "./types";
 import { collectionPaths, minimizeWatchPaths, structurePaths } from "./watchPaths";
 import { sameEntry, sameValue } from "./comparison";
-import { collectionStructure, sameStructure, structureOf } from "./structure";
+import { collectionStructure, sameStructure, structureOf, type CollectionStructure } from "./structure";
 import { isPathPrefix, pathToKey, resolvePath, type PathKey } from "../variables/path";
-import { LiveVariableService } from "../variables/LiveVariableService";
+import { SugarCubeService } from "../SugarCubeService";
 import { SynchronizedVariableStore } from "../variables/SynchronizedVariableStore";
 
 /** Coordinates watched comparisons and staged patches. */
 export class WatchService {
   private readonly synchronized = new SynchronizedVariableStore();
-  private readonly live = new LiveVariableService();
+  private previousCollections = new Map<PathKey, CollectionStructure>();
+  private pendingCollections = new Map<PathKey, CollectionStructure>();
   private readonly circularPaths = new Set<PathKey>();
+
+  constructor(private readonly sugarcube: SugarCubeService) {}
+
+  /** Compare live collection member identities once a collection has been observed. */
+  private collectionChanged(
+    path: VariablePath,
+    synchronized: CollectionStructure | null,
+    current: CollectionStructure | null,
+    sameMember: (previous: unknown, current: unknown) => boolean,
+  ): boolean {
+    const key = pathToKey(path);
+    if (current) this.pendingCollections.set(key, current);
+    if (!synchronized || !current || synchronized.kind !== current.kind) return false;
+
+    const tracked = this.previousCollections.get(key);
+    const previousMembers = tracked?.kind === current.kind ? tracked.members : synchronized.members;
+    const useLiveReferences = tracked?.kind === current.kind;
+    return previousMembers.length !== current.members.length ||
+      previousMembers.some((member, index) =>
+        useLiveReferences
+          ? !Object.is(member, current.members[index])
+          : !sameMember(member, current.members[index]),
+      );
+  }
 
   capture(snapshot: SugarCubeSnapshot): number {
     const generation = this.synchronized.capture(snapshot);
     this.circularPaths.clear();
-    this.live.reset();
+    this.previousCollections.clear();
+    this.pendingCollections.clear();
     return generation;
   }
 
-  poll(request: WatchRequest, stores: SugarCubeVariables): WatchResponse {
+  poll(request: WatchRequest): WatchResponse {
     const generation = this.synchronized.generation;
     if (!this.synchronized.hasSnapshot || request.generation !== generation) {
       return { generation, changes: [] };
     }
 
-    this.live.beginPoll();
+    this.pendingCollections = new Map();
 
     // Collection entry indices are positional. Detect insertion/removal or
     // reordering first, before interpreting any descendant paths. Once MAIN
@@ -41,11 +67,11 @@ export class WatchService {
       if (replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
       const key = pathToKey(path);
       const previous = this.synchronized.read(path);
-      const current = this.live.read(stores, path);
+      const current = this.sugarcube.resolveVariable(path);
       const oldStructure = previous.status === "found" ? collectionStructure(previous.value) : null;
       const newStructure = current.status === "found" ? collectionStructure(current.value) : null;
 
-      const entriesChanged = this.live.collectionChanged(
+      const entriesChanged = this.collectionChanged(
         path, oldStructure, newStructure,
         (previous, current) => sameValue(previous, current, key, this.circularPaths),
       );
@@ -56,7 +82,7 @@ export class WatchService {
       if (!oldStructure || !newStructure || oldStructure.kind !== newStructure.kind) {
         const restorePath = (previous.status !== "found" ? previous.path
           : current.status !== "found" ? current.path : path) as VariablePath;
-        const restored = this.live.read(stores, restorePath);
+        const restored = this.sugarcube.resolveVariable(restorePath);
         collectionChanges.push(restored.status === "found"
           ? { op: "set", path: restorePath, value: structuredClone(restored.value) }
           : { op: "delete", path: restorePath });
@@ -79,7 +105,7 @@ export class WatchService {
       if (collectionKeys.has(key) ||
           replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
       const oldEntry = this.synchronized.read(path);
-      const liveEntry = this.live.read(stores, path);
+      const liveEntry = this.sugarcube.resolveVariable(path);
       const previous = structureOf(oldEntry.status === "found" ? oldEntry.value : undefined);
       const current = structureOf(liveEntry.status === "found" ? liveEntry.value : undefined);
       if (sameStructure(previous, current, (left, right) =>
@@ -110,7 +136,7 @@ export class WatchService {
       for (const childKey of after) {
         if (!before.has(childKey)) {
           const childPath: VariablePath = [...path, { type: "property", key: childKey }];
-          const added = this.live.read(stores, childPath);
+          const added = this.sugarcube.resolveVariable(childPath);
           if (added.status !== "found") throw new Error("Added watch child disappeared during polling.");
           structuralChanges.push({
             op: "set", path: childPath,
@@ -139,7 +165,7 @@ export class WatchService {
       if (replacedCollections.some((ancestor) => isPathPrefix(ancestor, path))) continue;
       const key = pathToKey(path);
       const previous = this.synchronized.read(path);
-      const current = this.live.read(stores, path);
+      const current = this.sugarcube.resolveVariable(path);
       if (sameEntry(previous, current, key, this.circularPaths)) continue;
 
       if (current.status !== "found") {
@@ -148,7 +174,7 @@ export class WatchService {
         const restorePrevious = previous.status !== "found" &&
           previous.path.length < current.path.length;
         const patchPath = (restorePrevious ? previous.path : current.path) as VariablePath;
-        const parent = this.live.read(stores, patchPath);
+        const parent = this.sugarcube.resolveVariable(patchPath);
         const copy = parent.status === "found" ? structuredClone(parent.value) : undefined;
         valueChanges.push(parent.status === "found"
           ? { op: "set", path: patchPath, value: copy }
@@ -161,7 +187,7 @@ export class WatchService {
       const restorePath = (previous.status !== "found" && previous.path.length < path.length
         ? previous.path
         : path) as VariablePath;
-      const restored = this.live.read(stores, restorePath);
+      const restored = this.sugarcube.resolveVariable(restorePath);
       if (restored.status !== "found") throw new Error("Watch path disappeared during polling.");
       const cloned = structuredClone(restored.value);
       if (resolvePath(cloned, path.slice(restorePath.length)).status !== "found") {
@@ -185,7 +211,8 @@ export class WatchService {
     this.synchronized.apply(changes);
     // Commit only after staging, cloning, and applying all patches succeeds.
     // Drop references for collections that are no longer being watched.
-    this.live.commitPoll();
+    this.previousCollections = this.pendingCollections;
+    this.pendingCollections = new Map();
 
     return {
       generation,
