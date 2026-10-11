@@ -76,3 +76,83 @@ test("a page reload replaces the prior MAIN-world inspector", async ({ page }) =
     await expect(drawer.getByText("score", { exact: true })).toBeVisible();
   }
 });
+
+test("automatically reacts to game writes without manual refresh", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openDrawer(page);
+  await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
+
+  await page.evaluate(() => {
+    SugarCube.State.variables.score = 44;
+  });
+  await expect(drawer.getByTitle("44", { exact: true })).toBeVisible();
+
+  await page.evaluate(() => {
+    const store = SugarCube.State.variables as unknown as Record<string, unknown>;
+    store.newVariable = "appeared";
+  });
+  await expect(drawer.getByText("newVariable", { exact: true })).toBeVisible();
+  await expect(drawer.getByTitle('"appeared"', { exact: true })).toBeVisible();
+});
+
+test("expanded tiles follow object replacement and nested in-place mutations", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openDrawer(page);
+
+  await page.evaluate(() => {
+    const store = SugarCube.State.variables as unknown as Record<string, unknown>;
+    store.player = { health: 10, name: "Alex" };
+  });
+  await drawer.getByRole("button", { name: "Expand player" }).click();
+  await expect(drawer.getByTitle("10", { exact: true })).toBeVisible();
+
+  await page.evaluate(() => {
+    const store = SugarCube.State.variables as unknown as { player: { health: number } };
+    store.player.health = 20;
+  });
+  await expect(drawer.getByTitle("20", { exact: true })).toBeVisible();
+
+  await page.evaluate(() => {
+    const store = SugarCube.State.variables as unknown as { player: { health: number } };
+    store.player = { health: 31 };
+  });
+  await expect(drawer.getByRole("button", { name: "Collapse player" })).toHaveAttribute(
+    "aria-expanded", "true",
+  );
+  await expect(drawer.getByTitle("31", { exact: true })).toBeVisible();
+  await expect(drawer.getByText("name", { exact: true })).toHaveCount(0);
+});
+
+test("reacts to in-place array, Map and Set changes", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openDrawer(page);
+  await drawer.getByRole("button", { name: "Expand inventory" }).click();
+
+  await page.evaluate(() => {
+    SugarCube.State.variables.inventory.push("torch");
+  });
+  await expect(drawer.getByTitle("Array(3)", { exact: true })).toBeVisible();
+  await expect(drawer.getByTitle('"torch"', { exact: true })).toBeVisible();
+
+  await page.evaluate(() => {
+    const store = SugarCube.State.variables as unknown as Record<string, unknown>;
+    store.testMap = new Map([["one", 1]]);
+    store.testSet = new Set(["north"]);
+  });
+  await drawer.getByRole("button", { name: "Expand testMap" }).click();
+  await expect(drawer.getByTitle("1", { exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    const store = SugarCube.State.variables as unknown as { testMap: Map<string, number> };
+    store.testMap.set("one", 4);
+  });
+  await expect(drawer.getByTitle("4", { exact: true })).toBeVisible();
+
+  await drawer.getByRole("button", { name: "Expand testSet" }).click();
+  await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    const store = SugarCube.State.variables as unknown as { testSet: Set<string> };
+    store.testSet.delete("north");
+    store.testSet.add("south");
+  });
+  await expect(drawer.getByTitle('"south"', { exact: true })).toBeVisible();
+});
