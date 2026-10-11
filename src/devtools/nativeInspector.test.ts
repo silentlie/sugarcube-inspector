@@ -50,4 +50,18 @@ describe("DevTools native SugarCube object inspection", () => {
     await test.refresh();
     expect(test.evaluated).toHaveLength(7);
   });
+
+  it("does not block sidebar refresh replies or panel mounting while panes are hidden", async () => {
+    const test = setup();
+    test.panes.forEach((pane) => {
+      vi.spyOn(pane, "setExpression").mockImplementation(() => new Promise<void>(() => {}));
+    });
+
+    await registerNativeInspector(test.host);
+    expect(test.host.createPanel).toHaveBeenCalledTimes(1);
+
+    await expect(test.refresh()).resolves.toBeUndefined();
+    test.shown[0]?.();
+    expect(test.panes[0]!.setExpression).toHaveBeenCalledTimes(3);
+  });
 });

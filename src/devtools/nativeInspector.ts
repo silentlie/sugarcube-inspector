@@ -32,24 +32,28 @@ export async function registerNativeInspector(host: NativeInspectorHost): Promis
     variableRoots.map((root) => host.createSidebarPane(root.title)),
   );
 
-  const update = async (index: number): Promise<void> => {
+  const update = (index: number): void => {
     const root = variableRoots[index]!;
-    await panes[index]!.setExpression(root.expression, root.rootTitle);
+    try {
+      // DevTools may defer evaluating an Elements sidebar until it becomes
+      // visible. Do not block the SugarCube panel or message replies on that.
+      void Promise.resolve(panes[index]!.setExpression(root.expression, root.rootTitle))
+        .catch(console.error);
+    } catch (error) {
+      console.error(error);
+    }
   };
   const refresh = async (): Promise<void> => {
-    await Promise.all(variableRoots.map((_, index) => update(index)));
-  };
-  const refreshQuietly = (): void => {
-    void refresh().catch(console.error);
+    variableRoots.forEach((_, index) => update(index));
   };
 
   panes.forEach((pane, index) => {
-    pane.onShown.addListener(() => { void update(index).catch(console.error); });
+    pane.onShown.addListener(() => update(index));
   });
-  host.onNavigated(refreshQuietly);
+  host.onNavigated(() => { void refresh(); });
   host.onRefreshRequested(refresh);
 
-  // Initialize the views even before the user selects the Elements sidebar.
-  await refresh();
+  // Register the panel before updating hidden Elements sidebar panes.
   await host.createPanel();
+  await refresh();
 }

@@ -21,4 +21,18 @@ describe("DevTools dashboard", () => {
     fireEvent.click(button);
     await waitFor(() => expect(host.refreshSidebars).toHaveBeenCalledTimes(2));
   });
+
+  it("reports the stage of the refresh operation", async () => {
+    document.body.innerHTML = '<div id="status"></div><button id="refresh">Refresh</button>';
+    const status = document.querySelector<HTMLElement>("#status")!;
+    const button = screen.getByRole<HTMLButtonElement>("button", { name: "Refresh" });
+    const blocker = Promise.withResolvers<void>();
+    mountPanelDashboard(status, button, {
+      detectSugarCube: async () => true,
+      refreshSidebars: () => blocker.promise,
+    });
+    await waitFor(() => expect(status.textContent).toBe("Requesting native sidebar refresh…"));
+    blocker.resolve();
+    await waitFor(() => expect(status.textContent).toContain("SugarCube detected"));
+  });
 });
