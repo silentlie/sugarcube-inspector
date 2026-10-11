@@ -19,7 +19,9 @@ describe("sameStructure", () => {
     const sparse = new Array<unknown>(2);
     sparse[1] = undefined;
     expect(sameStructure(structureOf(sparse), structureOf([undefined, undefined]), identical)).toBe(false);
-    expect(sameStructure(structureOf(sparse), structureOf([, 20]), identical)).toBe(true);
+    const sameSparse = new Array<unknown>(2);
+    sameSparse[1] = 20;
+    expect(sameStructure(structureOf(sparse), structureOf(sameSparse), identical)).toBe(true);
   });
 
   it("compares Map keys in insertion order, not their mapped values", () => {
