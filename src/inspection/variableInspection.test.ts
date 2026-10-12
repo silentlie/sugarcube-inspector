@@ -10,6 +10,23 @@ afterEach(() => {
 });
 
 describe("recursive variable locations", () => {
+  it("identifies live values for syntax highlighting without invoking property getters", () => {
+    const subject = { name: "Alex", count: 4, active: true, list: [1], fn: () => 1 };
+    const typeFor = (key: keyof typeof subject) =>
+      readVariable({ kind: "property", owner: subject, key }).type;
+    expect(typeFor("name")).toBe("string");
+    expect(typeFor("count")).toBe("number");
+    expect(typeFor("active")).toBe("boolean");
+    expect(typeFor("list")).toBe("Array");
+    expect(typeFor("fn")).toBe("Function");
+
+    const getter = vi.fn(() => 1);
+    Object.defineProperty(subject, "computed", { get: getter });
+    expect(readVariable({ kind: "property", owner: subject, key: "computed" }).type)
+      .toBe("getter");
+    expect(getter).not.toHaveBeenCalled();
+  });
+
   it("reads the current owner property, including replacements and missing locations", () => {
     const player = { health: 10 };
     const location = { kind: "property" as const, owner: player, key: "health" };

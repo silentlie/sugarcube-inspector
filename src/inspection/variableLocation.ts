@@ -1,4 +1,4 @@
-import { isError, isObject } from "@sindresorhus/is";
+import { detect, isError, isObject } from "@sindresorhus/is";
 import { getStore, preview, type VariableStoreKey } from "./direct";
 
 /** A location is an owner/key pair, not a cloned value or a root-relative path. */
@@ -13,6 +13,7 @@ export type VariableSnapshot = {
   exists: boolean;
   value: unknown;
   preview: string;
+  type: string;
   expandable: boolean;
   hidden: boolean;
   accessor?: "getter" | "setter" | "getter/setter";
@@ -21,6 +22,14 @@ export type VariableSnapshot = {
 
 function errorMessage(cause: unknown): string {
   return isError(cause) ? cause.message : String(cause);
+}
+
+function typeName(value: unknown): string {
+  try {
+    return detect(value);
+  } catch {
+    return "Object";
+  }
 }
 
 function snapshot(
@@ -33,6 +42,7 @@ function snapshot(
     exists,
     value,
     preview: !exists ? "[Missing]" : accessor ? `[${accessor}]` : preview(value),
+    type: !exists ? "missing" : accessor ?? typeName(value),
     expandable: exists && !accessor && isObject(value),
     hidden,
     ...(accessor && { accessor }),
@@ -76,7 +86,7 @@ export function readVariable(location: VariableLocation): VariableSnapshot {
 
 export function sameVariable(a: VariableSnapshot, b: VariableSnapshot): boolean {
   return a.exists === b.exists && Object.is(a.value, b.value) &&
-    a.preview === b.preview && a.expandable === b.expandable &&
+    a.preview === b.preview && a.type === b.type && a.expandable === b.expandable &&
     a.hidden === b.hidden &&
     a.accessor === b.accessor && a.error === b.error;
 }

@@ -7,6 +7,7 @@ import { createContext, useContext, useEffect, useRef } from "react";
 import { useInView } from "react-intersection-observer";
 import type { VariableNode } from "../inspection/variableTree";
 import { useStructure, useVariable } from "./useVariableWatch";
+import { inlinePreview, typeToken, valueToken } from "./valueSyntax";
 
 type TreeState = {
   expanded: ReadonlySet<string>;
@@ -59,9 +60,15 @@ function LiveVariableValue({
         <Typography variant="body2" noWrap sx={{ minWidth: 0, flex: 1 }}>
           {node.name}
         </Typography>
-        <Typography variant="caption" color="text.secondary" noWrap
-          title={current.preview} sx={{ fontFamily: "monospace", maxWidth: "50%" }}>
-          {current.preview}
+        <Typography component="span" variant="caption" noWrap
+          className={`token ${typeToken(current.type)}`}
+          sx={{ fontFamily: "monospace", flexShrink: 0 }}>
+          {current.type}
+        </Typography>
+        <Typography component="span" variant="caption" noWrap
+          className={`token ${valueToken(current.type)}`}
+          title={current.preview} sx={{ fontFamily: "monospace", maxWidth: "45%" }}>
+          {inlinePreview(current.type, current.preview)}
         </Typography>
         {circular && <Typography variant="caption" color="info.main">same reference</Typography>}
         {current.hidden && <Typography variant="caption" color="text.disabled">hidden</Typography>}

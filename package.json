@@ -30,6 +30,7 @@
     "@sindresorhus/is": "^8.1.0",
     "@webext-core/messaging": "^4.0.0",
     "lucide-react": "^1.54.0",
+    "prism-themes": "^1.9.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-intersection-observer": "^11.0.1",
