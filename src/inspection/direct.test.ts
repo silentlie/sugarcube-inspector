@@ -26,6 +26,15 @@ describe("direct MAIN-world access", () => {
       .toBe("[getter]");
   });
 
+  it("does not invoke a custom Symbol.toStringTag getter while previewing", () => {
+    const tag = vi.fn(() => "Map");
+    const value = Object.defineProperty({ count: 1 }, Symbol.toStringTag, {
+      get: tag,
+    });
+    expect(preview(value)).toBe("Object");
+    expect(tag).not.toHaveBeenCalled();
+  });
+
   it("previews primitives, functions and collections without changing special cases", () => {
     expect(preview(null)).toBe("null");
     expect(preview(undefined)).toBe("undefined");

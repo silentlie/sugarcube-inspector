@@ -30,6 +30,16 @@ describe("recursive variable locations", () => {
     expect(missing.preview).toBe("[Missing]");
   });
 
+  it("does not invoke Symbol.toStringTag accessors during child discovery", () => {
+    const tag = vi.fn(() => "Set");
+    const value = Object.defineProperty({ health: 10 }, Symbol.toStringTag, {
+      get: tag,
+    });
+    expect(readStructure(value).parts.length).toBe(2);
+    expect(listChildren(value).map((child) => child.name)).toContain("health");
+    expect(tag).not.toHaveBeenCalled();
+  });
+
   it("notices property additions without treating value edits as structural changes", () => {
     const root: Record<string, unknown> = { day: 1 };
     const first = readStructure(root);
