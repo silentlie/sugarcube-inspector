@@ -1,75 +1,51 @@
 # SugarCube Inspector: direct MAIN-world proof of concept
 
-This experiment branches from `feat/dual-mode-inspector-poc` but **does not run
-its CDP debugger or messaging bridge**. The entire inspector React tree runs in
-Chrome's MAIN JavaScript world, next to SugarCube itself.
+This experiment runs its React tree in Chrome's MAIN world, alongside SugarCube.
+It does not attach a debugger or use a cross-world messaging bridge.
 
-## What this proves
+## User interface
 
-- shadcn/ui Item, Collapsible, and Button replace the custom variable row,
-  expand/collapse control, and pagination button without per-tile CSS rules.
-- shadcn/ui Tabs provides Overview, Variables, and Scripts sections. Variables
-  contains Story Variables, Temporary Variables, and Favorites subtabs. Overview,
-  Scripts, and Favorites are empty placeholders for future features, using the
-  default shadcn Tabs styling without per-instance style classes.
+- **MUI Community** provides the default appearance for Tabs, List, ListItem,
+  IconButton, Button, Typography, and Collapse. There are no copied shadcn
+  components or Tailwind stylesheets.
+- Overview, Variables, and Scripts are top-level tabs. Under Variables are
+  Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
+  Favorites are placeholders.
+- The variable tree currently uses **MUI List + Collapse**, rather than
+  MUI X Tree View. This preserves lazy child mounting, per-node visibility
+  subscriptions, and live object inspection. MUI X Community Tree View can
+  be evaluated later for dedicated keyboard navigation.
+- The remaining layout settings handle drawer geometry, its resize handle,
+  and value truncation. Most styling comes from MUI's default dark theme.
 
-- React components call `SugarCube.State.variables` and
-  `SugarCube.State.temporary` directly, holding the original objects.
-- A recursive VariableTree renders independently subscribed VariableTiles. Each
-  tile reads its current live slot, not a stale value captured by its parent.
-- Expanded objects additionally watch property structure and Map/Set membership;
-  object replacement, in-place changes and array length updates are supported.
-- The `useInView` hook from `react-intersection-observer` tracks whether a
-  tile's subtree intersects the viewport. Matching observers are shared. Offscreen tiles stop polling, including while the drawer is
-  closed; visible ancestors stay active to detect object replacement.
-- One shared 250ms scheduler polls only active subscriptions. Passage changes
-  and manual refresh trigger immediate checks. No per-tile timers.
-- Nested lists receive **actual JS references**, not JSON or CDP object IDs.
-- Aliases and cycles stay referentially identical; accessors are described
-  without invoking their getters.
-- No `browser.scripting.executeScript`, RPC, background inspection service,
-  side panel, or debugger attachment occurs during inspection.
+## Behavior
 
-## How it works
+- Components read `SugarCube.State.variables` and
+  `SugarCube.State.temporary` directly without cloning.
+- Independently watched rows update with live values. Expanded objects
+  additionally watch structure, array length, and Map/Set membership.
+- `react-intersection-observer` tracks visible subtrees. Offscreen tiles stop
+  polling. A shared 250ms scheduler checks active subscriptions.
+- References retain object identity; cycles are marked and property getters
+  are not invoked. Pagination initially shows 100 children per container.
+- The inspector is read-only for now.
 
-The inspection logic is split into direct MAIN-world utilities
-(`src/inspection/direct.ts`), live location reads
-(`variableSlots.ts`), child/structure discovery (`variableStructure.ts`),
-and the shared polling scheduler (`variableWatcher.ts`). React's
-`VariableTree.tsx` and `VariableTile.tsx` render the recursive tree, with
-`useVariableWatch.ts` connecting subscriptions to React.
+## Shadow DOM integration
 
+`entrypoints/content.tsx` mounts React in a manually created ShadowRoot in
+Chrome's MAIN world. An Emotion cache inserts MUI-generated styles inside
+the ShadowRoot. A dark `ThemeProvider` routes modal and popup portals to
+the inspector's container. `ScopedCssBaseline` keeps MUI's baseline styles
+within the inspector instead of modifying the game's page.
 
-shadcn/ui component source is stored in `src/components/ui/` and configured
-using `components.json`. Its default dark-theme variables are defined once in
-the ShadowRoot stylesheet, so tab consumers need no CSS or style props.
-
-To add further shadcn/ui components, run `npx shadcn@latest add <component>`.
-
-`entrypoints/content.tsx` has `world: "MAIN"`. Because MAIN-world scripts do
-not receive WXT's usual content-script context, it creates a ShadowRoot
-directly, inlines compiled CSS, and mounts React into it.
-
-The drawer is isolated visually with Shadow DOM, **not** in JavaScript.
-The game and inspector now share a JS realm. A hostile or buggy game can
-interfere with the inspector, and inspector code can affect the game.
-Do not use this POC on untrusted pages.
+Shadow DOM isolates appearance but not JavaScript. A hostile or broken game
+can affect the inspector, and vice versa. Do not run on untrusted pages.
 
 ## Try it
 
 1. Run `npm ci && npm run build`.
-2. Load `.output/chrome-mv3` in `chrome://extensions` and allow access to
-   local file URLs.
-3. Open a SugarCube HTML game and reveal the right-edge drawer.
-4. Expand any object to inspect its live properties. Variable changes made
-   by the game appear automatically while visible.
-5. Test with `npm run lint && npm run compile && npm test &&
-   npm run test:browser`.
-
-This proof of concept is read-only. Getter and setter invocation and
-arbitrary function calls are deliberately omitted. Active tiles automatically
-detect changes on a shared 250ms polling interval **while visible**. Scrolling
-a tile back into view re-reads its current value. Expanded container structures
-are observed while their subtree is visible, so scrolling into the tree
-detects new or removed entries. Passage navigation and manual refresh
-trigger immediate checks of active subscriptions.
+2. Load `.output/chrome-mv3` in `chrome://extensions` and allow local file access.
+3. Open a SugarCube HTML game, reveal the drawer, and select
+   Variables → Story Variables or Temporary Variables.
+4. Expand objects and change game values. Visible entries update automatically.
+5. Run `npm run lint && npm run compile && npm test && npm run test:browser`.

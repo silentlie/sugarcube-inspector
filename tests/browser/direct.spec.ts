@@ -30,7 +30,7 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
   await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
 });
 
-test("shadcn tabs group Story, Temporary, and Favorites beneath Variables", async ({ page }) => {
+test("MUI tabs group Story, Temporary, and Favorites beneath Variables", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openDrawer(page);
 
@@ -39,9 +39,10 @@ test("shadcn tabs group Story, Temporary, and Favorites beneath Variables", asyn
   const scripts = drawer.getByRole("tab", { name: "Scripts" });
   await expect(overview).toHaveAttribute("aria-selected", "true");
   await expect(drawer.getByText("score", { exact: true })).toHaveCount(0);
-  const tabBackground = await drawer.getByRole("tablist", { name: "Inspector sections" })
-    .evaluate((element) => getComputedStyle(element).backgroundColor);
-  expect(tabBackground).not.toBe("rgba(0, 0, 0, 0)");
+  await expect(drawer.locator(".MuiTabs-root").first()).toBeVisible();
+  expect(await drawer.evaluate((host) =>
+    Boolean(host.shadowRoot?.querySelector('style[data-emotion^="sugarcube-mui"]')),
+  )).toBe(true);
 
   await variables.click();
   await expect(variables).toHaveAttribute("aria-selected", "true");
@@ -90,8 +91,7 @@ test("inspects shared live references and cycles without writes or serialization
   await drawer.getByRole("button", { name: "Refresh variables" }).click();
   await expect(drawer.getByText("uncloneable", { exact: true })).toBeVisible();
   const expandPlayer = drawer.getByRole("button", { name: "Expand player" });
-  await expect(expandPlayer).toHaveAttribute("data-slot", "collapsible-trigger");
-  await expect(drawer.locator('[data-slot="item"]').first()).toHaveCount(1);
+  await expect(drawer.locator("[data-variable-row]").first()).toHaveCount(1);
   await expandPlayer.click();
   await expect(drawer.getByRole("button", { name: "Collapse player" }))
     .toHaveAttribute("aria-expanded", "true");
@@ -217,7 +217,7 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   });
   await drawer.getByRole("button", { name: "Expand large" }).click();
 
-  const firstRow = drawer.locator('[data-slot="item"]').filter({ hasText: "item00" });
+  const firstRow = drawer.locator("[data-variable-row]").filter({ hasText: "item00" });
   await firstRow.scrollIntoViewIfNeeded();
   await expect(firstRow.getByTitle("0", { exact: true })).toBeVisible();
 
