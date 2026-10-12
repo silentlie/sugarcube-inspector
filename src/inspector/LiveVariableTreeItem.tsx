@@ -1,25 +1,21 @@
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import { TreeItem, type TreeItemProps } from "@mui/x-tree-view/TreeItem";
 import { useTreeItemModel } from "@mui/x-tree-view/hooks";
 import { createContext, useContext, useEffect, useRef } from "react";
 import { useInView } from "react-intersection-observer";
-import type { VariableNode, VariableTreeNode } from "../inspection/variableTree";
-import { isLoadMore } from "../inspection/variableTree";
+import type { VariableNode } from "../inspection/variableTree";
 import { isReference } from "../inspection/direct";
 import { useStructure, useVariable } from "./useVariableWatch";
 
 type TreeState = {
   expanded: ReadonlySet<string>;
   refresh: () => void;
-  loadMore: (parentId: string, shown: number) => void;
 };
 
 export const VariableTreeContext = createContext<TreeState>({
   expanded: new Set(),
   refresh: () => {},
-  loadMore: () => {},
 });
 
 /** Watch the structure of an expanded, visible value without polling collapsed branches. */
@@ -79,23 +75,11 @@ function LiveVariableValue({
 
 /** MUI owns the tree and accessibility; these rows retain visibility-gated polling. */
 export function LiveVariableTreeItem(props: TreeItemProps) {
-  const node = useTreeItemModel<VariableTreeNode>(props.itemId);
+  const node = useTreeItemModel<VariableNode>(props.itemId);
   const { ref, inView } = useInView();
-  const { expanded, loadMore } = useContext(VariableTreeContext);
+  const { expanded } = useContext(VariableTreeContext);
 
   if (!node) return <TreeItem {...props} ref={ref} />;
-  if (isLoadMore(node)) {
-    return (
-      <TreeItem {...props} ref={ref} disableSelection label={
-        <Button size="small" onClick={(event) => {
-          event.stopPropagation();
-          loadMore(node.loadMore.parentId, node.loadMore.shown);
-        }}>
-          {node.name}
-        </Button>
-      } />
-    );
-  }
   return (
     <TreeItem {...props} ref={ref} disableSelection
       label={<LiveVariableValue node={node} visible={inView} expanded={expanded.has(node.id)} />} />

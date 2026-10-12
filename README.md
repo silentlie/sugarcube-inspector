@@ -11,9 +11,8 @@ It does not attach a debugger or use a cross-world messaging bridge.
   Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
   Favorites are placeholders.
 - The variable tree uses **MUI X Community RichTreeView + custom TreeItem**.
-  `getItemChildren` eagerly discovers the supplied tree hierarchy, without
-  copying game values. Pages of 100 children limit how many nodes MUI indexes
-  initially; “Load more” extends a specific branch.
+  `getItemChildren` eagerly discovers the entire tree hierarchy, without
+  copying game values or implementing custom pagination.
 - The remaining layout settings handle drawer geometry, its resize handle,
   and value truncation. Most styling comes from MUI's default dark theme.
 
@@ -29,9 +28,10 @@ It does not attach a debugger or use a cross-world messaging bridge.
 - `react-intersection-observer` tracks visible rows. Offscreen rows stop
   polling. A shared 250ms scheduler checks active subscriptions.
 - References retain object identity; ancestor cycles are marked and stop
-  recursive discovery. Arbitrary property getters are not invoked. The
-  `getItemChildren` adapter limits initial indexing to 100 children per parent.
-- This Community Tree View is not virtualized. The inspector is read-only.
+  recursive discovery. Arbitrary property getters are not invoked.
+- This Community Tree View is not virtualized. Large object graphs can be
+  expensive to index; performance will be benchmarked separately. The inspector
+  is read-only.
 
 ## Shadow DOM integration
 

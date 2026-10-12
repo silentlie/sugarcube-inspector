@@ -258,7 +258,7 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   await expect(firstRow.getByTitle("999", { exact: true })).toBeVisible();
 });
 
-test("Rich Tree View paginates a large branch without cloning values", async ({ page }) => {
+test("Rich Tree View exposes all children without pagination", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
   await page.evaluate(() => {
@@ -268,7 +268,6 @@ test("Rich Tree View paginates a large branch without cloning values", async ({ 
     );
   });
   await expandVariable(drawer, "bulk");
-  await expect(drawer.getByText("item124", { exact: true })).toHaveCount(0);
-  await drawer.getByRole("button", { name: "Load more (100/125)" }).click();
   await expect(drawer.getByText("item124", { exact: true })).toBeVisible();
+  await expect(drawer.getByRole("button", { name: /Load more/ })).toHaveCount(0);
 });
