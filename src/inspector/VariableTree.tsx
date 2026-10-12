@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
 import type { VariableLocation } from "../inspection/variableLocation";
+import { getLocationName } from "../inspection/variableStructure";
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
 import { LiveVariableTreeItem, VariableTreeContext } from "./LiveVariableTreeItem";
 import { useStructure, useVariable } from "./useVariableWatch";
@@ -25,18 +26,17 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
 
   const rootNode = useMemo<VariableNode>(() => ({
     id: storeKey,
-    name: storeKey,
     location: { kind: "state", key: storeKey },
     ancestors: [],
   }), [storeKey]);
 
-  // No values are serialized. A changed structure regenerates the models, not
+  // No values are serialized. Structural changes regenerate tree models, not
   // every 250ms value preview update.
   const items = useMemo(
     () => getVariableChildren(rootNode),
     [rootNode, rootValue, structure, revision],
   );
-  const getLabel = useCallback((node: VariableNode) => node.name, []);
+  const getLabel = useCallback((node: VariableNode) => getLocationName(node.location), []);
   const getId = useCallback((node: VariableNode) => node.id, []);
   const treeState = useMemo(() => ({ expanded, refresh }), [expanded, refresh]);
 

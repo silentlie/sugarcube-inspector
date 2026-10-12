@@ -208,7 +208,12 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
     store.testSet = new Set(["north"]);
   });
   await expandVariable(drawer, "testMap");
-  await expect(drawer.getByTitle("1", { exact: true })).toBeVisible();
+  const mapEntry = drawer.getByRole("treeitem", { name: /^"one"(?:\\s|$)/ });
+  await expect(mapEntry).toBeVisible();
+  await expect(mapEntry.getByTitle("1", { exact: true })).toBeVisible();
+  await mapEntry.locator(".MuiTreeItem-iconContainer").click();
+  await expect(drawer.getByRole("treeitem", { name: /^key(?:\\s|$)/ })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^value(?:\\s|$)/ })).toBeVisible();
   await page.evaluate(() => {
     const store = SugarCube.State.variables as unknown as { testMap: Map<string, number> };
     store.testMap.set("one", 4);
@@ -223,6 +228,31 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
     store.testSet.add("south");
   });
   await expect(drawer.getByTitle('"south"', { exact: true })).toBeVisible();
+});
+
+test("Map object keys and values can each expand independently", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    vars.objectMap = new Map([[{ label: "hero" }, { health: 30 }]]);
+  });
+  await expandVariable(drawer, "objectMap");
+  const entry = drawer.getByRole("treeitem", { name: /^\\{…\\}(?:\\s|$)/ });
+  await entry.locator(".MuiTreeItem-iconContainer").click();
+  const keyRow = drawer.getByRole("treeitem", { name: /^key(?:\\s|$)/ });
+  const valueRow = drawer.getByRole("treeitem", { name: /^value(?:\\s|$)/ });
+  await keyRow.locator(".MuiTreeItem-iconContainer").click();
+  await valueRow.locator(".MuiTreeItem-iconContainer").click();
+  await expect(drawer.getByText("label", { exact: true })).toBeVisible();
+  await expect(drawer.getByText("health", { exact: true })).toBeVisible();
+
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as { objectMap: Map<object, { health: number }> };
+    const key = [...vars.objectMap.keys()][0]!;
+    vars.objectMap.set(key, { health: 90 });
+  });
+  await expect(drawer.getByTitle("90", { exact: true })).toBeVisible();
 });
 
 test("offscreen tiles stop polling and refresh when scrolled back into view", async ({ page }) => {

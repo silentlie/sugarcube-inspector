@@ -3,8 +3,10 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { TreeItem, type TreeItemProps } from "@mui/x-tree-view/TreeItem";
 import { useTreeItemModel } from "@mui/x-tree-view/hooks";
-import { createContext, useContext, useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef } from "react";
 import { useInView } from "react-intersection-observer";
+import type { VariableLocation, VariableSnapshot } from "../inspection/variableLocation";
+import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "../inspection/variableTree";
 import { useStructure, useVariable } from "./useVariableWatch";
 import { inlinePreview, typeToken, valueToken } from "./valueSyntax";
@@ -33,6 +35,42 @@ function VisibleStructureWatcher({ value }: { value: object }) {
   return null;
 }
 
+function ValueTokens({ current, showType = true }: {
+  current: VariableSnapshot;
+  showType?: boolean;
+}) {
+  const type = current.kind === "value" ? current.type :
+    current.kind === "accessor" ? current.accessor : current.kind;
+  const preview = current.kind === "value" ? current.preview :
+    current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
+
+  return (
+    <>
+      {showType && (
+        <Typography component="span" variant="caption" noWrap
+          className={`token ${typeToken(type)}`}
+          sx={{ fontFamily: "monospace", flexShrink: 0 }}>
+          {type}
+        </Typography>
+      )}
+      <Typography component="span" variant="caption" noWrap
+        className={`token ${valueToken(type)}`}
+        title={preview} sx={{ fontFamily: "monospace", maxWidth: showType ? "45%" : "100%" }}>
+        {inlinePreview(type, preview)}
+      </Typography>
+    </>
+  );
+}
+
+function MapKeyPreview({ location, visible }: {
+  location: Extract<VariableLocation, { kind: "map" }>;
+  visible: boolean;
+}) {
+  const keyLocation = useMemo(() => ({ ...location, part: "key" as const }), [location]);
+  const key = useVariable(keyLocation, visible);
+  return <ValueTokens current={key} showType={false} />;
+}
+
 function LiveVariableValue({
   node, visible, expanded,
 }: {
@@ -44,12 +82,10 @@ function LiveVariableValue({
   const current = useVariable(node.location, visible);
   const value = current.kind === "value" ? current.value : undefined;
   const previousValue = useRef(value);
-  const circular = current.kind === "value" && current.expandable &&
+  const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
+  const isSetMember = node.location.kind === "set";
+  const circular = !isMapEntry && current.kind === "value" && current.expandable &&
     node.ancestors.includes(current.value as object);
-  const type = current.kind === "value" ? current.type :
-    current.kind === "accessor" ? current.accessor : current.kind;
-  const preview = current.kind === "value" ? current.preview :
-    current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
 
   useEffect(() => {
     const previous = previousValue.current;
@@ -63,22 +99,29 @@ function LiveVariableValue({
   return (
     <>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-        <Typography variant="body2" noWrap sx={{ minWidth: 0, flex: 1 }}>
-          {node.name}
-        </Typography>
-        <Typography component="span" variant="caption" noWrap
-          className={`token ${typeToken(type)}`}
-          sx={{ fontFamily: "monospace", flexShrink: 0 }}>
-          {type}
-        </Typography>
-        <Typography component="span" variant="caption" noWrap
-          className={`token ${valueToken(type)}`}
-          title={preview} sx={{ fontFamily: "monospace", maxWidth: "45%" }}>
-          {inlinePreview(type, preview)}
-        </Typography>
+        {isMapEntry ? (
+          <>
+            <Box sx={{ display: "flex", flex: 1, minWidth: 0 }}>
+              <MapKeyPreview location={node.location as Extract<VariableLocation, { kind: "map" }>} visible={visible} />
+            </Box>
+            <Typography variant="caption" color="text.secondary">→</Typography>
+            <ValueTokens current={current} />
+          </>
+        ) : (
+          <>
+            {!isSetMember && (
+              <Typography variant="body2" noWrap sx={{ minWidth: 0, flex: 1 }}>
+                {getLocationName(node.location)}
+              </Typography>
+            )}
+            {isSetMember && <Box sx={{ flex: 1, minWidth: 0 }} />}
+            <ValueTokens current={current} />
+          </>
+        )}
         {circular && <Typography variant="caption" color="info.main">same reference</Typography>}
       </Box>
-      {expanded && visible && current.kind === "value" && current.expandable && !circular &&
+      {expanded && visible && !isMapEntry && current.kind === "value" &&
+        current.expandable && !circular &&
         <VisibleStructureWatcher value={current.value as object} />}
     </>
   );

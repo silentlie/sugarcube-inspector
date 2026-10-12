@@ -2,13 +2,13 @@ import detect, { isObject } from "@sindresorhus/is";
 import { getStore, type VariableStoreKey } from "./direct";
 import { preview } from "./valuePreview";
 
-/** A location is an owner/key pair, not a cloned value or a root-relative path. */
+/** A location retains live owners and keys, never copied values or root-relative paths. */
 export type VariableLocation =
   | { kind: "state"; key: VariableStoreKey }
   | { kind: "property"; owner: object; key: PropertyKey }
-  | { kind: "map-key"; owner: Map<unknown, unknown>; key: unknown }
-  | { kind: "map-value"; owner: Map<unknown, unknown>; key: unknown }
-  | { kind: "set-value"; owner: Set<unknown>; member: unknown };
+  /** A Map entry is one node; part selects an expandable key or value child. */
+  | { kind: "map"; owner: Map<unknown, unknown>; key: unknown; part?: "key" | "value" }
+  | { kind: "set"; owner: Set<unknown>; member: unknown };
 
 type AccessorKind = "getter" | "setter" | "getter/setter";
 
@@ -45,14 +45,12 @@ export function readVariable(location: VariableLocation): VariableSnapshot {
       }
       return snapshot(descriptor.value);
     }
-    case "map-key":
-      return Map.prototype.has.call(location.owner, location.key)
-        ? snapshot(location.key) : { kind: "missing" };
-    case "map-value":
-      return Map.prototype.has.call(location.owner, location.key)
-        ? snapshot(Map.prototype.get.call(location.owner, location.key))
-        : { kind: "missing" };
-    case "set-value":
+    case "map":
+      if (!Map.prototype.has.call(location.owner, location.key)) return { kind: "missing" };
+      return snapshot(location.part === "key"
+        ? location.key
+        : Map.prototype.get.call(location.owner, location.key));
+    case "set":
       return Set.prototype.has.call(location.owner, location.member)
         ? snapshot(location.member) : { kind: "missing" };
   }

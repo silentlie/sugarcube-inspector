@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readVariable, sameVariable } from "./variableLocation";
-import { listChildren, readStructure, sameStructure } from "./variableStructure";
+import { getLocationId, getLocationName, listChildren, readStructure, sameStructure } from "./variableStructure";
 import { getVariableChildren, type VariableNode } from "./variableTree";
 import { VariableWatcher } from "./variableWatcher";
 
@@ -109,8 +109,7 @@ describe("recursive variable locations", () => {
 
     const node: VariableNode = {
       id: "broken",
-      name: "broken",
-      location: { kind: "property", owner: { proxy }, key: "proxy" },
+        location: { kind: "property", owner: { proxy }, key: "proxy" },
       ancestors: [],
     };
     expect(() => getVariableChildren(node)).toThrow(failure);
@@ -128,7 +127,7 @@ describe("recursive variable locations", () => {
     expect(sameStructure(first, readStructure(root))).toBe(true);
     root.player = { health: 10 };
     expect(sameStructure(first, readStructure(root))).toBe(false);
-    expect(listChildren(root).map((entry) => entry.name)).toEqual(["day", "player"]);
+    expect(listChildren(root).map(getLocationName)).toEqual(["day", "player"]);
   });
 
   it("compares typed structure without tracking enumerable or writable flags", () => {
@@ -176,8 +175,8 @@ describe("recursive variable locations", () => {
     expect(mapShape).toEqual([{ kind: "map", key: "one" }]);
     map.set("one", 2);
     expect(sameStructure(mapShape, readStructure(map))).toBe(true);
-    const mapValue = listChildren(map).find((child) => child.name === "[0] value")!;
-    expect(readVariable(mapValue.location)).toMatchObject({ kind: "value", value: 2 });
+    const mapEntry = listChildren(map).find((child) => child.kind === "map")!;
+    expect(readVariable(mapEntry)).toMatchObject({ kind: "value", value: 2 });
     map.delete("one");
     map.set("two", 2);
     expect(sameStructure(mapShape, readStructure(map))).toBe(false);
@@ -188,7 +187,7 @@ describe("recursive variable locations", () => {
     set.delete("one");
     set.add("two");
     expect(sameStructure(setShape, readStructure(set))).toBe(false);
-    expect(readVariable(listChildren(set)[0]!.location))
+    expect(readVariable(listChildren(set)[0]!))
       .toMatchObject({ kind: "value", value: "two" });
   });
 
@@ -196,16 +195,16 @@ describe("recursive variable locations", () => {
     const player = { score: 3 };
     const parent = { player, leader: player };
     const children = listChildren(parent);
-    const first = readVariable(children[0]!.location);
-    const second = readVariable(children[1]!.location);
+    const first = readVariable(children[0]!);
+    const second = readVariable(children[1]!);
     expect(first.kind).toBe("value");
     expect(second.kind).toBe("value");
     if (first.kind !== "value" || second.kind !== "value") throw new Error("Expected values");
     expect(first.value).toBe(second.value);
     const getter = vi.fn(() => 10);
     Object.defineProperty(parent, "derived", { get: getter, enumerable: true });
-    const getterSlot = listChildren(parent).find((item) => item.name === "derived")!;
-    expect(readVariable(getterSlot.location))
+    const getterSlot = listChildren(parent).find((item) => getLocationName(item) === "derived")!;
+    expect(readVariable(getterSlot))
       .toEqual({ kind: "accessor", accessor: "getter" });
     expect(getter).not.toHaveBeenCalled();
   });
@@ -214,22 +213,87 @@ describe("recursive variable locations", () => {
 
   it("keeps collection tile identity when earlier Map and Set members disappear", () => {
     const map = new Map([["first", 1], ["second", 2]]);
-    const second = listChildren(map).find((entry) => entry.name === "[1] value")!.id;
+    const second = getLocationId(listChildren(map)[1]!);
     map.delete("first");
-    expect(listChildren(map).find((entry) => entry.name === "[0] value")!.id)
+    expect(getLocationId(listChildren(map)[0]!))
       .toBe(second);
 
     const set = new Set(["first", "second"]);
-    const secondSet = listChildren(set).find((entry) => entry.name === "[1]")!.id;
+    const secondSet = getLocationId(listChildren(set)[1]!);
     set.delete("first");
-    expect(listChildren(set)[0]!.id).toBe(secondSet);
+    expect(getLocationId(listChildren(set)[0]!)).toBe(secondSet);
+  });
+
+
+  it("represents each Map entry once, with independently expandable key and value", () => {
+    const key = { name: "Alex" };
+    const value = { health: 100 };
+    const map = new Map<unknown, unknown>([[key, value]]);
+    const holder = { map };
+    const root: VariableNode = {
+      id: "variables/map",
+      location: { kind: "property", owner: holder, key: "map" },
+      ancestors: [],
+    };
+
+    const entries = getVariableChildren(root);
+    expect(entries).toHaveLength(1);
+    const entry = entries[0]!;
+    expect(entry.location).toMatchObject({ kind: "map", owner: map, key });
+    expect(getLocationName(entry.location)).toBe("Object");
+    expect(readVariable(entry.location)).toMatchObject({ kind: "value", value });
+
+    const sides = getVariableChildren(entry);
+    expect(sides.map((side) => getLocationName(side.location))).toEqual(["key", "value"]);
+    expect(new Set(sides.map((side) => side.id)).size).toBe(2);
+    expect(readVariable(sides[0]!.location)).toMatchObject({ kind: "value", value: key });
+    expect(readVariable(sides[1]!.location)).toMatchObject({ kind: "value", value });
+    expect(getVariableChildren(sides[0]!).map((child) => getLocationName(child.location)))
+      .toEqual(["name"]);
+    expect(getVariableChildren(sides[1]!).map((child) => getLocationName(child.location)))
+      .toEqual(["health"]);
+
+    const replacement = { health: 25 };
+    map.set(key, replacement);
+    expect(readVariable(sides[1]!.location)).toMatchObject({ kind: "value", value: replacement });
+    expect(getVariableChildren(sides[1]!).map((child) => getLocationName(child.location)))
+      .toEqual(["health"]);
+    map.delete(key);
+    expect(readVariable(sides[0]!.location)).toEqual({ kind: "missing" });
+    expect(readVariable(sides[1]!.location)).toEqual({ kind: "missing" });
+    expect(getVariableChildren(entry)).toEqual([]);
+  });
+
+  it("derives names without indices, even for non-string Map keys and Set members", () => {
+    const map = new Map<unknown, unknown>([[42, "value"], [Symbol("x"), 1]]);
+    const entries = listChildren(map);
+    expect(entries).toHaveLength(2);
+    expect(entries.map(getLocationName)).toEqual(["42", "Symbol(x)"]);
+    expect(entries.every((entry) => entry.kind === "map")).toBe(true);
+    const set = new Set<unknown>(["north", { level: 1 }]);
+    expect(listChildren(set).map(getLocationName)).toEqual(['"north"', "Object"]);
+  });
+
+  it("does not traverse circular Map keys or Map values indefinitely", () => {
+    const map = new Map<unknown, unknown>();
+    map.set(map, map);
+    const root: VariableNode = {
+      id: "map",
+      location: { kind: "property", owner: { map }, key: "map" },
+      ancestors: [],
+    };
+    const entry = getVariableChildren(root)[0]!;
+    const sides = getVariableChildren(entry);
+    expect(sides).toHaveLength(2);
+    expect(getVariableChildren(sides[0]!)).toEqual([]);
+    expect(getVariableChildren(sides[1]!)).toEqual([]);
   });
 
   it("retains stable property IDs across object additions", () => {
     const obj: Record<string, unknown> = { first: 1 };
-    const original = listChildren(obj)[0]!.id;
+    const original = getLocationId(listChildren(obj)[0]!);
     obj.second = 2;
-    expect(listChildren(obj)[0]!.id).toBe(original);
+    expect(getLocationId(listChildren(obj)[0]!)).toBe(original);
   });
 });
 
@@ -282,11 +346,10 @@ describe("Rich Tree View location adapter", () => {
     const fn = Object.assign(() => 1, { answer: 42 });
     const parent: VariableNode = {
       id: "fn",
-      name: "fn",
-      location: { kind: "property", owner: { fn }, key: "fn" },
+        location: { kind: "property", owner: { fn }, key: "fn" },
       ancestors: [],
     };
-    const answer = getVariableChildren(parent).find((node) => node.name === "answer");
+    const answer = getVariableChildren(parent).find((node) => getLocationName(node.location) === "answer");
     expect(answer).toBeDefined();
     expect(readVariable(answer!.location)).toMatchObject({ kind: "value", value: 42 });
   });
@@ -297,8 +360,7 @@ describe("Rich Tree View location adapter", () => {
     const root = { player, leader: player };
     const parent: VariableNode = {
       id: "variables",
-      name: "variables",
-      location: { kind: "property", owner: { root }, key: "root" },
+        location: { kind: "property", owner: { root }, key: "root" },
       ancestors: [],
     };
     const firstLevel = getVariableChildren(parent);
@@ -309,7 +371,7 @@ describe("Rich Tree View location adapter", () => {
     expect(readVariable(players[1]!.location)).toMatchObject({ kind: "value", value: player });
 
     const children = getVariableChildren(players[0]!);
-    const self = children.find((node) => node.name === "self")!;
+    const self = children.find((node) => getLocationName(node.location) === "self")!;
     expect(getVariableChildren(self)).toEqual([]);
   });
 
@@ -321,14 +383,13 @@ describe("Rich Tree View location adapter", () => {
     Object.defineProperty(object, "computed", { get: getter, enumerable: true });
     const root: VariableNode = {
       id: "root",
-      name: "root",
-      location: { kind: "property", owner: { object }, key: "object" },
+        location: { kind: "property", owner: { object }, key: "object" },
       ancestors: [],
     };
     const children = getVariableChildren(root);
     expect(children).toHaveLength(126);
-    expect(children.find((node) => node.name === "item124")).toBeDefined();
-    const computed = children.find((node) => node.name === "computed")!;
+    expect(children.find((node) => getLocationName(node.location) === "item124")).toBeDefined();
+    const computed = children.find((node) => getLocationName(node.location) === "computed")!;
     expect(readVariable(computed.location))
       .toEqual({ kind: "accessor", accessor: "getter" });
     expect(getter).not.toHaveBeenCalled();
