@@ -51,11 +51,12 @@ test("temporary virtualized expansion performance, wide and nested", async ({ pa
       const icon = row.locator(".ant-tree-switcher").first();
       const metric = await icon.evaluate((el): Promise<Measure> => new Promise((resolve, reject) => {
         const host = el.getRootNode() as ShadowRoot;
-        const parent = el.closest('[role="treeitem"]')!;
+        const parentId = el.closest('[role="treeitem"]')!.id;
         const start = performance.now();
         let done = false;
         const hasChild = () => {
-          if (parent.getAttribute("aria-expanded") !== "true") return false;
+          const parent = host.getElementById(parentId);
+          if (parent?.getAttribute("aria-expanded") !== "true") return false;
           return Array.from(host.querySelectorAll('[role="treeitem"]')).some((node) =>
             node !== parent && (
               node.textContent?.includes("item00000") ||
