@@ -2,7 +2,7 @@ import { isObject } from "@sindresorhus/is";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { Tree, type TreeDataNode } from "antd";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
 import { isExpandableNode } from "../inspection/isExpandableNode";
@@ -64,14 +64,16 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     ancestors: [],
   }), [storeKey]);
   const [items, setItems] = useState<Item[]>(() => reconcile(getVariableChildren(rootNode)));
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
 
   // Root structural mutations are the only reason to replace top-level items.
   useEffect(() => {
-    setItems((old) => reconcile(getVariableChildren(rootNode), old));
+    let active = true;
+    queueMicrotask(() => {
+      if (active) setItems((old) => reconcile(getVariableChildren(rootNode), old));
+    });
+    return () => { active = false; };
   }, [rootNode, rootValue, structure]);
 
   const refresh = useCallback((id: string) => {
@@ -85,10 +87,12 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
       }
       return undefined;
     };
-    const item = find(itemsRef.current);
-    if (!item) return;
-    const children = reconcile(getVariableChildren(item.variable), item.children);
-    setItems((old) => replaceChildren(old, id, children));
+    setItems((old) => {
+      const item = find(old);
+      if (!item) return old;
+      const children = reconcile(getVariableChildren(item.variable), item.children);
+      return replaceChildren(old, id, children);
+    });
   }, []);
 
   const loadData = useCallback((item: TreeDataNode): Promise<void> => {

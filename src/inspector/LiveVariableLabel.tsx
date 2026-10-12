@@ -38,10 +38,10 @@ function ExpandedStructureWatcher({ value, onChange }: {
   value: object; onChange: () => void;
 }) {
   const structure = useStructure(value, true);
-  const previous = useRef(structure);
+  const previousRef = useRef(structure);
   useEffect(() => {
-    if (structure !== previous.current) {
-      previous.current = structure;
+    if (structure !== previousRef.current) {
+      previousRef.current = structure;
       onChange();
     }
   }, [structure, onChange]);
@@ -55,15 +55,15 @@ export function LiveVariableLabel({ node, expanded, refresh }: {
   const { ref, inView } = useInView();
   const current = useVariable(node.location, inView);
   const value = current.kind === "value" ? current.value : undefined;
-  const previousValue = useRef(value);
+  const previousValueRef = useRef(value);
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
   const circular = !isMapEntry && current.kind === "value" && current.expandable &&
     node.ancestors.includes(current.value as object);
 
   useEffect(() => {
-    const previous = previousValue.current;
-    previousValue.current = value;
+    const previous = previousValueRef.current;
+    previousValueRef.current = value;
     if (inView && !Object.is(previous, value) &&
         (isObject(previous) || isObject(value))) refresh(node.id);
   }, [value, inView, node.id, refresh]);
