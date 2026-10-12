@@ -1,11 +1,18 @@
-/** Direct references are intentionally kept inside the game's MAIN world. */
-export type Scope = "story" | "temporary";
+import type { StateAPI } from "twine-sugarcube";
 
-export function getStore(scope: Scope): unknown {
+/** These keys are checked against SugarCube's StateAPI, not an independent scope enum. */
+export type VariableStoreKey = keyof Pick<StateAPI, "variables" | "temporary">;
+
+/** SugarCube may not have initialized when our MAIN-world content script mounts. */
+export function getState(): StateAPI | undefined {
   const cube = (globalThis as typeof globalThis & {
-    SugarCube?: { State?: { variables?: unknown; temporary?: unknown } };
+    SugarCube?: { State?: StateAPI };
   }).SugarCube;
-  return scope === "story" ? cube?.State?.variables : cube?.State?.temporary;
+  return cube?.State;
+}
+
+export function getStore(key: VariableStoreKey): unknown {
+  return getState()?.[key];
 }
 
 export function isReference(value: unknown): value is object {

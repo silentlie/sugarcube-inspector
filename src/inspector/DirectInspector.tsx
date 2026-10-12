@@ -7,16 +7,17 @@ import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { VariableStoreKey } from "../inspection/direct";
 import { variableWatcher } from "../inspection/variableWatcher";
 import VariableTree from "./VariableTree";
 
 type Section = "overview" | "variables" | "scripts";
-type VariableScope = "story" | "temporary" | "favorites";
+type VariableScope = VariableStoreKey | "favorites";
 
 /** Entire tree and all subscriptions run in SugarCube's MAIN JS world. */
 export default function DirectInspector() {
   const [section, setSection] = useState<Section>("overview");
-  const [scope, setScope] = useState<VariableScope>("story");
+  const [scope, setScope] = useState<VariableScope>("variables");
 
   useEffect(() => {
     const passages = document.getElementById("passages");
@@ -51,11 +52,11 @@ export default function DirectInspector() {
         <Box role="tabpanel" aria-labelledby="inspector-variables">
           <Tabs value={scope} aria-label="Variable scope" variant="scrollable"
             scrollButtons="auto" onChange={(_, value: VariableScope) => setScope(value)}>
-            <Tab value="story" label="Story Variables" />
+            <Tab value="variables" label="Story Variables" />
             <Tab value="temporary" label="Temporary Variables" />
             <Tab value="favorites" label="Favorites" />
           </Tabs>
-          {scope !== "favorites" && <VariableTree scope={scope} />}
+          {scope !== "favorites" && <VariableTree storeKey={scope} />}
         </Box>
       )}
       {section === "overview" && <Box role="tabpanel" aria-labelledby="inspector-overview" />}

@@ -1,13 +1,14 @@
-import { getStore, isReference, preview, type Scope } from "./direct";
+import { getStore, isReference, preview, type VariableStoreKey } from "./direct";
 
-export type VariableSlot =
-  | { kind: "root"; scope: Scope }
+/** A location is an owner/key pair, not a cloned value or a root-relative path. */
+export type VariableLocation =
+  | { kind: "state"; key: VariableStoreKey }
   | { kind: "property"; owner: object; key: PropertyKey }
   | { kind: "map-key"; owner: Map<unknown, unknown>; key: unknown }
   | { kind: "map-value"; owner: Map<unknown, unknown>; key: unknown }
   | { kind: "set-value"; owner: Set<unknown>; member: unknown };
 
-export type SlotSnapshot = {
+export type VariableSnapshot = {
   exists: boolean;
   value: unknown;
   preview: string;
@@ -25,8 +26,8 @@ function snapshot(
   value: unknown,
   exists: boolean,
   hidden = false,
-  accessor?: SlotSnapshot["accessor"],
-): SlotSnapshot {
+  accessor?: VariableSnapshot["accessor"],
+): VariableSnapshot {
   return {
     exists,
     value,
@@ -37,16 +38,16 @@ function snapshot(
   };
 }
 
-/** Read the current slot directly, without triggering an ordinary property getter. */
-export function readSlot(slot: VariableSlot): SlotSnapshot {
+/** Only SugarCube's two trusted State getters may be read as accessors. */
+export function readVariable(location: VariableLocation): VariableSnapshot {
   try {
-    switch (slot.kind) {
-      case "root": {
-        const value = getStore(slot.scope);
+    switch (location.kind) {
+      case "state": {
+        const value = getStore(location.key);
         return snapshot(value, value !== undefined);
       }
       case "property": {
-        const descriptor = Object.getOwnPropertyDescriptor(slot.owner, slot.key);
+        const descriptor = Object.getOwnPropertyDescriptor(location.owner, location.key);
         if (!descriptor) return snapshot(undefined, false);
         if (!("value" in descriptor)) {
           const accessor = descriptor.get && descriptor.set ? "getter/setter"
@@ -56,26 +57,25 @@ export function readSlot(slot: VariableSlot): SlotSnapshot {
         return snapshot(descriptor.value, true, !descriptor.enumerable);
       }
       case "map-key": {
-        const exists = Map.prototype.has.call(slot.owner, slot.key);
-        return snapshot(slot.key, exists);
+        const exists = Map.prototype.has.call(location.owner, location.key);
+        return snapshot(location.key, exists);
       }
       case "map-value": {
-        const exists = Map.prototype.has.call(slot.owner, slot.key);
-        const value = exists ? Map.prototype.get.call(slot.owner, slot.key) : undefined;
+        const exists = Map.prototype.has.call(location.owner, location.key);
+        const value = exists ? Map.prototype.get.call(location.owner, location.key) : undefined;
         return snapshot(value, exists);
       }
       case "set-value":
-        return snapshot(slot.member, Set.prototype.has.call(slot.owner, slot.member));
+        return snapshot(location.member, Set.prototype.has.call(location.owner, location.member));
     }
   } catch (cause) {
     return { ...snapshot(undefined, false), error: errorMessage(cause) };
   }
 }
 
-export function sameSlot(a: SlotSnapshot, b: SlotSnapshot): boolean {
+export function sameVariable(a: VariableSnapshot, b: VariableSnapshot): boolean {
   return a.exists === b.exists && Object.is(a.value, b.value) &&
     a.preview === b.preview && a.expandable === b.expandable &&
     a.hidden === b.hidden &&
     a.accessor === b.accessor && a.error === b.error;
 }
-

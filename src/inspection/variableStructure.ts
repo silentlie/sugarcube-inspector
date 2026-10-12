@@ -1,7 +1,7 @@
 import { isReference } from "./direct";
-import type { VariableSlot } from "./variableSlots";
+import type { VariableLocation } from "./variableLocation";
 
-export type TreeChild = { id: string; name: string; slot: VariableSlot };
+export type TreeChild = { id: string; name: string; location: VariableLocation };
 
 type StructurePart = { key: unknown; descriptor: string; length?: number };
 export type StructureSnapshot = { parts: readonly StructurePart[]; error?: string };
@@ -78,10 +78,10 @@ export function listChildren(value: unknown): TreeChild[] {
     for (const key of Map.prototype.keys.call(value) as MapIterator<unknown>) {
       children.push({
         id: `map-key-${idForChild(value, key)}`, name: `[${i}] key`,
-        slot: { kind: "map-key", owner: value, key },
+        location: { kind: "map-key", owner: value, key },
       }, {
         id: `map-value-${idForChild(value, key)}`, name: `[${i}] value`,
-        slot: { kind: "map-value", owner: value, key },
+        location: { kind: "map-value", owner: value, key },
       });
       i++;
     }
@@ -90,7 +90,7 @@ export function listChildren(value: unknown): TreeChild[] {
     for (const member of Set.prototype.values.call(value) as SetIterator<unknown>) {
       children.push({
         id: `set-${idForChild(value, member)}`, name: `[${i}]`,
-        slot: { kind: "set-value", owner: value, member },
+        location: { kind: "set-value", owner: value, member },
       });
       i++;
     }
@@ -99,7 +99,7 @@ export function listChildren(value: unknown): TreeChild[] {
     children.push({
       id: `property-${idForChild(value, key)}`,
       name: typeof key === "symbol" ? String(key) : key,
-      slot: { kind: "property", owner: value, key },
+      location: { kind: "property", owner: value, key },
     });
   }
   return children;

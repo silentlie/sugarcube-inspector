@@ -38,7 +38,7 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
   await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
 });
 
-test("MUI Tree View preserves scope navigation and lazy variable inspection", async ({ page }) => {
+test("MUI Rich Tree View preserves scope navigation and variable inspection", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openDrawer(page);
 

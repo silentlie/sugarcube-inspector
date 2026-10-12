@@ -5,31 +5,33 @@ It does not attach a debugger or use a cross-world messaging bridge.
 
 ## User interface
 
-- **MUI Community** provides Tabs, Typography, Button, and MUI X SimpleTreeView
-  with accessible native tree navigation. There are no copied shadcn
-  components, Tailwind stylesheets, or Pro dependencies.
+- **MUI Community** provides Tabs, Typography, Buttons, and **MUI X RichTreeView**
+  with accessible keyboard navigation. There are no Tailwind, shadcn, or Pro dependencies.
 - Overview, Variables, and Scripts are top-level tabs. Under Variables are
   Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
   Favorites are placeholders.
-- The variable tree uses **MUI X Community SimpleTreeView + TreeItem**.
-  MUI owns keyboard tree navigation and expansion state. Expansion mounts child
-  discovery and structural watches lazily, while each tile retains direct
-  references and per-node visibility subscriptions. The free Tree View does
-  not provide built-in virtualization; we retain 100-child pagination.
+- The variable tree uses **MUI X Community RichTreeView + custom TreeItem**.
+  `getItemChildren` eagerly discovers the supplied tree hierarchy, without
+  copying game values. Pages of 100 children limit how many nodes MUI indexes
+  initially; “Load more” extends a specific branch.
 - The remaining layout settings handle drawer geometry, its resize handle,
   and value truncation. Most styling comes from MUI's default dark theme.
 
 ## Behavior
 
-- Components read `SugarCube.State.variables` and
-  `SugarCube.State.temporary` directly without cloning.
-- Independently watched rows update with live values. Expanded objects
-  additionally watch structure, array length, and Map/Set membership.
-- `react-intersection-observer` tracks visible subtrees. Offscreen tiles stop
+- `VariableLocation` describes a direct owner/key or the trusted SugarCube
+  `State.variables` / `State.temporary` store, with keys checked against the
+  installed `StateAPI` type. Tree node models have no stored `children` arrays.
+- Components read live SugarCube values directly without serialization or cloning.
+- Independently watched rows update values while in view. Expanded, visible
+  containers additionally watch structure, array length, and Map/Set membership.
+  Structural changes rebuild the tree model; ordinary value changes do not.
+- `react-intersection-observer` tracks visible rows. Offscreen rows stop
   polling. A shared 250ms scheduler checks active subscriptions.
-- References retain object identity; cycles are marked and property getters
-  are not invoked. Pagination initially shows 100 children per container.
-- The inspector is read-only for now.
+- References retain object identity; ancestor cycles are marked and stop
+  recursive discovery. Arbitrary property getters are not invoked. The
+  `getItemChildren` adapter limits initial indexing to 100 children per parent.
+- This Community Tree View is not virtualized. The inspector is read-only.
 
 ## Shadow DOM integration
 

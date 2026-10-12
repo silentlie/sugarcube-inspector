@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readSlot, sameSlot } from "./variableSlots";
+import { readVariable, sameVariable } from "./variableLocation";
 import { listChildren, readStructure, sameStructure } from "./variableStructure";
 import { VariableWatcher } from "./variableWatcher";
 
@@ -8,23 +8,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("recursive variable slots", () => {
-  it("reads the current owner property, including replacements and missing slots", () => {
+describe("recursive variable locations", () => {
+  it("reads the current owner property, including replacements and missing locations", () => {
     const player = { health: 10 };
-    const slot = { kind: "property" as const, owner: player, key: "health" };
-    const initial = readSlot(slot);
+    const location = { kind: "property" as const, owner: player, key: "health" };
+    const initial = readVariable(location);
     player.health = 20;
-    expect(readSlot(slot).value).toBe(20);
-    expect(sameSlot(initial, readSlot(slot))).toBe(false);
+    expect(readVariable(location).value).toBe(20);
+    expect(sameVariable(initial, readVariable(location))).toBe(false);
 
     const store = { player };
     const parent = { kind: "property" as const, owner: store, key: "player" };
-    const first = readSlot(parent);
+    const first = readVariable(parent);
     store.player = { health: 30 };
-    expect(readSlot(parent).value).toBe(store.player);
-    expect(sameSlot(first, readSlot(parent))).toBe(false);
+    expect(readVariable(parent).value).toBe(store.player);
+    expect(sameVariable(first, readVariable(parent))).toBe(false);
 
-    const missing = readSlot({ kind: "property", owner: {}, key: "absent" });
+    const missing = readVariable({ kind: "property", owner: {}, key: "absent" });
     expect(missing.exists).toBe(false);
     expect(missing.preview).toBe("[Missing]");
   });
@@ -50,7 +50,7 @@ describe("recursive variable slots", () => {
     map.set("one", 2);
     expect(sameStructure(mapShape, readStructure(map))).toBe(true);
     const mapValue = listChildren(map).find((child) => child.name === "[0] value")!;
-    expect(readSlot(mapValue.slot).value).toBe(2);
+    expect(readVariable(mapValue.location).value).toBe(2);
     map.delete("one");
     map.set("two", 2);
     expect(sameStructure(mapShape, readStructure(map))).toBe(false);
@@ -60,20 +60,20 @@ describe("recursive variable slots", () => {
     set.delete("one");
     set.add("two");
     expect(sameStructure(setShape, readStructure(set))).toBe(false);
-    expect(readSlot(listChildren(set)[0]!.slot).value).toBe("two");
+    expect(readVariable(listChildren(set)[0]!.location).value).toBe("two");
   });
 
   it("keeps actual object identity and does not invoke getters", () => {
     const player = { score: 3 };
     const parent = { player, leader: player };
     const children = listChildren(parent);
-    const first = readSlot(children[0]!.slot);
-    const second = readSlot(children[1]!.slot);
+    const first = readVariable(children[0]!.location);
+    const second = readVariable(children[1]!.location);
     expect(first.value).toBe(second.value);
     const getter = vi.fn(() => 10);
     Object.defineProperty(parent, "derived", { get: getter, enumerable: true });
     const getterSlot = listChildren(parent).find((item) => item.name === "derived")!;
-    expect(readSlot(getterSlot.slot).preview).toBe("[getter]");
+    expect(readVariable(getterSlot.location).preview).toBe("[getter]");
     expect(getter).not.toHaveBeenCalled();
   });
 
@@ -101,7 +101,7 @@ describe("recursive variable slots", () => {
 });
 
 describe("shared variable watcher", () => {
-  it("keeps one timer and notifies only changed slots", async () => {
+  it("keeps one timer and notifies only changed locations", async () => {
     vi.useFakeTimers();
     const watcher = new VariableWatcher(50);
     let first = 1;

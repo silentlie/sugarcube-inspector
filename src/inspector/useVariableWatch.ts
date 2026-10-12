@@ -1,14 +1,14 @@
 import { useMemo, useSyncExternalStore } from "react";
-import { readSlot, sameSlot, type VariableSlot } from "../inspection/variableSlots";
+import { readVariable, sameVariable, type VariableLocation } from "../inspection/variableLocation";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { variableWatcher } from "../inspection/variableWatcher";
 
 const noSubscription = () => () => {};
 
-export function useVariable(slot: VariableSlot, visible: boolean) {
+export function useVariable(location: VariableLocation, visible: boolean) {
   const subscription = useMemo(
-    () => variableWatcher.watch(() => readSlot(slot), sameSlot),
-    [slot, visible],
+    () => variableWatcher.watch(() => readVariable(location), sameVariable),
+    [location, visible],
   );
   return useSyncExternalStore(
     visible ? subscription.subscribe : noSubscription,

@@ -8,8 +8,9 @@ describe("direct MAIN-world access", () => {
     const story = { player: { health: 100 } };
     const temporary = { choice: "north" };
     vi.stubGlobal("SugarCube", { State: { variables: story, temporary } });
-    expect(getStore("story")).toBe(story);
+    expect(getStore("variables")).toBe(story);
     expect(getStore("temporary")).toBe(temporary);
+    expect(getStore("variables")).toBe(story);
   });
 
   it("distinguishes references and previews primitive and collection values", () => {
