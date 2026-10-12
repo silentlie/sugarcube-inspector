@@ -6,6 +6,8 @@ Chrome's MAIN JavaScript world, next to SugarCube itself.
 
 ## What this proves
 
+- shadcn/ui Item, Collapsible, and Button replace the custom variable row,
+  expand/collapse control, and pagination button without per-tile CSS rules.
 - shadcn/ui Tabs provides Overview, Variables, and Scripts sections. Variables
   contains Story Variables, Temporary Variables, and Favorites subtabs. Overview,
   Scripts, and Favorites are empty placeholders for future features, using the

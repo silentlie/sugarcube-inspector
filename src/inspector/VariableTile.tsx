@@ -1,7 +1,11 @@
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useInView } from "react-intersection-observer";
+import { Button } from "../components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
+import { Item, ItemActions, ItemContent, ItemTitle } from "../components/ui/item";
 import type { VariableSlot } from "../inspection/variableSlots";
 import { listChildren } from "../inspection/variableStructure";
-import { useInView } from "react-intersection-observer";
 import { useStructure, useVariable } from "./useVariableWatch";
 
 const PAGE_SIZE = 100;
@@ -18,34 +22,36 @@ function VariableTile({
   const current = useVariable(slot, visible);
   const [expanded, setExpanded] = useState(false);
   const circular = current.expandable && ancestors.includes(current.value as object);
+  const canExpand = current.expandable && !circular;
 
   return (
-    <div ref={ref}>
-      <div className="flex min-w-0 items-baseline gap-2 rounded px-2 py-1.5 text-xs hover:bg-zinc-800">
-        {current.expandable && !circular ? (
-          <button type="button"
-            aria-label={`${expanded ? "Collapse" : "Expand"} ${name}`}
-            aria-expanded={expanded}
-            className="shrink-0 cursor-pointer text-zinc-400"
-            onClick={() => setExpanded((old) => !old)}>
-            {expanded ? "▾" : "▸"}
-          </button>
-        ) : <span className="inline-block w-3 shrink-0" />}
-        <span className="min-w-0 truncate text-zinc-200">{name}</span>
-        <span className="ml-auto min-w-0 truncate font-mono text-zinc-400"
-          title={current.preview}>{current.preview}</span>
-        {circular && <span className="text-[10px] text-sky-400">same reference</span>}
-        {current.hidden && <span className="text-[10px] text-zinc-500">hidden</span>}
-      </div>
+    <Collapsible ref={ref} open={expanded && canExpand} onOpenChange={setExpanded}>
+      <Item size="sm">
+        {canExpand ? (
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="ghost" size="icon-xs"
+              aria-label={`${expanded ? "Collapse" : "Expand"} ${name}`}>
+              {expanded ? <ChevronDown /> : <ChevronRight />}
+            </Button>
+          </CollapsibleTrigger>
+        ) : <span className="size-6 shrink-0" aria-hidden="true" />}
+        <ItemContent className="min-w-0">
+          <ItemTitle className="min-w-0 truncate">{name}</ItemTitle>
+        </ItemContent>
+        <ItemActions className="min-w-0 max-w-1/2">
+          <span className="truncate font-mono text-xs text-muted-foreground"
+            title={current.preview}>{current.preview}</span>
+          {circular && <span className="text-xs text-muted-foreground">same reference</span>}
+          {current.hidden && <span className="text-xs text-muted-foreground">hidden</span>}
+        </ItemActions>
+      </Item>
       {current.error && (
         <p role="alert" className="p-2 text-xs text-red-400">{current.error}</p>
       )}
-      {expanded && current.expandable && !circular && (
-        <div className="ml-3 border-l border-zinc-700 pl-2">
-          <VariableChildren value={current.value as object} ancestors={ancestors} />
-        </div>
-      )}
-    </div>
+      <CollapsibleContent className="ml-3 border-l border-border pl-2">
+        {canExpand && <VariableChildren value={current.value as object} ancestors={ancestors} />}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -82,14 +88,13 @@ export function VariableChildren({
               ancestors={lineage} />
           ))}
           {limit < children.length && (
-            <button type="button" className="p-2 text-xs text-sky-300"
+            <Button type="button" variant="ghost" size="sm"
               onClick={() => setLimit((current) => current + PAGE_SIZE)}>
               Load more ({Math.min(limit, children.length)}/{children.length})
-            </button>
+            </Button>
           )}
         </>
       )}
     </div>
   );
 }
-

@@ -89,7 +89,12 @@ test("inspects shared live references and cycles without writes or serialization
   });
   await drawer.getByRole("button", { name: "Refresh variables" }).click();
   await expect(drawer.getByText("uncloneable", { exact: true })).toBeVisible();
-  await drawer.getByRole("button", { name: "Expand player" }).click();
+  const expandPlayer = drawer.getByRole("button", { name: "Expand player" });
+  await expect(expandPlayer).toHaveAttribute("data-slot", "collapsible-trigger");
+  await expect(drawer.locator('[data-slot="item"]').first()).toHaveCount(1);
+  await expandPlayer.click();
+  await expect(drawer.getByRole("button", { name: "Collapse player" }))
+    .toHaveAttribute("aria-expanded", "true");
   await expect(drawer.getByText("health", { exact: true })).toBeVisible();
   await expect(drawer.getByText("same reference", { exact: true })).toBeVisible();
   await expect(drawer.getByTitle("100", { exact: true })).toBeVisible();
@@ -212,7 +217,9 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   });
   await drawer.getByRole("button", { name: "Expand large" }).click();
 
-  const firstRow = drawer.getByText("item00", { exact: true }).locator("..");
+  const firstRow = drawer.locator('[data-slot="item"]').filter({
+    has: drawer.getByText("item00", { exact: true }),
+  });
   await firstRow.scrollIntoViewIfNeeded();
   await expect(firstRow.getByTitle("0", { exact: true })).toBeVisible();
 
