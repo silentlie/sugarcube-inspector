@@ -5,7 +5,6 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import Drawer from "@/src/inspector/Drawer";
 import DirectInspector from "@/src/inspector/DirectInspector";
 import ReactDOM from "react-dom/client";
-import syntaxTheme from "prism-themes/themes/prism-vsc-dark-plus.css?inline";
 
 /** SugarCube and React share MAIN world; MUI styles remain in the ShadowRoot. */
 export default defineContentScript({
@@ -22,9 +21,7 @@ export default defineContentScript({
       "position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647";
     const shadow = host.attachShadow({ mode: "open" });
     const container = document.createElement("div");
-    const styles = document.createElement("style");
-    styles.textContent = syntaxTheme;
-    shadow.append(styles, container);
+    shadow.append(container);
     document.documentElement.append(host);
 
     const cache = createCache({ key: "sugarcube-mui", prepend: true, container: shadow });

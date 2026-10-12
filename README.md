@@ -13,9 +13,9 @@ It does not attach a debugger or use a cross-world messaging bridge.
 - The variable tree uses **MUI X Community RichTreeView + custom TreeItem**.
   `getItemChildren` eagerly discovers the entire tree hierarchy, without
   copying game values or implementing custom pagination.
-- Variable rows display type labels and color previews using the VS Code Dark+
-  palette from `prism-themes`. Only its CSS is loaded into the inspector's
-  ShadowRoot; the existing MUI tree and live-data behavior are unchanged.
+- Variable rows syntax-highlight values with `prism-react-renderer` and its
+  built-in VS Dark theme. Type labels reuse that palette instead of custom color
+  definitions; the existing MUI tree and live-data behavior are unchanged.
 - The remaining layout settings handle drawer geometry, its resize handle,
   and value truncation. Most styling comes from MUI's default dark theme.
 

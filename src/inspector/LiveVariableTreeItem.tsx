@@ -9,7 +9,7 @@ import type { VariableLocation, VariableSnapshot } from "../inspection/variableL
 import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "../inspection/variableTree";
 import { useStructure, useVariable } from "./useVariableWatch";
-import { inlinePreview, typeToken, valueToken } from "./valueSyntax";
+import { TypeSyntax, ValueSyntax } from "./valueSyntax";
 
 type TreeState = {
   expanded: ReadonlySet<string>;
@@ -48,15 +48,13 @@ function ValueTokens({ current, showType = true }: {
     <>
       {showType && (
         <Typography component="span" variant="caption" noWrap
-          className={`token ${typeToken(type)}`}
           sx={{ fontFamily: "monospace", flexShrink: 0 }}>
-          {type}
+          <TypeSyntax type={type} />
         </Typography>
       )}
       <Typography component="span" variant="caption" noWrap
-        className={`token ${valueToken(type)}`}
         title={preview} sx={{ fontFamily: "monospace", maxWidth: showType ? "45%" : "100%" }}>
-        {inlinePreview(type, preview)}
+        <ValueSyntax type={type} preview={preview} />
       </Typography>
     </>
   );
