@@ -36,7 +36,7 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
   await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
   await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
   await expect(drawer.getByText("choice", { exact: true })).toBeVisible();
-  await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
+  await expect(drawer.getByTitle('"north"', { exact: true }).last()).toBeVisible();
 });
 
 test("Ant Design Tree View preserves scope navigation and variable inspection", async ({ page }) => {
@@ -84,11 +84,13 @@ test("Ant Design Tree View exposes keyboard-controlled expansion", async ({ page
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
   const inventory = drawer.getByRole("treeitem", { name: /^inventory/ });
-  await inventory.focus();
-  await inventory.press("ArrowRight");
+  const tree = drawer.getByRole("tree", { name: "Story variables tree" });
+  await inventory.locator(".ant-tree-node-content-wrapper").click();
+  await tree.focus();
+  await tree.press("ArrowRight");
   await expect(inventory).toHaveAttribute("aria-expanded", "true");
   await expect(drawer.getByRole("treeitem", { name: /^0/ })).toBeVisible();
-  await inventory.press("ArrowLeft");
+  await tree.press("ArrowLeft");
   await expect(inventory).toHaveAttribute("aria-expanded", "false");
   await expect(drawer.getByRole("treeitem", { name: /^0/ })).toHaveCount(0);
 });
@@ -222,13 +224,13 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
     .getByTitle("4", { exact: true })).toBeVisible();
 
   await expandVariable(drawer, "testSet");
-  await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
+  await expect(drawer.getByTitle('"north"', { exact: true }).last()).toBeVisible();
   await page.evaluate(() => {
     const store = SugarCube.State.variables as unknown as { testSet: Set<string> };
     store.testSet.delete("north");
     store.testSet.add("south");
   });
-  await expect(drawer.getByTitle('"south"', { exact: true })).toBeVisible();
+  await expect(drawer.getByTitle('"south"', { exact: true }).last()).toBeVisible();
 });
 
 test("Map object keys and values can each expand independently", async ({ page }) => {
@@ -271,7 +273,9 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   await firstRow.scrollIntoViewIfNeeded();
   await expect(firstRow.getByTitle("0", { exact: true })).toBeVisible();
 
-  await drawer.getByText("item79", { exact: true }).scrollIntoViewIfNeeded();
+  const holder = drawer.locator(".ant-tree-list-holder").first();
+  await holder.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  await expect(drawer.getByText("item79", { exact: true })).toBeVisible();
   await expect(firstRow).toHaveCount(0);
   // Allow the IntersectionObserver to mark the first row as offscreen.
   await page.waitForTimeout(250);
@@ -285,7 +289,7 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   await page.waitForTimeout(600);
   await expect(firstRow.getByTitle("0", { exact: true })).toHaveCount(0);
 
-  await drawer.locator(".rc-virtual-list-holder").evaluate((el) => { el.scrollTop = 0; });
+  await holder.evaluate((el) => { el.scrollTop = 0; });
   await expect(firstRow.getByTitle("999", { exact: true })).toBeVisible();
 });
 
@@ -299,7 +303,7 @@ test("Ant Design Tree exposes all children without pagination", async ({ page })
     );
   });
   await expandVariable(drawer, "bulk");
-  const virtualHolder = drawer.locator(".rc-virtual-list-holder").first();
+  const virtualHolder = drawer.locator(".ant-tree-list-holder").first();
   await virtualHolder.evaluate((el) => { el.scrollTop = el.scrollHeight; });
   await expect(drawer.getByText("item124", { exact: true })).toBeVisible();
   expect(await drawer.getByRole("treeitem").count()).toBeLessThan(100);
