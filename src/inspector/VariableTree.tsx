@@ -127,7 +127,7 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     switcherIcon={(props) => <span aria-hidden="true">{props.expanded ? "▾" : "▸"}</span>}
     virtual
     height={height}
-    treeData={items}
+    treeData={benchMode() === "capped" ? items.slice(0, 25) : items}
     expandedKeys={expandedKeys}
     autoExpandParent={false}
     loadData={loadData}
@@ -140,7 +140,7 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     }}
     titleRender={(data) => {
       const item = data as Item;
-      return benchMode() === "plain" ? item.variable.id :
+      return (benchMode() === "plain" || benchMode() === "capped") ? item.variable.id :
         <LiveVariableLabel
           node={item.variable} expanded={expanded.has(item.key)} refresh={refresh} />;
     }}

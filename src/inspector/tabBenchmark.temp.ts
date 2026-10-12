@@ -1,5 +1,5 @@
 /** Temporary browser benchmarking instrumentation. Remove after measurements. */
-export type Mode = "normal" | "destroy" | "noTree" | "noAnt" | "plain";
+export type Mode = "normal" | "destroy" | "noTree" | "noAnt" | "plain" | "capped";
 export type Measurement = { name: string; at: number; ms: number; count?: number };
 export type TabBenchmark = { mode: Mode; measures: Measurement[] };
 declare global { interface Window { __scTabBenchmark?: TabBenchmark } }

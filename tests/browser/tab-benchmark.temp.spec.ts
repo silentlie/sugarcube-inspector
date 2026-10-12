@@ -1,6 +1,6 @@
 import { expect, storyUrl, test } from "./fixtures";
 
-type Mode = "normal" | "destroy" | "noTree" | "noAnt" | "plain";
+type Mode = "normal" | "destroy" | "noTree" | "noAnt" | "plain" | "capped";
 type Measure = { name: string; at: number; ms: number };
 type ClickResult = {
   domMs: number;
@@ -8,11 +8,11 @@ type ClickResult = {
   renderedRows: number;
   events: Measure[];
 };
-const cases: { mode: Mode; width: number; nested?: boolean }[] = [
-  ...(["normal", "noTree", "noAnt", "plain", "destroy"] as const).flatMap(mode =>
-    [0, 1000, 5000].map(width => ({ mode, width }))),
-  { mode: "normal", width: 0, nested: true },
-];
+const cases = Array.from({length:3}, (_, repetition) =>
+  (["normal", "noAnt", "plain", "capped"] as const).flatMap(mode =>
+    [1000, 5000].map(width => ({ mode, width, repetition }))),
+).flat();
+
 
 test("temporary benchmark: cold/warm tabs and tree pipeline", async ({page}) => {
   test.setTimeout(175_000);
