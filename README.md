@@ -21,6 +21,9 @@ It does not attach a debugger or use a cross-world messaging bridge.
 - `VariableLocation` describes a direct owner/key or the trusted SugarCube
   `State.variables` / `State.temporary` store, with keys checked against the
   installed `StateAPI` type. Tree node models have no stored `children` arrays.
+- The drawer shows a loading status until `SugarCube.State` becomes available.
+  Inspectors then use the required `getState(): StateAPI` accessor, which throws
+  if the runtime unexpectedly loses its State API.
 - Components read live SugarCube values directly without serialization or cloning.
   Runtime checks use named `@sindresorhus/is` type guards, including functions
   as expandable references.

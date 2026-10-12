@@ -7,15 +7,40 @@ import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { VariableStoreKey } from "../inspection/direct";
+import { hasState, type VariableStoreKey } from "../inspection/direct";
 import { variableWatcher } from "../inspection/variableWatcher";
 import VariableTree from "./VariableTree";
 
 type Section = "overview" | "variables" | "scripts";
 type VariableScope = VariableStoreKey | "favorites";
 
-/** Entire tree and all subscriptions run in SugarCube's MAIN JS world. */
+/** Wait for initialization before any inspection hook can read the State API. */
 export default function DirectInspector() {
+  const [ready, setReady] = useState(hasState);
+
+  useEffect(() => {
+    if (ready) return;
+    const timer = window.setInterval(() => {
+      if (hasState()) setReady(true);
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [ready]);
+
+  if (!ready) {
+    return (
+      <Box component="section" role="status" aria-busy="true">
+        <Typography variant="body2" color="text.secondary">
+          Waiting for SugarCube...
+        </Typography>
+      </Box>
+    );
+  }
+
+  return <ReadyInspector />;
+}
+
+/** Entire tree and all subscriptions run in SugarCube's MAIN JS world. */
+function ReadyInspector() {
   const [section, setSection] = useState<Section>("overview");
   const [scope, setScope] = useState<VariableScope>("variables");
 

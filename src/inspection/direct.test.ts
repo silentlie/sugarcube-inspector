@@ -1,10 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getStore, preview } from "./direct";
+import { getState, getStore, hasState, preview } from "./direct";
 import { readVariable } from "./variableLocation";
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("direct MAIN-world access", () => {
+  it("waits for State and makes ready access a runtime invariant", () => {
+    expect(hasState()).toBe(false);
+    expect(getState).toThrow("SugarCube.State is not available");
+
+    const state = { variables: { player: 1 }, temporary: { choice: "north" } };
+    vi.stubGlobal("SugarCube", { State: state });
+    expect(hasState()).toBe(true);
+    expect(getState()).toBe(state);
+  });
+
   it("returns the live story and temporary stores without cloning them", () => {
     const story = { player: { health: 100 } };
     const temporary = { choice: "north" };
