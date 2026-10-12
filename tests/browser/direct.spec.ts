@@ -83,6 +83,24 @@ test("Ant Design Tree View preserves scope navigation and variable inspection", 
   await expect(drawer.getByText("score", { exact: true })).toBeVisible();
 });
 
+test("custom drawer retains keyboard resizing and toggle behaviour", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = page.locator("sugarcube-inspector");
+  const handle = drawer.getByRole("button", { name: "Resize SugarCube Inspector" });
+  await handle.press("Enter");
+  await expect(handle).toHaveAttribute("aria-expanded", "true");
+
+  const width = await drawer.locator("aside").evaluate((el) =>
+    Number.parseFloat((el as HTMLElement).style.width));
+  await handle.press("ArrowLeft");
+  await expect(drawer.locator("aside")).toHaveCSS("width", `${width + 24}px`);
+  await handle.press("ArrowRight");
+  await expect(drawer.locator("aside")).toHaveCSS("width", `${width}px`);
+
+  await handle.press("Enter");
+  await expect(handle).toHaveAttribute("aria-expanded", "false");
+});
+
 test("Ant Design Tree View exposes keyboard-controlled expansion", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);

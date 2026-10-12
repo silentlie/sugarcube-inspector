@@ -34,19 +34,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Emit updated dependency lockfile
-        run: |
-          node - <<'NODE'
-          const fs = require('node:fs');
-          const lock = fs.readFileSync('package-lock.json', 'utf8');
-          console.log('LOCKFILE_BEGIN');
-          for (let i = 0; i < lock.length; i += 1800) {
-            console.log('LOCKFILE_CHUNK:' + JSON.stringify(lock.slice(i, i + 1800)));
-          }
-          console.log('LOCKFILE_END');
-          NODE
+        run: npm ci
 
       - name: Run ESLint
         run: npm run lint
