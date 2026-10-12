@@ -16,7 +16,7 @@ test("temporary expansion benchmark", async ({ page }) => {
     const results: { clickMs: number; toDomMs: number; ownKeys: number; visited: number; descriptors: number }[] = [];
     for (let i = 0; i < 4; i++) {
       const name = `perf_${kind}_${i}`;
-      const childName = `${name}_child0`;
+      const childName = kind === "nested4" ? `${name}_child4_0` : `${name}_child0`;
       await page.evaluate(({ kind, name }) => {
         const tracked = new WeakSet<object>();
         const nested = (depth: number): object => {
