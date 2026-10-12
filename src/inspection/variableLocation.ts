@@ -9,16 +9,14 @@ export type VariableLocation =
   | { kind: "map-value"; owner: Map<unknown, unknown>; key: unknown }
   | { kind: "set-value"; owner: Set<unknown>; member: unknown };
 
-export type VariableSnapshot = {
-  exists: boolean;
-  value: unknown;
-  preview: string;
-  type: string;
-  expandable: boolean;
-  hidden: boolean;
-  accessor?: "getter" | "setter" | "getter/setter";
-  error?: string;
-};
+type AccessorKind = "getter" | "setter" | "getter/setter";
+
+/** Previews are captured at read time so in-place mutations remain observable. */
+export type VariableSnapshot =
+  | { kind: "value"; value: unknown; preview: string; type: string; expandable: boolean }
+  | { kind: "accessor"; accessor: AccessorKind }
+  | { kind: "missing" }
+  | { kind: "error"; error: string };
 
 function errorMessage(cause: unknown): string {
   return isError(cause) ? cause.message : String(cause);
@@ -32,20 +30,13 @@ function typeName(value: unknown): string {
   }
 }
 
-function snapshot(
-  value: unknown,
-  exists: boolean,
-  hidden = false,
-  accessor?: VariableSnapshot["accessor"],
-): VariableSnapshot {
+function snapshot(value: unknown): VariableSnapshot {
   return {
-    exists,
+    kind: "value",
     value,
-    preview: !exists ? "[Missing]" : accessor ? `[${accessor}]` : preview(value),
-    type: !exists ? "missing" : accessor ?? typeName(value),
-    expandable: exists && !accessor && isObject(value),
-    hidden,
-    ...(accessor && { accessor }),
+    preview: preview(value),
+    type: typeName(value),
+    expandable: isObject(value),
   };
 }
 
@@ -55,38 +46,46 @@ export function readVariable(location: VariableLocation): VariableSnapshot {
     switch (location.kind) {
       case "state": {
         const value = getStore(location.key);
-        return snapshot(value, value !== undefined);
+        return value === undefined ? { kind: "missing" } : snapshot(value);
       }
       case "property": {
         const descriptor = Object.getOwnPropertyDescriptor(location.owner, location.key);
-        if (!descriptor) return snapshot(undefined, false);
+        if (!descriptor) return { kind: "missing" };
         if (!("value" in descriptor)) {
           const accessor = descriptor.get && descriptor.set ? "getter/setter"
             : descriptor.get ? "getter" : "setter";
-          return snapshot(undefined, true, !descriptor.enumerable, accessor);
+          return { kind: "accessor", accessor };
         }
-        return snapshot(descriptor.value, true, !descriptor.enumerable);
+        return snapshot(descriptor.value);
       }
-      case "map-key": {
-        const exists = Map.prototype.has.call(location.owner, location.key);
-        return snapshot(location.key, exists);
-      }
-      case "map-value": {
-        const exists = Map.prototype.has.call(location.owner, location.key);
-        const value = exists ? Map.prototype.get.call(location.owner, location.key) : undefined;
-        return snapshot(value, exists);
-      }
+      case "map-key":
+        return Map.prototype.has.call(location.owner, location.key)
+          ? snapshot(location.key) : { kind: "missing" };
+      case "map-value":
+        return Map.prototype.has.call(location.owner, location.key)
+          ? snapshot(Map.prototype.get.call(location.owner, location.key))
+          : { kind: "missing" };
       case "set-value":
-        return snapshot(location.member, Set.prototype.has.call(location.owner, location.member));
+        return Set.prototype.has.call(location.owner, location.member)
+          ? snapshot(location.member) : { kind: "missing" };
     }
   } catch (cause) {
-    return { ...snapshot(undefined, false), error: errorMessage(cause) };
+    return { kind: "error", error: errorMessage(cause) };
   }
 }
 
 export function sameVariable(a: VariableSnapshot, b: VariableSnapshot): boolean {
-  return a.exists === b.exists && Object.is(a.value, b.value) &&
-    a.preview === b.preview && a.type === b.type && a.expandable === b.expandable &&
-    a.hidden === b.hidden &&
-    a.accessor === b.accessor && a.error === b.error;
+  if (a.kind !== b.kind) return false;
+  switch (a.kind) {
+    case "value":
+      return b.kind === "value" && Object.is(a.value, b.value) &&
+        a.preview === b.preview && a.type === b.type &&
+        a.expandable === b.expandable;
+    case "accessor":
+      return b.kind === "accessor" && a.accessor === b.accessor;
+    case "missing":
+      return true;
+    case "error":
+      return b.kind === "error" && a.error === b.error;
+  }
 }

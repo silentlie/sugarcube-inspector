@@ -15,7 +15,7 @@ export type VariableNode = {
 /** MUI eagerly indexes the entire hierarchy, including collapsed nodes. */
 export function getVariableChildren(node: VariableNode): VariableNode[] {
   const snapshot = readVariable(node.location);
-  if (!snapshot.expandable || !isObject(snapshot.value) ||
+  if (snapshot.kind !== "value" || !snapshot.expandable || !isObject(snapshot.value) ||
       node.ancestors.includes(snapshot.value)) return [];
 
   try {

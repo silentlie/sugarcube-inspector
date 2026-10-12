@@ -42,17 +42,24 @@ function LiveVariableValue({
 }) {
   const { refresh } = useContext(VariableTreeContext);
   const current = useVariable(node.location, visible);
-  const previousValue = useRef(current.value);
-  const circular = current.expandable && node.ancestors.includes(current.value as object);
+  const value = current.kind === "value" ? current.value : undefined;
+  const previousValue = useRef(value);
+  const circular = current.kind === "value" && current.expandable &&
+    node.ancestors.includes(current.value as object);
+  const type = current.kind === "value" ? current.type :
+    current.kind === "accessor" ? current.accessor : current.kind;
+  const preview = current.kind === "value" ? current.preview :
+    current.kind === "accessor" ? `[${current.accessor}]` :
+    current.kind === "missing" ? "[Missing]" : "[Error]";
 
   useEffect(() => {
     const previous = previousValue.current;
-    previousValue.current = current.value;
-    if (visible && !Object.is(previous, current.value) &&
-        (isObject(previous) || isObject(current.value))) {
+    previousValue.current = value;
+    if (visible && !Object.is(previous, value) &&
+        (isObject(previous) || isObject(value))) {
       refresh();
     }
-  }, [current.value, visible, refresh]);
+  }, [value, visible, refresh]);
 
   return (
     <>
@@ -61,20 +68,20 @@ function LiveVariableValue({
           {node.name}
         </Typography>
         <Typography component="span" variant="caption" noWrap
-          className={`token ${typeToken(current.type)}`}
+          className={`token ${typeToken(type)}`}
           sx={{ fontFamily: "monospace", flexShrink: 0 }}>
-          {current.type}
+          {type}
         </Typography>
         <Typography component="span" variant="caption" noWrap
-          className={`token ${valueToken(current.type)}`}
-          title={current.preview} sx={{ fontFamily: "monospace", maxWidth: "45%" }}>
-          {inlinePreview(current.type, current.preview)}
+          className={`token ${valueToken(type)}`}
+          title={preview} sx={{ fontFamily: "monospace", maxWidth: "45%" }}>
+          {inlinePreview(type, preview)}
         </Typography>
         {circular && <Typography variant="caption" color="info.main">same reference</Typography>}
-        {current.hidden && <Typography variant="caption" color="text.disabled">hidden</Typography>}
-        {current.error && <Typography role="alert" variant="caption" color="error">{current.error}</Typography>}
+        {current.kind === "error" &&
+          <Typography role="alert" variant="caption" color="error">{current.error}</Typography>}
       </Box>
-      {expanded && visible && current.expandable && !circular &&
+      {expanded && visible && current.kind === "value" && current.expandable && !circular &&
         <VisibleStructureWatcher value={current.value as object} />}
     </>
   );

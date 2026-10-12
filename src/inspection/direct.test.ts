@@ -29,11 +29,12 @@ describe("direct MAIN-world access", () => {
     vi.stubGlobal("SugarCube", {
       State: { get variables() { return getter(); }, temporary: {} },
     });
-    expect(readVariable({ kind: "state", key: "variables" }).value).toBe(story);
+    expect(readVariable({ kind: "state", key: "variables" }))
+      .toMatchObject({ kind: "value", value: story });
     expect(getter).toHaveBeenCalledTimes(1);
     const other = { get secret() { throw new Error("Should never run"); } };
-    expect(readVariable({ kind: "property", owner: other, key: "secret" }).preview)
-      .toBe("[getter]");
+    expect(readVariable({ kind: "property", owner: other, key: "secret" }))
+      .toEqual({ kind: "accessor", accessor: "getter" });
   });
 
   it("previews primitives, functions and collections without changing special cases", () => {

@@ -12,8 +12,10 @@ afterEach(() => {
 describe("recursive variable locations", () => {
   it("identifies live values for syntax highlighting without invoking property getters", () => {
     const subject = { name: "Alex", count: 4, active: true, list: [1], fn: () => 1 };
-    const typeFor = (key: keyof typeof subject) =>
-      readVariable({ kind: "property", owner: subject, key }).type;
+    const typeFor = (key: keyof typeof subject) => {
+      const result = readVariable({ kind: "property", owner: subject, key });
+      return result.kind === "value" ? result.type : result.kind;
+    };
     expect(typeFor("name")).toBe("string");
     expect(typeFor("count")).toBe("number");
     expect(typeFor("active")).toBe("boolean");
@@ -22,8 +24,8 @@ describe("recursive variable locations", () => {
 
     const getter = vi.fn(() => 1);
     Object.defineProperty(subject, "computed", { get: getter });
-    expect(readVariable({ kind: "property", owner: subject, key: "computed" }).type)
-      .toBe("getter");
+    expect(readVariable({ kind: "property", owner: subject, key: "computed" }))
+      .toEqual({ kind: "accessor", accessor: "getter" });
     expect(getter).not.toHaveBeenCalled();
   });
 
@@ -32,19 +34,67 @@ describe("recursive variable locations", () => {
     const location = { kind: "property" as const, owner: player, key: "health" };
     const initial = readVariable(location);
     player.health = 20;
-    expect(readVariable(location).value).toBe(20);
+    expect(readVariable(location)).toMatchObject({ kind: "value", value: 20 });
     expect(sameVariable(initial, readVariable(location))).toBe(false);
 
     const store = { player };
     const parent = { kind: "property" as const, owner: store, key: "player" };
     const first = readVariable(parent);
     store.player = { health: 30 };
-    expect(readVariable(parent).value).toBe(store.player);
+    expect(readVariable(parent)).toMatchObject({ kind: "value", value: store.player });
     expect(sameVariable(first, readVariable(parent))).toBe(false);
 
     const missing = readVariable({ kind: "property", owner: {}, key: "absent" });
-    expect(missing.exists).toBe(false);
-    expect(missing.preview).toBe("[Missing]");
+    expect(missing).toEqual({ kind: "missing" });
+  });
+
+  it("models undefined, non-enumerable, accessors, missing, and errors distinctly", () => {
+    const obj = { present: undefined } as Record<string, unknown>;
+    const present = { kind: "property" as const, owner: obj, key: "present" };
+    expect(readVariable(present)).toEqual({
+      kind: "value", value: undefined, type: "undefined",
+      preview: "undefined", expandable: false,
+    });
+    Object.defineProperty(obj, "hidden", { value: 10, enumerable: false });
+    expect(readVariable({ kind: "property", owner: obj, key: "hidden" }))
+      .toMatchObject({ kind: "value", value: 10 });
+    delete obj.present;
+    expect(readVariable(present)).toEqual({ kind: "missing" });
+
+    Object.defineProperty(obj, "computed", { get: () => 1, set: () => {} });
+    expect(readVariable({ kind: "property", owner: obj, key: "computed" }))
+      .toEqual({ kind: "accessor", accessor: "getter/setter" });
+
+    const proxy = new Proxy({}, {
+      getOwnPropertyDescriptor() { throw new Error("uninspectable"); },
+    });
+    expect(readVariable({ kind: "property", owner: proxy, key: "x" }))
+      .toEqual({ kind: "error", error: "uninspectable" });
+  });
+
+  it("captures mutable previews when values retain their identity", () => {
+    const inventory = ["map"];
+    const location = { kind: "property" as const, owner: { inventory }, key: "inventory" };
+    const before = readVariable(location);
+    inventory.push("torch");
+    const after = readVariable(location);
+
+    expect(before).toMatchObject({ kind: "value", preview: "Array(1)", expandable: true });
+    expect(after).toMatchObject({ kind: "value", preview: "Array(2)", expandable: true });
+    expect(sameVariable(before, after)).toBe(false);
+  });
+
+  it("compares snapshot kinds and accessor/error details", () => {
+    const missing = { kind: "missing" } as const;
+    const getter = { kind: "accessor", accessor: "getter" } as const;
+    const setter = { kind: "accessor", accessor: "setter" } as const;
+    const error = { kind: "error", error: "no access" } as const;
+
+    expect(sameVariable(missing, missing)).toBe(true);
+    expect(sameVariable(missing, getter)).toBe(false);
+    expect(sameVariable(getter, setter)).toBe(false);
+    expect(sameVariable(error, { kind: "error", error: "no access" })).toBe(true);
+    expect(sameVariable(error, { kind: "error", error: "changed" })).toBe(false);
   });
 
   it("notices property additions without treating value edits as structural changes", () => {
@@ -68,7 +118,7 @@ describe("recursive variable locations", () => {
     map.set("one", 2);
     expect(sameStructure(mapShape, readStructure(map))).toBe(true);
     const mapValue = listChildren(map).find((child) => child.name === "[0] value")!;
-    expect(readVariable(mapValue.location).value).toBe(2);
+    expect(readVariable(mapValue.location)).toMatchObject({ kind: "value", value: 2 });
     map.delete("one");
     map.set("two", 2);
     expect(sameStructure(mapShape, readStructure(map))).toBe(false);
@@ -78,7 +128,8 @@ describe("recursive variable locations", () => {
     set.delete("one");
     set.add("two");
     expect(sameStructure(setShape, readStructure(set))).toBe(false);
-    expect(readVariable(listChildren(set)[0]!.location).value).toBe("two");
+    expect(readVariable(listChildren(set)[0]!.location))
+      .toMatchObject({ kind: "value", value: "two" });
   });
 
   it("keeps actual object identity and does not invoke getters", () => {
@@ -87,11 +138,15 @@ describe("recursive variable locations", () => {
     const children = listChildren(parent);
     const first = readVariable(children[0]!.location);
     const second = readVariable(children[1]!.location);
+    expect(first.kind).toBe("value");
+    expect(second.kind).toBe("value");
+    if (first.kind !== "value" || second.kind !== "value") throw new Error("Expected values");
     expect(first.value).toBe(second.value);
     const getter = vi.fn(() => 10);
     Object.defineProperty(parent, "derived", { get: getter, enumerable: true });
     const getterSlot = listChildren(parent).find((item) => item.name === "derived")!;
-    expect(readVariable(getterSlot.location).preview).toBe("[getter]");
+    expect(readVariable(getterSlot.location))
+      .toEqual({ kind: "accessor", accessor: "getter" });
     expect(getter).not.toHaveBeenCalled();
   });
 
@@ -173,7 +228,7 @@ describe("Rich Tree View location adapter", () => {
     };
     const answer = getVariableChildren(parent).find((node) => node.name === "answer");
     expect(answer).toBeDefined();
-    expect(readVariable(answer!.location).value).toBe(42);
+    expect(readVariable(answer!.location)).toMatchObject({ kind: "value", value: 42 });
   });
 
   it("keeps original references, unique path IDs, and stops ancestor cycles", () => {
@@ -190,8 +245,8 @@ describe("Rich Tree View location adapter", () => {
     const players = firstLevel;
     expect(players.map((node) => node.id)).toHaveLength(2);
     expect(players[0]!.id).not.toBe(players[1]!.id);
-    expect(readVariable(players[0]!.location).value).toBe(player);
-    expect(readVariable(players[1]!.location).value).toBe(player);
+    expect(readVariable(players[0]!.location)).toMatchObject({ kind: "value", value: player });
+    expect(readVariable(players[1]!.location)).toMatchObject({ kind: "value", value: player });
 
     const children = getVariableChildren(players[0]!);
     const self = children.find((node) => node.name === "self")!;
@@ -214,7 +269,8 @@ describe("Rich Tree View location adapter", () => {
     expect(children).toHaveLength(126);
     expect(children.find((node) => node.name === "item124")).toBeDefined();
     const computed = children.find((node) => node.name === "computed")!;
-    expect(readVariable(computed.location).preview).toBe("[getter]");
+    expect(readVariable(computed.location))
+      .toEqual({ kind: "accessor", accessor: "getter" });
     expect(getter).not.toHaveBeenCalled();
   });
 });
