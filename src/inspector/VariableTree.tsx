@@ -1,77 +1,138 @@
 import { isObject } from "@sindresorhus/is";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { RichTreeView } from "@mui/x-tree-view/RichTreeView";
-import { useCallback, useMemo, useState } from "react";
+import { Tree, type TreeDataNode } from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
+import { isExpandableNode } from "../inspection/isExpandableNode";
 import type { VariableLocation } from "../inspection/variableLocation";
-import { getLocationName } from "../inspection/variableStructure";
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
-import { LiveVariableTreeItem, VariableTreeContext } from "./LiveVariableTreeItem";
+import { LiveVariableLabel } from "./LiveVariableLabel";
 import { useStructure, useVariable } from "./useVariableWatch";
 
-function RichVariableTree({ storeKey, rootValue, visible }: {
-  storeKey: VariableStoreKey;
-  rootValue: object;
-  visible: boolean;
-}) {
-  // Root changes are detected here; nested structural changes are detected by
-  // LiveVariableTreeItem only for expanded, visible branches.
-  const structure = useStructure(rootValue, visible);
-  const [revision, setRevision] = useState(0);
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
-  const expanded = useMemo(() => new Set(expandedItems), [expandedItems]);
-  const refresh = useCallback(() => setRevision((value) => value + 1), []);
+type Item = TreeDataNode & {
+  key: string;
+  variable: VariableNode;
+  children?: Item[];
+};
 
+/** Only expanded branches have child data; unexpanded locations stay lazy. */
+function makeItem(variable: VariableNode, previous?: Item): Item {
+  const expandable = isExpandableNode(variable);
+  const children = expandable && previous?.children
+    ? reconcile(getVariableChildren(variable), previous.children)
+    : undefined;
+  return {
+    key: variable.id,
+    title: "",
+    variable,
+    isLeaf: !expandable,
+    ...(children && { children }),
+  };
+}
+
+function reconcile(nodes: VariableNode[], old: readonly Item[] = []): Item[] {
+  const byId = new Map(old.map((node) => [node.key, node]));
+  return nodes.map((node) => makeItem(node, byId.get(node.id)));
+}
+
+/** Share unchanged sibling arrays when replacing one subtree. */
+function replaceChildren(items: Item[], target: string, children: Item[]): Item[] {
+  let changed = false;
+  const next = items.map((item) => {
+    if (item.key === target) {
+      changed = true;
+      return { ...item, isLeaf: children.length === 0, children };
+    }
+    if (!item.children) return item;
+    const descendants = replaceChildren(item.children, target, children);
+    if (descendants === item.children) return item;
+    changed = true;
+    return { ...item, children: descendants };
+  });
+  return changed ? next : items;
+}
+
+function RichVariableTree({ storeKey, rootValue, visible }: {
+  storeKey: VariableStoreKey; rootValue: object; visible: boolean;
+}) {
+  const structure = useStructure(rootValue, visible);
   const rootNode = useMemo<VariableNode>(() => ({
     id: storeKey,
     location: { kind: "state", key: storeKey },
     ancestors: [],
   }), [storeKey]);
+  const [items, setItems] = useState<Item[]>(() => reconcile(getVariableChildren(rootNode)));
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
 
-  // No values are serialized. Structural changes regenerate tree models, not
-  // every 250ms value preview update.
-  const items = useMemo(
-    () => getVariableChildren(rootNode),
-    [rootNode, rootValue, structure, revision],
-  );
-  const getLabel = useCallback((node: VariableNode) => getLocationName(node.location), []);
-  const getId = useCallback((node: VariableNode) => node.id, []);
-  const treeState = useMemo(() => ({ expanded, refresh }), [expanded, refresh]);
+  // Root structural mutations are the only reason to replace top-level items.
+  useEffect(() => {
+    setItems((old) => reconcile(getVariableChildren(rootNode), old));
+  }, [rootNode, rootValue, structure]);
 
-  return (
-    <VariableTreeContext value={treeState}>
-      <RichTreeView
-        aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
-        items={items}
-        getItemChildren={getVariableChildren}
-        getItemId={getId}
-        getItemLabel={getLabel}
-        disableSelection
-        expansionTrigger="iconContainer"
-        expandedItems={expandedItems}
-        onExpandedItemsChange={(_, ids) => setExpandedItems(ids)}
-        slots={{ item: LiveVariableTreeItem }}
-      />
-    </VariableTreeContext>
-  );
+  const refresh = useCallback((id: string) => {
+    const find = (nodes: readonly Item[]): Item | undefined => {
+      for (const node of nodes) {
+        if (node.key === id) return node;
+        if (node.children) {
+          const child = find(node.children);
+          if (child) return child;
+        }
+      }
+      return undefined;
+    };
+    const item = find(itemsRef.current);
+    if (!item) return;
+    const children = reconcile(getVariableChildren(item.variable), item.children);
+    setItems((old) => replaceChildren(old, id, children));
+  }, []);
+
+  const loadData = useCallback((item: TreeDataNode): Promise<void> => {
+    refresh(String(item.key));
+    return Promise.resolve();
+  }, [refresh]);
+
+  const height = Math.max(220, Math.min(640, window.innerHeight - 170));
+
+  return <Tree
+    aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
+    className="sugarcube-variable-tree"
+    blockNode
+    selectable={false}
+    virtual
+    height={height}
+    treeData={items}
+    expandedKeys={expandedKeys}
+    autoExpandParent={false}
+    loadData={loadData}
+    onExpand={(keys, info) => {
+      setExpandedKeys(keys.map(String));
+      // When reopening a loaded branch, refresh only that branch.
+      if (info.expanded && (info.node as Item).children) {
+        refresh(String(info.node.key));
+      }
+    }}
+    titleRender={(data) => {
+      const item = data as Item;
+      return <LiveVariableLabel
+        node={item.variable} expanded={expanded.has(item.key)} refresh={refresh} />;
+    }}
+  />;
 }
 
-export default function VariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
+export default function VariableTree({ storeKey }: {storeKey: VariableStoreKey}) {
   const { ref, inView: visible } = useInView();
   const location = useMemo<VariableLocation>(() => ({ kind: "state", key: storeKey }), [storeKey]);
   const root = useVariable(location, visible);
-
-  return (
-    <Box ref={ref}>
-      {root.kind !== "value" ? (
-        <Typography variant="body2" color="text.secondary">Store unavailable</Typography>
-      ) : isObject(root.value) ? (
-        <RichVariableTree storeKey={storeKey} rootValue={root.value} visible={visible} />
-      ) : (
-        <Typography variant="body2" color="text.secondary">{root.preview}</Typography>
-      )}
-    </Box>
-  );
+  return <Box ref={ref}>
+    {root.kind !== "value"
+      ? <Typography variant="body2" color="text.secondary">Store unavailable</Typography>
+      : isObject(root.value)
+        ? <RichVariableTree storeKey={storeKey} rootValue={root.value} visible={visible} />
+        : <Typography variant="body2" color="text.secondary">{root.preview}</Typography>}
+  </Box>;
 }

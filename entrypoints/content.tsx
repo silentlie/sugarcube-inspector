@@ -1,4 +1,6 @@
 import createCache from "@emotion/cache";
+import { StyleProvider } from "@ant-design/cssinjs";
+import { ConfigProvider, theme as antTheme } from "antd";
 import { CacheProvider } from "@emotion/react";
 import ScopedCssBaseline from "@mui/material/ScopedCssBaseline";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -35,6 +37,8 @@ export default defineContentScript({
     });
 
     ReactDOM.createRoot(container).render(
+      <StyleProvider container={shadow}>
+      <ConfigProvider theme={{ algorithm: [antTheme.darkAlgorithm, antTheme.compactAlgorithm] }}>
       <CacheProvider value={cache}>
         <ThemeProvider theme={theme}>
           <ScopedCssBaseline enableColorScheme>
@@ -43,7 +47,9 @@ export default defineContentScript({
             </Drawer>
           </ScopedCssBaseline>
         </ThemeProvider>
-      </CacheProvider>,
+      </CacheProvider>
+      </ConfigProvider>
+      </StyleProvider>,
     );
   },
 });
