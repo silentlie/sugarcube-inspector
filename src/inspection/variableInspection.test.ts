@@ -67,6 +67,31 @@ describe("recursive variable locations", () => {
 
   });
 
+  it("inspects boxed primitives as expandable objects without invoking their methods", () => {
+    const values = {
+      boxedNumber: new Number(123),
+      boxedString: new String("abc"),
+      boxedBoolean: new Boolean(false),
+      boxedBigInt: Object(42n),
+      boxedSymbol: Object(Symbol("sample")),
+    };
+    for (const [key, type, text] of [
+      ["boxedNumber", "Number", "123"],
+      ["boxedString", "String", '"abc"'],
+      ["boxedBoolean", "Boolean", "false"],
+      ["boxedBigInt", "BigInt", "42"],
+      ["boxedSymbol", "Symbol", "Symbol(sample)"],
+    ]) {
+      const location = { kind: "property" as const, owner: values, key };
+      expect(readVariable(location)).toMatchObject({
+        kind: "value", type, preview: text, expandable: true,
+      });
+      expect(() => getVariableChildren({
+        id: key, location, ancestors: [],
+      })).not.toThrow();
+    }
+  });
+
   it("captures mutable previews when values retain their identity", () => {
     const inventory = ["map"];
     const location = { kind: "property" as const, owner: { inventory }, key: "inventory" };

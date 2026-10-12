@@ -303,6 +303,35 @@ test("Rich Tree View exposes all children without pagination", async ({ page }) 
 });
 
 
+test("renders boxed primitives without crashing the tree", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await page.evaluate(() => {
+    const variables = SugarCube.State.variables as unknown as Record<string, unknown>;
+    variables.boxedFixtures = {
+      number: new Number(123),
+      string: new String("abc"),
+      boolean: new Boolean(false),
+      bigint: Object(42n),
+      symbol: Object(Symbol("sample")),
+    };
+  });
+
+  await expandVariable(drawer, "boxedFixtures");
+  for (const [name, type, expected] of [
+    ["number", "Number", "123"],
+    ["string", "String", '"abc"'],
+    ["boolean", "Boolean", "false"],
+    ["bigint", "BigInt", "42"],
+    ["symbol", "Symbol", "Symbol(sample)"],
+  ]) {
+    const row = drawer.getByText(name, { exact: true }).locator("..");
+    await expect(row.locator(".token.class-name")).toHaveText(type);
+    await expect(row.getByTitle(expected, { exact: true })).toBeVisible();
+  }
+  await expect(drawer.getByRole("tree", { name: "Story variables tree" })).toBeVisible();
+});
+
 test("renders VS Code-style type labels and value token colors", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);

@@ -32,7 +32,8 @@ It does not attach a debugger or use a cross-world messaging bridge.
   if the runtime unexpectedly loses its State API.
 - Components read live SugarCube values directly without serialization or cloning.
   Runtime checks use named `@sindresorhus/is` type guards, including functions
-  as expandable references.
+  as expandable references. Boxed primitives are handled explicitly because the
+  library's general-purpose type detector rejects them; their values remain inspectable.
 - Independently watched rows update values while in view. Expanded, visible
   containers additionally watch structure, array length, and Map/Set membership.
   Structure snapshots use typed data, accessor, Map, and Set entries; enumerable

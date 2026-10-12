@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { preview } from "./valuePreview";
 
 describe("value preview", () => {
+  it("previews boxed primitives by their underlying values", () => {
+    expect(preview(new Number(123))).toBe("123");
+    expect(preview(new String("abc"))).toBe('"abc"');
+    expect(preview(new Boolean(false))).toBe("false");
+    expect(preview(Object(42n))).toBe("42");
+    expect(preview(Object(Symbol("test")))).toBe("Symbol(test)");
+  });
+
   it("previews primitives, functions and collections without changing special cases", () => {
     expect(preview(null)).toBe("null");
     expect(preview(undefined)).toBe("undefined");

@@ -1,6 +1,6 @@
 import detect, { isObject } from "@sindresorhus/is";
 import { getStore, type VariableStoreKey } from "./direct";
-import { preview } from "./valuePreview";
+import { boxedPrimitive, preview } from "./valuePreview";
 
 /** A location retains live owners and keys, never copied values or root-relative paths. */
 export type VariableLocation =
@@ -23,7 +23,7 @@ function snapshot(value: unknown): VariableSnapshot {
     kind: "value",
     value,
     preview: preview(value),
-    type: detect(value),
+    type: boxedPrimitive(value)?.type ?? detect(value),
     expandable: isObject(value),
   };
 }
