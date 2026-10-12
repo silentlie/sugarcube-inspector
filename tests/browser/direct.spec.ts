@@ -47,7 +47,7 @@ test("Ant Design Tree View preserves scope navigation and variable inspection", 
   const variables = drawer.getByRole("tab", { name: "Variables", exact: true });
   const scripts = drawer.getByRole("tab", { name: "Scripts" });
   await expect(overview).toHaveAttribute("aria-selected", "true");
-  await expect(drawer.getByText("score", { exact: true })).toHaveCount(0);
+  await expect(drawer.getByText("score", { exact: true })).toBeHidden();
   await expect(drawer.locator(".ant-tabs").first()).toBeVisible();
   expect(await drawer.evaluate((host) => {
     const shadow = host.shadowRoot!;
@@ -66,7 +66,7 @@ test("Ant Design Tree View preserves scope navigation and variable inspection", 
 
   await favorites.click();
   await expect(favorites).toHaveAttribute("aria-selected", "true");
-  await expect(drawer.getByText("score", { exact: true })).toHaveCount(0);
+  await expect(drawer.getByText("score", { exact: true })).toBeHidden();
 
   await temporary.click();
   await expect(drawer.getByText("choice", { exact: true })).toBeVisible();
@@ -76,11 +76,41 @@ test("Ant Design Tree View preserves scope navigation and variable inspection", 
   await expect(drawer.getByRole("tab", { name: "Favorites" })).toHaveCount(0);
   await scripts.click();
   await expect(scripts).toHaveAttribute("aria-selected", "true");
-  await expect(drawer.getByText("score", { exact: true })).toHaveCount(0);
+  await expect(drawer.getByText("score", { exact: true })).toBeHidden();
 
   await variables.click();
   await story.click();
   await expect(drawer.getByText("score", { exact: true })).toBeVisible();
+});
+
+test("tab switching preserves expansion and tree fills remaining drawer height", async ({ page }) => {
+  await page.setViewportSize({ width: 1500, height: 1100 });
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  const tree = drawer.getByRole("tree", { name: "Story variables tree" });
+  await expandVariable(drawer, "inventory");
+  await tree.evaluate((element) => { element.dataset.persistentTree = "yes"; });
+
+  await drawer.getByRole("tab", { name: "Overview" }).click();
+  await drawer.getByRole("tab", { name: "Scripts" }).click();
+  await drawer.getByRole("tab", { name: "Variables", exact: true }).click();
+  await expect(tree).toHaveAttribute("data-persistent-tree", "yes");
+  await expect(drawer.getByRole("treeitem", { name: /^inventory/ }))
+    .toHaveAttribute("aria-expanded", "true");
+
+  await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
+  await drawer.getByRole("tab", { name: "Story Variables" }).click();
+  await expect(tree).toHaveAttribute("data-persistent-tree", "yes");
+
+  const holder = tree.locator(".ant-tree-list-holder");
+  const remainingGap = async () => holder.evaluate((element) => {
+    const treeBottom = element.getBoundingClientRect().bottom;
+    const drawerBottom = element.closest("aside")!.getBoundingClientRect().bottom;
+    return Math.abs(drawerBottom - 16 - treeBottom);
+  });
+  await expect.poll(remainingGap).toBeLessThan(12);
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await expect.poll(remainingGap).toBeLessThan(12);
 });
 
 test("custom drawer retains keyboard resizing and toggle behaviour", async ({ page }) => {

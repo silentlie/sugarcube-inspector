@@ -48,7 +48,9 @@ function ReadyInspector() {
     <Tabs
       activeKey={scope}
       aria-label="Variable scope"
-      destroyOnHidden
+      className="inspector-tabs"
+      destroyOnHidden={false}
+      animated={false}
       onChange={(key) => setScope(key as VariableScope)}
       items={[
         { key: "variables", label: "Story Variables", children: <VariableTree storeKey="variables" /> },
@@ -59,7 +61,10 @@ function ReadyInspector() {
   );
 
   return (
-    <section>
+    <section style={{
+      display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
+      overflow: "hidden",
+    }}>
       <Flex align="center" justify="space-between">
         <div>
           <Typography.Title level={5} style={{ margin: 0 }}>
@@ -77,7 +82,9 @@ function ReadyInspector() {
       <Tabs
         activeKey={section}
         aria-label="Inspector sections"
-        destroyOnHidden
+        className="inspector-tabs"
+        destroyOnHidden={false}
+        animated={false}
         onChange={(key) => setSection(key as Section)}
         items={[
           { key: "overview", label: "Overview" },

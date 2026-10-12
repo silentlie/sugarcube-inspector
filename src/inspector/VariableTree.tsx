@@ -65,6 +65,19 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
   const [items, setItems] = useState<Item[]>(() => reconcile(getVariableChildren(rootNode)));
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
+  const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    if (!viewport) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const measured = Math.floor(entry?.contentRect.height ?? 0);
+      // Keep the last usable size while this tree's tab is hidden.
+      if (measured > 0) setHeight((old) => old === measured ? old : measured);
+    });
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [viewport]);
 
   // Root structural mutations are the only reason to replace top-level items.
   useEffect(() => {
@@ -99,9 +112,8 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     return Promise.resolve();
   }, [refresh]);
 
-  const height = Math.max(220, Math.min(640, window.innerHeight - 170));
-
-  return <Tree
+  return <div ref={setViewport} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+    {height > 0 && <Tree
     aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
     className="sugarcube-variable-tree"
     blockNode
@@ -125,14 +137,18 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
       return <LiveVariableLabel
         node={item.variable} expanded={expanded.has(item.key)} refresh={refresh} />;
     }}
-  />;
+  />}
+  </div>;
 }
 
 export default function VariableTree({ storeKey }: {storeKey: VariableStoreKey}) {
   const { ref, inView: visible } = useInView();
   const location = useMemo<VariableLocation>(() => ({ kind: "state", key: storeKey }), [storeKey]);
   const root = useVariable(location, visible);
-  return <div ref={ref}>
+  return <div ref={ref} style={{
+    display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
+    overflow: "hidden",
+  }}>
     {root.kind !== "value"
       ? <Typography.Text type="secondary">Store unavailable</Typography.Text>
       : isObject(root.value)

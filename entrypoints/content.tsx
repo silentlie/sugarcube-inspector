@@ -22,6 +22,30 @@ export default defineContentScript({
     baseline.textContent = `
       :host { color-scheme: dark; }
       :host *, :host *::before, :host *::after { box-sizing: border-box; }
+      .inspector-tabs {
+        display: flex; flex: 1; flex-direction: column; min-height: 0;
+      }
+      .inspector-tabs > .ant-tabs-nav { flex: none; }
+      .inspector-tabs > .ant-tabs-content-holder {
+        flex: 1; min-height: 0; overflow: hidden;
+      }
+      .inspector-tabs > .ant-tabs-content-holder > .ant-tabs-content {
+        height: 100%; min-height: 0;
+      }
+      .inspector-tabs > .ant-tabs-content-holder > .ant-tabs-content
+        > .ant-tabs-tabpane:not(.ant-tabs-tabpane-hidden) {
+        display: flex; flex-direction: column; height: 100%;
+        min-height: 0; overflow: hidden;
+      }
+      .sugarcube-variable-tree {
+        height: 100%; display: flex; flex-direction: column;
+      }
+      .sugarcube-variable-tree > .ant-tree-list {
+        flex: 1; min-height: 0; display: flex; flex-direction: column;
+      }
+      .sugarcube-variable-tree .ant-tree-list-holder {
+        flex: 1; min-height: 0;
+      }
     `;
     const container = document.createElement("div");
     shadow.append(baseline, container);

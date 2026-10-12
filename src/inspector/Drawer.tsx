@@ -109,7 +109,8 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
         }}
       />
       <div style={{
-        height: "100%", overflowY: "auto", padding: 16, marginLeft: HANDLE_WIDTH,
+        height: "100%", display: "flex", flexDirection: "column",
+        minHeight: 0, overflow: "hidden", padding: 16, marginLeft: HANDLE_WIDTH,
       }}>
         {children}
       </div>
