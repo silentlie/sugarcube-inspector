@@ -82,14 +82,14 @@ test("MUI Tree View preserves scope navigation and lazy variable inspection", as
 test("MUI Tree View exposes keyboard-controlled expansion", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
-  const inventory = drawer.getByRole("treeitem", { name: /^inventory(?:\\s|$)/ });
+  const inventory = drawer.getByRole("treeitem", { name: /^inventory(?:\s|$)/ });
   await inventory.focus();
   await inventory.press("ArrowRight");
   await expect(inventory).toHaveAttribute("aria-expanded", "true");
-  await expect(drawer.getByRole("treeitem", { name: /^\\[0\\]/ })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^\[0\]/ })).toBeVisible();
   await inventory.press("ArrowLeft");
   await expect(inventory).toHaveAttribute("aria-expanded", "false");
-  await expect(drawer.getByRole("treeitem", { name: /^\\[0\\]/ })).toHaveCount(0);
+  await expect(drawer.getByRole("treeitem", { name: /^\[0\]/ })).toHaveCount(0);
 });
 
 test("inspects shared live references and cycles without writes or serialization", async ({ page }) => {
@@ -183,7 +183,7 @@ test("expanded tiles follow object replacement and nested in-place mutations", a
     const store = SugarCube.State.variables as unknown as { player: { health: number } };
     store.player = { health: 31 };
   });
-  await expect(drawer.getByRole("treeitem", { name: /^player(?:\\s|$)/ }))
+  await expect(drawer.getByRole("treeitem", { name: /^player(?:\s|$)/ }))
     .toHaveAttribute("aria-expanded", "true");
   await expect(drawer.getByTitle("31", { exact: true })).toBeVisible();
   await expect(drawer.getByText("name", { exact: true })).toHaveCount(0);
@@ -235,7 +235,7 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   });
   await expandVariable(drawer, "large");
 
-  const firstRow = drawer.getByRole("treeitem", { name: /^item00(?:\\s|$)/ });
+  const firstRow = drawer.getByRole("treeitem", { name: /^item00(?:\s|$)/ });
   await firstRow.scrollIntoViewIfNeeded();
   await expect(firstRow.getByTitle("0", { exact: true })).toBeVisible();
 
