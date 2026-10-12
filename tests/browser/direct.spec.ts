@@ -217,9 +217,7 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   });
   await drawer.getByRole("button", { name: "Expand large" }).click();
 
-  const firstRow = drawer.locator('[data-slot="item"]').filter({
-    has: drawer.getByText("item00", { exact: true }),
-  });
+  const firstRow = drawer.locator('[data-slot="item"]').filter({ hasText: "item00" });
   await firstRow.scrollIntoViewIfNeeded();
   await expect(firstRow.getByTitle("0", { exact: true })).toBeVisible();
 
