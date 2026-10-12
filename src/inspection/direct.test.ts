@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getStore, isReference, preview } from "./direct";
+import { getStore, preview } from "./direct";
 import { readVariable } from "./variableLocation";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -11,7 +11,6 @@ describe("direct MAIN-world access", () => {
     vi.stubGlobal("SugarCube", { State: { variables: story, temporary } });
     expect(getStore("variables")).toBe(story);
     expect(getStore("temporary")).toBe(temporary);
-    expect(getStore("variables")).toBe(story);
   });
 
   it("reads the State location getters but not arbitrary object getters", () => {
@@ -27,13 +26,14 @@ describe("direct MAIN-world access", () => {
       .toBe("[getter]");
   });
 
-  it("distinguishes references and previews primitive and collection values", () => {
-    expect(isReference(null)).toBe(false);
-    expect(isReference(1)).toBe(false);
-    expect(isReference(() => 1)).toBe(true);
+  it("previews primitives, functions and collections without changing special cases", () => {
+    expect(preview(null)).toBe("null");
+    expect(preview(undefined)).toBe("undefined");
+    expect(preview(Number.NaN)).toBe("NaN");
+    expect(preview(12n)).toBe("12");
+    expect(preview(() => 1)).toBe("[Function]");
     expect(preview([1, 2])).toBe("Array(2)");
     expect(preview(new Map([["x", 1]]))).toBe("Map(1)");
     expect(preview(new Set([1]))).toBe("Set(1)");
-    expect(preview(undefined)).toBe("undefined");
   });
 });

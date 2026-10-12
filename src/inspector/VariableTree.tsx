@@ -1,9 +1,10 @@
+import { isObject } from "@sindresorhus/is";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { RichTreeView } from "@mui/x-tree-view/RichTreeView";
 import { useCallback, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
-import { isReference, type VariableStoreKey } from "../inspection/direct";
+import { type VariableStoreKey } from "../inspection/direct";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
 import { LiveVariableTreeItem, VariableTreeContext } from "./LiveVariableTreeItem";
@@ -72,7 +73,7 @@ export default function VariableTree({ storeKey }: { storeKey: VariableStoreKey 
         <Typography variant="body2" color="text.secondary">Waiting for SugarCube...</Typography>
       ) : root.error ? (
         <Typography role="alert" variant="body2" color="error">{root.error}</Typography>
-      ) : isReference(root.value) ? (
+      ) : isObject(root.value) ? (
         <RichVariableTree storeKey={storeKey} rootValue={root.value} visible={visible} />
       ) : (
         <Typography variant="body2" color="text.secondary">{root.preview}</Typography>

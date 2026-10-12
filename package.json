@@ -27,6 +27,7 @@
     "@emotion/styled": "^11.14.0",
     "@mui/material": "^9.5.0",
     "@mui/x-tree-view": "^9.15.0",
+    "@sindresorhus/is": "^8.1.0",
     "@webext-core/messaging": "^4.0.0",
     "lucide-react": "^1.54.0",
     "react": "^19.3.0",

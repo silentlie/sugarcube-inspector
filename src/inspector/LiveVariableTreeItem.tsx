@@ -1,3 +1,4 @@
+import { isObject } from "@sindresorhus/is";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { TreeItem, type TreeItemProps } from "@mui/x-tree-view/TreeItem";
@@ -5,7 +6,6 @@ import { useTreeItemModel } from "@mui/x-tree-view/hooks";
 import { createContext, useContext, useEffect, useRef } from "react";
 import { useInView } from "react-intersection-observer";
 import type { VariableNode } from "../inspection/variableTree";
-import { isReference } from "../inspection/direct";
 import { useStructure, useVariable } from "./useVariableWatch";
 
 type TreeState = {
@@ -48,7 +48,7 @@ function LiveVariableValue({
     const previous = previousValue.current;
     previousValue.current = current.value;
     if (visible && !Object.is(previous, current.value) &&
-        (isReference(previous) || isReference(current.value))) {
+        (isObject(previous) || isObject(current.value))) {
       refresh();
     }
   }, [current.value, visible, refresh]);

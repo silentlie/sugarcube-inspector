@@ -1,4 +1,5 @@
-import { getStore, isReference, preview, type VariableStoreKey } from "./direct";
+import { isError, isObject } from "@sindresorhus/is";
+import { getStore, preview, type VariableStoreKey } from "./direct";
 
 /** A location is an owner/key pair, not a cloned value or a root-relative path. */
 export type VariableLocation =
@@ -19,7 +20,7 @@ export type VariableSnapshot = {
 };
 
 function errorMessage(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause);
+  return isError(cause) ? cause.message : String(cause);
 }
 
 function snapshot(
@@ -32,7 +33,7 @@ function snapshot(
     exists,
     value,
     preview: !exists ? "[Missing]" : accessor ? `[${accessor}]` : preview(value),
-    expandable: exists && !accessor && isReference(value),
+    expandable: exists && !accessor && isObject(value),
     hidden,
     ...(accessor && { accessor }),
   };

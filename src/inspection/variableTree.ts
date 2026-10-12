@@ -1,4 +1,4 @@
-import { isReference } from "./direct";
+import { isObject } from "@sindresorhus/is";
 import type { VariableLocation } from "./variableLocation";
 import { readVariable } from "./variableLocation";
 import { listChildren } from "./variableStructure";
@@ -15,7 +15,7 @@ export type VariableNode = {
 /** MUI eagerly indexes the entire hierarchy, including collapsed nodes. */
 export function getVariableChildren(node: VariableNode): VariableNode[] {
   const snapshot = readVariable(node.location);
-  if (!snapshot.expandable || !isReference(snapshot.value) ||
+  if (!snapshot.expandable || !isObject(snapshot.value) ||
       node.ancestors.includes(snapshot.value)) return [];
 
   try {
