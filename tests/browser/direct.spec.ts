@@ -19,7 +19,7 @@ async function openVariables(page: Page) {
 }
 
 async function expandVariable(drawer: Locator, name: string) {
-  const row = drawer.getByRole("treeitem", { name: new RegExp(`^${name}(?:\\s|$)`) });
+  const row = drawer.getByRole("treeitem", { name: new RegExp(`^${name}`) });
   await row.locator(".ant-tree-switcher").click();
   await expect(row).toHaveAttribute("aria-expanded", "true");
   return row;
@@ -83,14 +83,14 @@ test("Ant Design Tree View preserves scope navigation and variable inspection", 
 test("Ant Design Tree View exposes keyboard-controlled expansion", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
-  const inventory = drawer.getByRole("treeitem", { name: /^inventory(?:\s|$)/ });
+  const inventory = drawer.getByRole("treeitem", { name: /^inventory/ });
   await inventory.focus();
   await inventory.press("ArrowRight");
   await expect(inventory).toHaveAttribute("aria-expanded", "true");
-  await expect(drawer.getByRole("treeitem", { name: /^0(?:\s|$)/ })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^0/ })).toBeVisible();
   await inventory.press("ArrowLeft");
   await expect(inventory).toHaveAttribute("aria-expanded", "false");
-  await expect(drawer.getByRole("treeitem", { name: /^0(?:\s|$)/ })).toHaveCount(0);
+  await expect(drawer.getByRole("treeitem", { name: /^0/ })).toHaveCount(0);
 });
 
 test("inspects shared live references and cycles without writes or serialization", async ({ page }) => {
@@ -184,7 +184,7 @@ test("expanded tiles follow object replacement and nested in-place mutations", a
     const store = SugarCube.State.variables as unknown as { player: { health: number } };
     store.player = { health: 31 };
   });
-  await expect(drawer.getByRole("treeitem", { name: /^player(?:\s|$)/ }))
+  await expect(drawer.getByRole("treeitem", { name: /^player/ }))
     .toHaveAttribute("aria-expanded", "true");
   await expect(drawer.getByTitle("31", { exact: true })).toBeVisible();
   await expect(drawer.getByText("name", { exact: true })).toHaveCount(0);
@@ -208,17 +208,17 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
     store.testSet = new Set(["north"]);
   });
   await expandVariable(drawer, "testMap");
-  const mapEntry = drawer.getByRole("treeitem", { name: /^"one"(?:\s|$)/ });
+  const mapEntry = drawer.getByRole("treeitem", { name: /^"one"/ });
   await expect(mapEntry).toBeVisible();
   await expect(mapEntry.getByTitle("1", { exact: true })).toBeVisible();
   await mapEntry.locator(".ant-tree-switcher").click();
-  await expect(drawer.getByRole("treeitem", { name: /^key(?:\s|$)/ })).toBeVisible();
-  await expect(drawer.getByRole("treeitem", { name: /^value(?:\s|$)/ })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^key/ })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^value/ })).toBeVisible();
   await page.evaluate(() => {
     const store = SugarCube.State.variables as unknown as { testMap: Map<string, number> };
     store.testMap.set("one", 4);
   });
-  await expect(drawer.getByRole("treeitem", { name: /^value(?:\s|$)/ })
+  await expect(drawer.getByRole("treeitem", { name: /^value/ })
     .getByTitle("4", { exact: true })).toBeVisible();
 
   await expandVariable(drawer, "testSet");
@@ -239,10 +239,10 @@ test("Map object keys and values can each expand independently", async ({ page }
     vars.objectMap = new Map([[{ label: "hero" }, { health: 30 }]]);
   });
   await expandVariable(drawer, "objectMap");
-  const entry = drawer.getByRole("treeitem", { name: /^\{…\}(?:\s|$)/ });
+  const entry = drawer.getByRole("treeitem", { name: /^\{…\}/ });
   await entry.locator(".ant-tree-switcher").click();
-  const keyRow = drawer.getByRole("treeitem", { name: /^key(?:\s|$)/ });
-  const valueRow = drawer.getByRole("treeitem", { name: /^value(?:\s|$)/ });
+  const keyRow = drawer.getByRole("treeitem", { name: /^key/ });
+  const valueRow = drawer.getByRole("treeitem", { name: /^value/ });
   await keyRow.locator(".ant-tree-switcher").click();
   await valueRow.locator(".ant-tree-switcher").click();
   await expect(drawer.getByText("label", { exact: true })).toBeVisible();
@@ -267,7 +267,7 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   });
   await expandVariable(drawer, "large");
 
-  const firstRow = drawer.getByRole("treeitem", { name: /^item00(?:\s|$)/ });
+  const firstRow = drawer.getByRole("treeitem", { name: /^item00/ });
   await firstRow.scrollIntoViewIfNeeded();
   await expect(firstRow.getByTitle("0", { exact: true })).toBeVisible();
 
@@ -329,7 +329,7 @@ test("renders boxed primitives without crashing the tree", async ({ page }) => {
     ["bigint", "BigInt", "42"],
     ["symbol", "Symbol", "Symbol(sample)"],
   ] as const) {
-    const row = drawer.getByRole("treeitem", { name: new RegExp(`^${name}(?:\\s|$)`) });
+    const row = drawer.getByRole("treeitem", { name: new RegExp(`^${name}`) });
     await expect(row.locator(".token.class-name").first()).toHaveText(type);
     await expect(row.getByTitle(expected, { exact: true })).toBeVisible();
   }

@@ -34,19 +34,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Emit lockfile for synchronization
-        run: |
-          node - <<'NODE'
-          const fs = require('node:fs');
-          const src = fs.readFileSync('package-lock.json', 'utf8');
-          console.log('LOCKFILE_BEGIN');
-          for (let i = 0; i < src.length; i += 1800) {
-            console.log('LOCKFILE_CHUNK:' + JSON.stringify(src.slice(i, i + 1800)));
-          }
-          console.log('LOCKFILE_END');
-          NODE
+        run: npm ci
 
       - name: Run ESLint
         run: npm run lint
