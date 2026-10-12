@@ -32,7 +32,7 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
 
   await expect(drawer.getByText("score", { exact: true })).toBeVisible();
   await expect(drawer.getByRole("treeitem").first()).toBeVisible();
-  await expect(drawer.locator(".MuiRichTreeView-root")).toBeVisible();
+  await expect(drawer.getByRole("tree", { name: "Story variables tree" })).toHaveClass(/MuiRichTreeView-root/);
   await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
   await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
   await expect(drawer.getByText("choice", { exact: true })).toBeVisible();
