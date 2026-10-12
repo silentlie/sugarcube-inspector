@@ -208,12 +208,12 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
     store.testSet = new Set(["north"]);
   });
   await expandVariable(drawer, "testMap");
-  const mapEntry = drawer.getByRole("treeitem", { name: /^"one"(?:\\s|$)/ });
+  const mapEntry = drawer.getByRole("treeitem", { name: /^"one"(?:\s|$)/ });
   await expect(mapEntry).toBeVisible();
   await expect(mapEntry.getByTitle("1", { exact: true })).toBeVisible();
   await mapEntry.locator(".MuiTreeItem-iconContainer").click();
-  await expect(drawer.getByRole("treeitem", { name: /^key(?:\\s|$)/ })).toBeVisible();
-  await expect(drawer.getByRole("treeitem", { name: /^value(?:\\s|$)/ })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^key(?:\s|$)/ })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^value(?:\s|$)/ })).toBeVisible();
   await page.evaluate(() => {
     const store = SugarCube.State.variables as unknown as { testMap: Map<string, number> };
     store.testMap.set("one", 4);
@@ -238,10 +238,10 @@ test("Map object keys and values can each expand independently", async ({ page }
     vars.objectMap = new Map([[{ label: "hero" }, { health: 30 }]]);
   });
   await expandVariable(drawer, "objectMap");
-  const entry = drawer.getByRole("treeitem", { name: /^\\{…\\}(?:\\s|$)/ });
+  const entry = drawer.getByRole("treeitem", { name: /^\{…\}(?:\s|$)/ });
   await entry.locator(".MuiTreeItem-iconContainer").click();
-  const keyRow = drawer.getByRole("treeitem", { name: /^key(?:\\s|$)/ });
-  const valueRow = drawer.getByRole("treeitem", { name: /^value(?:\\s|$)/ });
+  const keyRow = drawer.getByRole("treeitem", { name: /^key(?:\s|$)/ });
+  const valueRow = drawer.getByRole("treeitem", { name: /^value(?:\s|$)/ });
   await keyRow.locator(".MuiTreeItem-iconContainer").click();
   await valueRow.locator(".MuiTreeItem-iconContainer").click();
   await expect(drawer.getByText("label", { exact: true })).toBeVisible();
