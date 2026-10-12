@@ -8,8 +8,6 @@ type StructurePart =
   | { kind: "accessor"; key: PropertyKey; getter: boolean; setter: boolean }
   | { kind: "map"; key: unknown }
   | { kind: "set"; key: unknown };
-export type StructureSnapshot = { parts: readonly StructurePart[] };
-
 const childIds = new WeakMap<object, Map<unknown, string>>();
 let nextChildId = 0;
 
@@ -28,8 +26,8 @@ function idForChild(owner: object, key: unknown): string {
 }
 
 /** Only expanded containers need a structural watcher. */
-export function readStructure(value: unknown): StructureSnapshot {
-  if (!isObject(value)) return { parts: [] };
+export function readStructure(value: unknown): readonly StructurePart[] {
+  if (!isObject(value)) return [];
   const parts: StructurePart[] = [];
   if (isMap(value)) {
     for (const key of Map.prototype.keys.call(value) as MapIterator<unknown>) {
@@ -59,13 +57,13 @@ export function readStructure(value: unknown): StructureSnapshot {
       });
     }
   }
-  return { parts };
+  return parts;
 }
 
-export function sameStructure(a: StructureSnapshot, b: StructureSnapshot): boolean {
-  if (a.parts.length !== b.parts.length) return false;
-  return a.parts.every((part, i) => {
-    const other = b.parts[i];
+export function sameStructure(a: readonly StructurePart[], b: readonly StructurePart[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((part, i) => {
+    const other = b[i];
     if (!other || part.kind !== other.kind || !Object.is(part.key, other.key)) return false;
 
     switch (part.kind) {
