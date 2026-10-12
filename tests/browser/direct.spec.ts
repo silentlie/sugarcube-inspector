@@ -85,8 +85,9 @@ test("Ant Design Tree View exposes keyboard-controlled expansion", async ({ page
   const drawer = await openVariables(page);
   const inventory = drawer.getByRole("treeitem", { name: /^inventory/ });
   const tree = drawer.getByRole("tree", { name: "Story variables tree" });
-  await inventory.locator(".ant-tree-node-content-wrapper").click();
   await tree.focus();
+  // Ant keeps its active item on the tree root, not on individual row elements.
+  await tree.press("End");
   await tree.press("ArrowRight");
   await expect(inventory).toHaveAttribute("aria-expanded", "true");
   await expect(drawer.getByRole("treeitem", { name: /^0/ })).toBeVisible();
