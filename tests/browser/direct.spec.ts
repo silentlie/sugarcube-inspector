@@ -276,7 +276,7 @@ test("Rich Tree View exposes all children without pagination", async ({ page }) 
 test("renders VS Code-style type labels and value token colors", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
-  const score = drawer.getByRole("treeitem", { name: /^score(?:\\s|$)/ });
+  const score = drawer.getByText("score", { exact: true }).locator("..");
   await expect(score.locator(".token.keyword")).toHaveText("number");
   await expect(score.locator(".token.number")).toHaveText("7");
 
@@ -285,7 +285,7 @@ test("renders VS Code-style type labels and value token colors", async ({ page }
   );
   expect(typeColor).not.toBe(valueColor);
 
-  const inventory = drawer.getByRole("treeitem", { name: /^inventory(?:\\s|$)/ });
+  const inventory = drawer.getByText("inventory", { exact: true }).locator("..");
   await expect(inventory.locator(".token.class-name")).toHaveText("Array");
   await expect(inventory.locator(".token.punctuation")).toHaveText("(2)");
   await expect(inventory.locator(".token.punctuation")).toHaveAttribute("title", "Array(2)");
