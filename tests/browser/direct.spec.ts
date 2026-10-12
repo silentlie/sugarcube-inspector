@@ -20,7 +20,7 @@ async function openVariables(page: Page) {
 
 async function expandVariable(drawer: Locator, name: string) {
   const row = drawer.getByRole("treeitem", { name: new RegExp(`^${name}(?:\\s|$)`) });
-  await row.locator(".MuiTreeItem-iconContainer").click();
+  await row.locator(".ant-tree-switcher").click();
   await expect(row).toHaveAttribute("aria-expanded", "true");
   return row;
 }
@@ -32,14 +32,14 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
 
   await expect(drawer.getByText("score", { exact: true })).toBeVisible();
   await expect(drawer.getByRole("treeitem").first()).toBeVisible();
-  await expect(drawer.getByRole("tree", { name: "Story variables tree" })).toHaveClass(/MuiRichTreeView-root/);
+  await expect(drawer.getByRole("tree", { name: "Story variables tree" })).toHaveClass(/ant-tree/);
   await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
   await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
   await expect(drawer.getByText("choice", { exact: true })).toBeVisible();
   await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
 });
 
-test("MUI Rich Tree View preserves scope navigation and variable inspection", async ({ page }) => {
+test("Ant Design Tree View preserves scope navigation and variable inspection", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openDrawer(page);
 
@@ -80,7 +80,7 @@ test("MUI Rich Tree View preserves scope navigation and variable inspection", as
   await expect(drawer.getByText("score", { exact: true })).toBeVisible();
 });
 
-test("MUI Tree View exposes keyboard-controlled expansion", async ({ page }) => {
+test("Ant Design Tree View exposes keyboard-controlled expansion", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
   const inventory = drawer.getByRole("treeitem", { name: /^inventory(?:\s|$)/ });
@@ -211,7 +211,7 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
   const mapEntry = drawer.getByRole("treeitem", { name: /^"one"(?:\s|$)/ });
   await expect(mapEntry).toBeVisible();
   await expect(mapEntry.getByTitle("1", { exact: true })).toBeVisible();
-  await mapEntry.locator(".MuiTreeItem-iconContainer").click();
+  await mapEntry.locator(".ant-tree-switcher").click();
   await expect(drawer.getByRole("treeitem", { name: /^key(?:\s|$)/ })).toBeVisible();
   await expect(drawer.getByRole("treeitem", { name: /^value(?:\s|$)/ })).toBeVisible();
   await page.evaluate(() => {
@@ -240,11 +240,11 @@ test("Map object keys and values can each expand independently", async ({ page }
   });
   await expandVariable(drawer, "objectMap");
   const entry = drawer.getByRole("treeitem", { name: /^\{…\}(?:\s|$)/ });
-  await entry.locator(".MuiTreeItem-iconContainer").click();
+  await entry.locator(".ant-tree-switcher").click();
   const keyRow = drawer.getByRole("treeitem", { name: /^key(?:\s|$)/ });
   const valueRow = drawer.getByRole("treeitem", { name: /^value(?:\s|$)/ });
-  await keyRow.locator(".MuiTreeItem-iconContainer").click();
-  await valueRow.locator(".MuiTreeItem-iconContainer").click();
+  await keyRow.locator(".ant-tree-switcher").click();
+  await valueRow.locator(".ant-tree-switcher").click();
   await expect(drawer.getByText("label", { exact: true })).toBeVisible();
   await expect(drawer.getByText("health", { exact: true })).toBeVisible();
 
@@ -272,7 +272,7 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   await expect(firstRow.getByTitle("0", { exact: true })).toBeVisible();
 
   await drawer.getByText("item79", { exact: true }).scrollIntoViewIfNeeded();
-  await expect(firstRow).not.toBeInViewport();
+  await expect(firstRow).toHaveCount(0);
   // Allow the IntersectionObserver to mark the first row as offscreen.
   await page.waitForTimeout(250);
 
@@ -283,13 +283,13 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
     store.large.item00 = 999;
   });
   await page.waitForTimeout(600);
-  await expect(firstRow.getByTitle("0", { exact: true })).toHaveCount(1);
+  await expect(firstRow.getByTitle("0", { exact: true })).toHaveCount(0);
 
-  await firstRow.scrollIntoViewIfNeeded();
+  await drawer.locator(".rc-virtual-list-holder").evaluate((el) => { el.scrollTop = 0; });
   await expect(firstRow.getByTitle("999", { exact: true })).toBeVisible();
 });
 
-test("Rich Tree View exposes all children without pagination", async ({ page }) => {
+test("Ant Design Tree exposes all children without pagination", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
   await page.evaluate(() => {
@@ -299,7 +299,10 @@ test("Rich Tree View exposes all children without pagination", async ({ page }) 
     );
   });
   await expandVariable(drawer, "bulk");
+  const virtualHolder = drawer.locator(".rc-virtual-list-holder").first();
+  await virtualHolder.evaluate((el) => { el.scrollTop = el.scrollHeight; });
   await expect(drawer.getByText("item124", { exact: true })).toBeVisible();
+  expect(await drawer.getByRole("treeitem").count()).toBeLessThan(100);
   await expect(drawer.getByRole("button", { name: /Load more/ })).toHaveCount(0);
 });
 
