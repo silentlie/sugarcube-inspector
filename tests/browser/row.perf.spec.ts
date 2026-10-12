@@ -53,7 +53,7 @@ test("temporary variable row rendering breakdown", async ({ page }) => {
       const samples: Sample[] = [];
       for (let repeat = 0; repeat < 3; repeat++) {
         const row = drawer.getByRole("treeitem", {
-          name: new RegExp(`^width${size}Trial${repeat}(?:\\\\s|$)`),
+          name: new RegExp(`^width${size}Trial${repeat}(?:\\s|$)`),
         });
         await expect(row).toBeVisible();
         const icon = row.locator(".MuiTreeItem-iconContainer").first();
