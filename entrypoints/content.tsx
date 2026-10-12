@@ -26,16 +26,12 @@ export default defineContentScript({
         display: flex; flex: 1; flex-direction: column; min-height: 0;
       }
       .inspector-tabs > .ant-tabs-nav { flex: none; }
-      .inspector-tabs > .ant-tabs-content-holder {
-        flex: 1; min-height: 0; overflow: hidden;
-      }
-      .inspector-tabs > .ant-tabs-content-holder > .ant-tabs-content {
-        height: 100%; min-height: 0;
-      }
-      .inspector-tabs > .ant-tabs-content-holder > .ant-tabs-content
-        > .ant-tabs-tabpane:not(.ant-tabs-tabpane-hidden) {
-        display: flex; flex-direction: column; height: 100%;
-        min-height: 0; overflow: hidden;
+      .inspector-tabs > .ant-tabs-content.ant-tabs-content-active {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
       }
       .sugarcube-variable-tree {
         height: 100%; display: flex; flex-direction: column;
