@@ -1,9 +1,11 @@
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { useMemo } from "react";
+import { useInView } from "react-intersection-observer";
 import { isReference, type Scope } from "../inspection/direct";
 import type { VariableSlot } from "../inspection/variableSlots";
-import { VariableChildren } from "./VariableTile";
-import { useInView } from "react-intersection-observer";
 import { useVariable } from "./useVariableWatch";
+import { VariableChildren } from "./VariableTile";
 
 export default function VariableTree({ scope }: { scope: Scope }) {
   const { ref, inView: visible } = useInView();
@@ -11,17 +13,16 @@ export default function VariableTree({ scope }: { scope: Scope }) {
   const root = useVariable(slot, visible);
 
   return (
-    <div ref={ref}>
+    <Box ref={ref}>
       {!root.exists ? (
-        <p className="p-2 text-xs text-zinc-500">Waiting for SugarCube...</p>
+        <Typography variant="body2" color="text.secondary">Waiting for SugarCube...</Typography>
       ) : root.error ? (
-        <p role="alert" className="p-2 text-xs text-red-400">{root.error}</p>
+        <Typography role="alert" variant="body2" color="error">{root.error}</Typography>
       ) : isReference(root.value) ? (
         <VariableChildren value={root.value} ancestors={[]} />
       ) : (
-        <p className="p-2 text-xs text-zinc-500">{root.preview}</p>
+        <Typography variant="body2" color="text.secondary">{root.preview}</Typography>
       )}
-    </div>
+    </Box>
   );
 }
-

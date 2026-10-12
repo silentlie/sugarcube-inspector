@@ -1,16 +1,22 @@
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Collapse from "@mui/material/Collapse";
+import IconButton from "@mui/material/IconButton";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
-import { Button } from "../components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
-import { Item, ItemActions, ItemContent, ItemTitle } from "../components/ui/item";
 import type { VariableSlot } from "../inspection/variableSlots";
 import { listChildren } from "../inspection/variableStructure";
 import { useStructure, useVariable } from "./useVariableWatch";
 
 const PAGE_SIZE = 100;
 
-/** Each row subscribes to its own live location, not a copied parent entry. */
+/** Each row subscribes to its live location, including object replacements. */
 function VariableTile({
   slot, name, ancestors,
 }: {
@@ -25,37 +31,40 @@ function VariableTile({
   const canExpand = current.expandable && !circular;
 
   return (
-    <Collapsible ref={ref} open={expanded && canExpand} onOpenChange={setExpanded}>
-      <Item size="sm">
+    <Box ref={ref}>
+      <ListItem data-variable-row dense disableGutters>
         {canExpand ? (
-          <CollapsibleTrigger asChild>
-            <Button type="button" variant="ghost" size="icon-xs"
-              aria-label={`${expanded ? "Collapse" : "Expand"} ${name}`}>
-              {expanded ? <ChevronDown /> : <ChevronRight />}
-            </Button>
-          </CollapsibleTrigger>
-        ) : <span className="size-6 shrink-0" aria-hidden="true" />}
-        <ItemContent className="min-w-0">
-          <ItemTitle className="min-w-0 truncate">{name}</ItemTitle>
-        </ItemContent>
-        <ItemActions className="min-w-0 max-w-1/2">
-          <span className="truncate font-mono text-xs text-muted-foreground"
-            title={current.preview}>{current.preview}</span>
-          {circular && <span className="text-xs text-muted-foreground">same reference</span>}
-          {current.hidden && <span className="text-xs text-muted-foreground">hidden</span>}
-        </ItemActions>
-      </Item>
+          <IconButton size="small" aria-label={`${expanded ? "Collapse" : "Expand"} ${name}`}
+            aria-expanded={expanded} onClick={() => setExpanded((old) => !old)}>
+            {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </IconButton>
+        ) : (
+          <Box aria-hidden="true" sx={{ width: 34, flexShrink: 0 }} />
+        )}
+        <ListItemText primary={name} slotProps={{ primary: { noWrap: true } }}
+          sx={{ minWidth: 0 }} />
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" noWrap
+            title={current.preview} sx={{ fontFamily: "monospace", maxWidth: 150 }}>
+            {current.preview}
+          </Typography>
+          {circular && <Typography variant="caption" color="info.main">same reference</Typography>}
+          {current.hidden && <Typography variant="caption" color="text.disabled">hidden</Typography>}
+        </Stack>
+      </ListItem>
       {current.error && (
-        <p role="alert" className="p-2 text-xs text-red-400">{current.error}</p>
+        <Typography role="alert" variant="caption" color="error">{current.error}</Typography>
       )}
-      <CollapsibleContent className="ml-3 border-l border-border pl-2">
-        {canExpand && <VariableChildren value={current.value as object} ancestors={ancestors} />}
-      </CollapsibleContent>
-    </Collapsible>
+      <Collapse in={expanded && canExpand} unmountOnExit>
+        <Box sx={{ pl: 2 }}>
+          {canExpand && <VariableChildren value={current.value as object} ancestors={ancestors} />}
+        </Box>
+      </Collapse>
+    </Box>
   );
 }
 
-/** Watches keys, collection membership and descriptors only while expanded. */
+/** Watches structure only in expanded containers, and pages child rows. */
 export function VariableChildren({
   value, ancestors,
 }: {
@@ -76,11 +85,11 @@ export function VariableChildren({
   }, [value, structure]);
 
   return (
-    <div ref={ref}>
+    <List component="div" disablePadding dense ref={ref}>
       {structure.error ? (
-        <p role="alert" className="p-2 text-xs text-red-400">{structure.error}</p>
+        <Typography role="alert" variant="caption" color="error">{structure.error}</Typography>
       ) : children.length === 0 ? (
-        <p className="p-2 text-xs text-zinc-500">No properties</p>
+        <Typography variant="body2" color="text.secondary">No properties</Typography>
       ) : (
         <>
           {children.slice(0, limit).map((child) => (
@@ -88,13 +97,12 @@ export function VariableChildren({
               ancestors={lineage} />
           ))}
           {limit < children.length && (
-            <Button type="button" variant="ghost" size="sm"
-              onClick={() => setLimit((current) => current + PAGE_SIZE)}>
+            <Button size="small" onClick={() => setLimit((current) => current + PAGE_SIZE)}>
               Load more ({Math.min(limit, children.length)}/{children.length})
             </Button>
           )}
         </>
       )}
-    </div>
+    </List>
   );
 }
