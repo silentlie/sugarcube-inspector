@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readVariable, sameVariable } from "./variableLocation";
 import { listChildren, readStructure, sameStructure } from "./variableStructure";
+import { getVariableChildren, isLoadMore, PAGE_SIZE, type VariableNode } from "./variableTree";
 import { VariableWatcher } from "./variableWatcher";
 
 afterEach(() => {
@@ -141,5 +142,56 @@ describe("shared variable watcher", () => {
     expect(notify).toHaveBeenCalledTimes(1);
     expect(subscription.getSnapshot()).toBe("new");
     unsubscribe();
+  });
+});
+
+describe("Rich Tree View location adapter", () => {
+  it("keeps original references, unique path IDs, and stops ancestor cycles", () => {
+    const player: Record<string, unknown> = { health: 50 };
+    player.self = player;
+    const root = { player, leader: player };
+    const parent: VariableNode = {
+      id: "variables",
+      name: "variables",
+      location: { kind: "property", owner: { root }, key: "root" },
+      ancestors: [],
+    };
+    const firstLevel = getVariableChildren(parent);
+    const players = firstLevel.filter((node) => !isLoadMore(node));
+    expect(players.map((node) => node.id)).toHaveLength(2);
+    expect(players[0]!.id).not.toBe(players[1]!.id);
+    expect(readVariable(players[0]!.location).value).toBe(player);
+    expect(readVariable(players[1]!.location).value).toBe(player);
+
+    const children = getVariableChildren(players[0]!);
+    const self = children.find((node) => node.name === "self")!;
+    expect(isLoadMore(self)).toBe(false);
+    if (isLoadMore(self)) throw new Error("unexpected page node");
+    expect(getVariableChildren(self)).toEqual([]);
+  });
+
+  it("paginates large structures without calling arbitrary getters", () => {
+    const object: Record<string, unknown> = Object.fromEntries(
+      Array.from({ length: PAGE_SIZE + 25 }, (_, i) => [`item${i}`, i]),
+    );
+    const getter = vi.fn(() => 99);
+    Object.defineProperty(object, "computed", { get: getter, enumerable: true });
+    const root: VariableNode = {
+      id: "root",
+      name: "root",
+      location: { kind: "property", owner: { object }, key: "object" },
+      ancestors: [],
+    };
+    const first = getVariableChildren(root);
+    expect(first).toHaveLength(PAGE_SIZE + 1);
+    expect(isLoadMore(first.at(-1)!)).toBe(true);
+    const remaining = getVariableChildren(root, PAGE_SIZE + 50);
+    expect(remaining).toHaveLength(PAGE_SIZE + 26);
+    expect(remaining.some((item) => isLoadMore(item))).toBe(false);
+    const computed = remaining.find((node) => node.name === "computed")!;
+    expect(isLoadMore(computed)).toBe(false);
+    if (isLoadMore(computed)) throw new Error("unexpected page node");
+    expect(readVariable(computed.location).preview).toBe("[getter]");
+    expect(getter).not.toHaveBeenCalled();
   });
 });

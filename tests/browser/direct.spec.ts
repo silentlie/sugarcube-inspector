@@ -32,6 +32,7 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
 
   await expect(drawer.getByText("score", { exact: true })).toBeVisible();
   await expect(drawer.getByRole("treeitem").first()).toBeVisible();
+  await expect(drawer.locator(".MuiRichTreeView-root")).toBeVisible();
   await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
   await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
   await expect(drawer.getByText("choice", { exact: true })).toBeVisible();
@@ -255,4 +256,19 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
 
   await firstRow.scrollIntoViewIfNeeded();
   await expect(firstRow.getByTitle("999", { exact: true })).toBeVisible();
+});
+
+test("Rich Tree View paginates a large branch without cloning values", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    vars.bulk = Object.fromEntries(
+      Array.from({ length: 125 }, (_, i) => [`item${String(i).padStart(3, "0")}`, i]),
+    );
+  });
+  await expandVariable(drawer, "bulk");
+  await expect(drawer.getByText("item124", { exact: true })).toHaveCount(0);
+  await drawer.getByRole("button", { name: "Load more (100/125)" }).click();
+  await expect(drawer.getByText("item124", { exact: true })).toBeVisible();
 });
