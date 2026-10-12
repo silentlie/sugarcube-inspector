@@ -1,6 +1,5 @@
 import { isObject } from "@sindresorhus/is";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
+import { Typography } from "antd";
 import { useEffect, useMemo, useRef } from "react";
 import { useInView } from "react-intersection-observer";
 import type { VariableLocation, VariableSnapshot } from "../inspection/variableLocation";
@@ -15,14 +14,18 @@ function ValueTokens({ current, showType = true }: { current: VariableSnapshot; 
   const preview = current.kind === "value" ? current.preview :
     current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
   return <>
-    {showType && <Typography component="span" variant="caption" noWrap
-      sx={{ fontFamily: "monospace", flexShrink: 0 }}>
+    {showType && <span style={{
+      fontFamily: "monospace", fontSize: 12, flexShrink: 0, whiteSpace: "nowrap",
+    }}>
       <TypeSyntax type={type} />
-    </Typography>}
-    <Typography component="span" variant="caption" noWrap title={preview}
-      sx={{ fontFamily: "monospace", maxWidth: showType ? "45%" : "100%" }}>
+    </span>}
+    <span title={preview} style={{
+      fontFamily: "monospace", fontSize: 12,
+      maxWidth: showType ? "45%" : "100%", overflow: "hidden",
+      textOverflow: "ellipsis", whiteSpace: "nowrap",
+    }}>
       <ValueSyntax type={type} preview={preview} />
-    </Typography>
+    </span>
   </>;
 }
 
@@ -68,22 +71,30 @@ export function LiveVariableLabel({ node, expanded, refresh }: {
         (isObject(previous) || isObject(value))) refresh(node.id);
   }, [value, inView, node.id, refresh]);
 
-  return <span ref={ref} style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, width: "100%" }}>
+  return <span ref={ref} style={{
+    display: "flex", alignItems: "center", gap: 8, minWidth: 0, width: "100%",
+  }}>
     {isMapEntry ? <>
-      <Box sx={{ display: "flex", flex: 1, minWidth: 0 }}>
+      <span style={{ display: "flex", flex: 1, minWidth: 0 }}>
         <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} visible={inView} />
-      </Box>
-      <Typography variant="caption" color="text.secondary">→</Typography>
+      </span>
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>→</Typography.Text>
       <ValueTokens current={current} />
     </> : <>
       {!isSetMember &&
-        <Typography variant="body2" noWrap sx={{ minWidth: 0, flex: 1 }}>
+        <span style={{
+          minWidth: 0, flex: 1, overflow: "hidden", whiteSpace: "nowrap",
+          textOverflow: "ellipsis", fontSize: 14,
+        }}>
           {getLocationName(node.location)}
-        </Typography>}
-      {isSetMember && <Box sx={{ flex: 1, minWidth: 0 }} />}
+        </span>}
+      {isSetMember && <span style={{ flex: 1, minWidth: 0 }} />}
       <ValueTokens current={current} />
     </>}
-    {circular && <Typography variant="caption" color="info.main">same reference</Typography>}
+    {circular &&
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        same reference
+      </Typography.Text>}
     {expanded && inView && !isMapEntry && current.kind === "value" &&
       current.expandable && !circular &&
       <ExpandedStructureWatcher value={current.value as object} onChange={() => refresh(node.id)} />}

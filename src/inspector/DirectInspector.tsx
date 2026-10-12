@@ -1,10 +1,4 @@
-import Box from "@mui/material/Box";
-import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
-import Stack from "@mui/material/Stack";
-import Tab from "@mui/material/Tab";
-import Tabs from "@mui/material/Tabs";
-import Typography from "@mui/material/Typography";
+import { Button, Divider, Flex, Tabs, Typography } from "antd";
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { hasState, type VariableStoreKey } from "../inspection/direct";
@@ -28,11 +22,9 @@ export default function DirectInspector() {
 
   if (!ready) {
     return (
-      <Box component="section" role="status" aria-busy="true">
-        <Typography variant="body2" color="text.secondary">
-          Waiting for SugarCube...
-        </Typography>
-      </Box>
+      <section role="status" aria-busy="true">
+        <Typography.Text type="secondary">Waiting for SugarCube...</Typography.Text>
+      </section>
     );
   }
 
@@ -52,40 +44,47 @@ function ReadyInspector() {
     return () => observer.disconnect();
   }, []);
 
+  const variables = (
+    <Tabs
+      activeKey={scope}
+      aria-label="Variable scope"
+      destroyOnHidden
+      onChange={(key) => setScope(key as VariableScope)}
+      items={[
+        { key: "variables", label: "Story Variables", children: <VariableTree storeKey="variables" /> },
+        { key: "temporary", label: "Temporary Variables", children: <VariableTree storeKey="temporary" /> },
+        { key: "favorites", label: "Favorites" },
+      ]}
+    />
+  );
+
   return (
-    <Box component="section">
-      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
-        <Box>
-          <Typography variant="h6">SugarCube Inspector</Typography>
-          <Typography variant="caption" color="text.secondary">
+    <section>
+      <Flex align="center" justify="space-between">
+        <div>
+          <Typography.Title level={5} style={{ margin: 0 }}>
+            SugarCube Inspector
+          </Typography.Title>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             MAIN world · direct references
-          </Typography>
-        </Box>
-        <IconButton aria-label="Refresh variables" title="Refresh variables"
-          onClick={() => variableWatcher.refresh()}>
-          <RefreshCw size={18} />
-        </IconButton>
-      </Stack>
-      <Divider />
-      <Tabs value={section} aria-label="Inspector sections" variant="scrollable"
-        scrollButtons="auto" onChange={(_, value: Section) => setSection(value)}>
-        <Tab value="overview" label="Overview" id="inspector-overview" />
-        <Tab value="variables" label="Variables" id="inspector-variables" />
-        <Tab value="scripts" label="Scripts" id="inspector-scripts" />
-      </Tabs>
-      {section === "variables" && (
-        <Box role="tabpanel" aria-labelledby="inspector-variables">
-          <Tabs value={scope} aria-label="Variable scope" variant="scrollable"
-            scrollButtons="auto" onChange={(_, value: VariableScope) => setScope(value)}>
-            <Tab value="variables" label="Story Variables" />
-            <Tab value="temporary" label="Temporary Variables" />
-            <Tab value="favorites" label="Favorites" />
-          </Tabs>
-          {scope !== "favorites" && <VariableTree storeKey={scope} />}
-        </Box>
-      )}
-      {section === "overview" && <Box role="tabpanel" aria-labelledby="inspector-overview" />}
-      {section === "scripts" && <Box role="tabpanel" aria-labelledby="inspector-scripts" />}
-    </Box>
+          </Typography.Text>
+        </div>
+        <Button type="text" aria-label="Refresh variables" title="Refresh variables"
+          icon={<RefreshCw size={18} />}
+          onClick={() => variableWatcher.refresh()} />
+      </Flex>
+      <Divider style={{ margin: "12px 0 0" }} />
+      <Tabs
+        activeKey={section}
+        aria-label="Inspector sections"
+        destroyOnHidden
+        onChange={(key) => setSection(key as Section)}
+        items={[
+          { key: "overview", label: "Overview" },
+          { key: "variables", label: "Variables", children: variables },
+          { key: "scripts", label: "Scripts" },
+        ]}
+      />
+    </section>
   );
 }

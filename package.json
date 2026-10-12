@@ -22,10 +22,6 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "@emotion/cache": "^11.14.0",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
-    "@mui/material": "^9.5.0",
     "@sindresorhus/is": "^8.1.0",
     "@webext-core/messaging": "^4.0.0",
     "lucide-react": "^1.54.0",

@@ -1,14 +1,10 @@
-import createCache from "@emotion/cache";
 import { StyleProvider } from "@ant-design/cssinjs";
-import { ConfigProvider, theme as antTheme } from "antd";
-import { CacheProvider } from "@emotion/react";
-import ScopedCssBaseline from "@mui/material/ScopedCssBaseline";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { ConfigProvider, theme } from "antd";
 import Drawer from "@/src/inspector/Drawer";
 import DirectInspector from "@/src/inspector/DirectInspector";
 import ReactDOM from "react-dom/client";
 
-/** SugarCube and React share MAIN world; MUI styles remain in the ShadowRoot. */
+/** The inspector runs in SugarCube's MAIN world, isolated by its ShadowRoot. */
 export default defineContentScript({
   matches: ["file:///*"],
   world: "MAIN",
@@ -22,33 +18,25 @@ export default defineContentScript({
     host.style.cssText =
       "position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647";
     const shadow = host.attachShadow({ mode: "open" });
+    const baseline = document.createElement("style");
+    baseline.textContent = `
+      :host { color-scheme: dark; }
+      :host *, :host *::before, :host *::after { box-sizing: border-box; }
+    `;
     const container = document.createElement("div");
-    shadow.append(container);
+    shadow.append(baseline, container);
     document.documentElement.append(host);
-
-    const cache = createCache({ key: "sugarcube-mui", prepend: true, container: shadow });
-    const theme = createTheme({
-      palette: { mode: "dark" },
-      components: {
-        MuiModal: { defaultProps: { container } },
-        MuiPopover: { defaultProps: { container } },
-        MuiPopper: { defaultProps: { container } },
-      },
-    });
 
     ReactDOM.createRoot(container).render(
       <StyleProvider container={shadow}>
-      <ConfigProvider theme={{ algorithm: [antTheme.darkAlgorithm, antTheme.compactAlgorithm] }}>
-      <CacheProvider value={cache}>
-        <ThemeProvider theme={theme}>
-          <ScopedCssBaseline enableColorScheme>
-            <Drawer initialWidth={380}>
-              <DirectInspector />
-            </Drawer>
-          </ScopedCssBaseline>
-        </ThemeProvider>
-      </CacheProvider>
-      </ConfigProvider>
+        <ConfigProvider
+          getPopupContainer={() => container}
+          theme={{ algorithm: [theme.darkAlgorithm, theme.compactAlgorithm] }}
+        >
+          <Drawer initialWidth={380}>
+            <DirectInspector />
+          </Drawer>
+        </ConfigProvider>
       </StyleProvider>,
     );
   },

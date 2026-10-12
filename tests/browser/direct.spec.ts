@@ -48,10 +48,13 @@ test("Ant Design Tree View preserves scope navigation and variable inspection", 
   const scripts = drawer.getByRole("tab", { name: "Scripts" });
   await expect(overview).toHaveAttribute("aria-selected", "true");
   await expect(drawer.getByText("score", { exact: true })).toHaveCount(0);
-  await expect(drawer.locator(".MuiTabs-root").first()).toBeVisible();
-  expect(await drawer.evaluate((host) =>
-    Boolean(host.shadowRoot?.querySelector('style[data-emotion^="sugarcube-mui"]')),
-  )).toBe(true);
+  await expect(drawer.locator(".ant-tabs").first()).toBeVisible();
+  expect(await drawer.evaluate((host) => {
+    const shadow = host.shadowRoot!;
+    const styles = [...shadow.querySelectorAll("style")];
+    return styles.some((style) => style.textContent?.includes(".ant-tabs")) &&
+      !document.head.querySelector("style[data-emotion^='sugarcube-mui']");
+  })).toBe(true);
 
   await variables.click();
   await expect(variables).toHaveAttribute("aria-selected", "true");

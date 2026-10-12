@@ -1,7 +1,5 @@
 import { isObject } from "@sindresorhus/is";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import { Tree, type TreeDataNode } from "antd";
+import { Tree, Typography, type TreeDataNode } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
@@ -134,11 +132,11 @@ export default function VariableTree({ storeKey }: {storeKey: VariableStoreKey})
   const { ref, inView: visible } = useInView();
   const location = useMemo<VariableLocation>(() => ({ kind: "state", key: storeKey }), [storeKey]);
   const root = useVariable(location, visible);
-  return <Box ref={ref}>
+  return <div ref={ref}>
     {root.kind !== "value"
-      ? <Typography variant="body2" color="text.secondary">Store unavailable</Typography>
+      ? <Typography.Text type="secondary">Store unavailable</Typography.Text>
       : isObject(root.value)
         ? <RichVariableTree storeKey={storeKey} rootValue={root.value} visible={visible} />
-        : <Typography variant="body2" color="text.secondary">{root.preview}</Typography>}
-  </Box>;
+        : <Typography.Text type="secondary">{root.preview}</Typography.Text>}
+  </div>;
 }

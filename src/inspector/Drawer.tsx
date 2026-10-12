@@ -1,4 +1,4 @@
-import Box from "@mui/material/Box";
+import { theme } from "antd";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 interface DrawerProps {
@@ -11,7 +11,9 @@ const CLOSE_DELAY = 400;
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 1600;
 
+/** Retain the custom hover/resize drawer; Ant's modal Drawer is not a substitute. */
 export default function Drawer({ initialWidth, children }: DrawerProps) {
+  const { token } = theme.useToken();
   const [open, setOpen] = useState(false);
   const [width, setWidth] = useState(initialWidth);
   const closeTimerRef = useRef<number | null>(null);
@@ -84,30 +86,33 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   useEffect(() => () => cancelClose(), []);
 
   return (
-    <Box component="aside" onMouseEnter={handleEnter} onMouseLeave={handleLeave}
-      sx={{
+    <aside onMouseEnter={handleEnter} onMouseLeave={handleLeave}
+      style={{
         position: "fixed", top: 0, right: 0, height: "100vh", width,
-        maxWidth: "100vw", bgcolor: "background.paper", boxShadow: 24,
+        maxWidth: "100vw", background: token.colorBgElevated,
+        color: token.colorText, boxShadow: token.boxShadowSecondary,
+        fontFamily: token.fontFamily, fontSize: token.fontSize,
         transform: open ? "translateX(0)" :
           `translateX(calc(100% - ${HANDLE_WIDTH}px))`,
         transition: "transform 150ms",
       }}>
-      <Box component="button" type="button" aria-label="Resize SugarCube Inspector"
+      <button type="button" aria-label="Resize SugarCube Inspector"
         aria-expanded={open} onPointerDown={handleResizeStart}
         onPointerMove={handleResize} onPointerUp={handleResizeEnd}
         onPointerCancel={handleResizeEnd}
         onLostPointerCapture={() => { resizePointerIdRef.current = null; }}
         onKeyDown={handleKeyDown}
-        sx={{
+        style={{
           position: "absolute", top: 0, left: 0, height: "100%",
           width: HANDLE_WIDTH, touchAction: "none", cursor: "ew-resize",
-          border: 0, bgcolor: "action.hover",
-          "&:hover": { bgcolor: "action.selected" },
+          border: 0, background: token.colorFillSecondary, padding: 0,
         }}
       />
-      <Box sx={{ height: "100%", overflowY: "auto", px: 2, py: 2, ml: `${HANDLE_WIDTH}px` }}>
+      <div style={{
+        height: "100%", overflowY: "auto", padding: 16, marginLeft: HANDLE_WIDTH,
+      }}>
         {children}
-      </Box>
-    </Box>
+      </div>
+    </aside>
   );
 }
