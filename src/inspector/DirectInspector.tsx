@@ -30,17 +30,16 @@ export default function DirectInspector() {
       <Tabs defaultValue="overview">
         <TabsList aria-label="Inspector sections">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="favorites">Favorites</TabsTrigger>
+          <TabsTrigger value="variables">Variables</TabsTrigger>
           <TabsTrigger value="scripts">Scripts</TabsTrigger>
         </TabsList>
-        <TabsContent value="overview">
-          <p className="py-2 text-xs text-zinc-500">
-            Live variable tiles update independently without copying game values.
-          </p>
+        <TabsContent value="overview" />
+        <TabsContent value="variables">
           <Tabs defaultValue="story">
             <TabsList aria-label="Variable scope">
               <TabsTrigger value="story">Story Variables</TabsTrigger>
               <TabsTrigger value="temporary">Temporary Variables</TabsTrigger>
+              <TabsTrigger value="favorites">Favorites</TabsTrigger>
             </TabsList>
             <TabsContent value="story">
               <VariableTree scope="story" />
@@ -48,9 +47,9 @@ export default function DirectInspector() {
             <TabsContent value="temporary">
               <VariableTree scope="temporary" />
             </TabsContent>
+            <TabsContent value="favorites" />
           </Tabs>
         </TabsContent>
-        <TabsContent value="favorites" />
         <TabsContent value="scripts" />
       </Tabs>
     </section>

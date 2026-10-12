@@ -6,9 +6,10 @@ Chrome's MAIN JavaScript world, next to SugarCube itself.
 
 ## What this proves
 
-- shadcn/ui Tabs provides accessible Overview, Favorites, and Scripts sections;
-  only Overview contains live variables for now. Story/Temporary selection also
-  uses the default shadcn Tabs styling, with no per-instance style classes.
+- shadcn/ui Tabs provides Overview, Variables, and Scripts sections. Variables
+  contains Story Variables, Temporary Variables, and Favorites subtabs. Overview,
+  Scripts, and Favorites are empty placeholders for future features, using the
+  default shadcn Tabs styling without per-instance style classes.
 
 - React components call `SugarCube.State.variables` and
   `SugarCube.State.temporary` directly, holding the original objects.

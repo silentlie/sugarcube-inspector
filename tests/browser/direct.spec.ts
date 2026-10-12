@@ -12,10 +12,16 @@ async function openDrawer(page: Page) {
   return drawer;
 }
 
+async function openVariables(page: Page) {
+  const drawer = await openDrawer(page);
+  await drawer.getByRole("tab", { name: "Variables", exact: true }).click();
+  return drawer;
+}
+
 test("mounts the React inspector in the game's MAIN world", async ({ page }) => {
   await page.goto(storyUrl);
   await expect(page.locator("#passages")).toContainText("Smoke story ready.");
-  const drawer = await openDrawer(page);
+  const drawer = await openVariables(page);
 
   await expect(drawer.getByText("score", { exact: true })).toBeVisible();
   await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
@@ -24,36 +30,49 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
   await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
 });
 
-test("shadcn tabs switch sections and preserve the variable overview", async ({ page }) => {
+test("shadcn tabs group Story, Temporary, and Favorites beneath Variables", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openDrawer(page);
 
   const overview = drawer.getByRole("tab", { name: "Overview" });
-  const favorites = drawer.getByRole("tab", { name: "Favorites" });
+  const variables = drawer.getByRole("tab", { name: "Variables", exact: true });
   const scripts = drawer.getByRole("tab", { name: "Scripts" });
   await expect(overview).toHaveAttribute("aria-selected", "true");
+  await expect(drawer.getByText("score", { exact: true })).toHaveCount(0);
   const tabBackground = await drawer.getByRole("tablist", { name: "Inspector sections" })
     .evaluate((element) => getComputedStyle(element).backgroundColor);
   expect(tabBackground).not.toBe("rgba(0, 0, 0, 0)");
+
+  await variables.click();
+  await expect(variables).toHaveAttribute("aria-selected", "true");
+  const story = drawer.getByRole("tab", { name: "Story Variables" });
+  const temporary = drawer.getByRole("tab", { name: "Temporary Variables" });
+  const favorites = drawer.getByRole("tab", { name: "Favorites" });
+  await expect(story).toHaveAttribute("aria-selected", "true");
+  await expect(drawer.getByText("score", { exact: true })).toBeVisible();
 
   await favorites.click();
   await expect(favorites).toHaveAttribute("aria-selected", "true");
   await expect(drawer.getByText("score", { exact: true })).toHaveCount(0);
 
+  await temporary.click();
+  await expect(drawer.getByText("choice", { exact: true })).toBeVisible();
+
+  await overview.click();
+  await expect(overview).toHaveAttribute("aria-selected", "true");
+  await expect(drawer.getByRole("tab", { name: "Favorites" })).toHaveCount(0);
   await scripts.click();
   await expect(scripts).toHaveAttribute("aria-selected", "true");
   await expect(drawer.getByText("score", { exact: true })).toHaveCount(0);
 
-  await overview.click();
-  await expect(overview).toHaveAttribute("aria-selected", "true");
+  await variables.click();
+  await story.click();
   await expect(drawer.getByText("score", { exact: true })).toBeVisible();
-  await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
-  await expect(drawer.getByText("choice", { exact: true })).toBeVisible();
 });
 
 test("inspects shared live references and cycles without writes or serialization", async ({ page }) => {
   await page.goto(storyUrl);
-  const drawer = await openDrawer(page);
+  const drawer = await openVariables(page);
 
   await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
   await expect(drawer.getByRole("button", { name: /^Increment / })).toHaveCount(0);
@@ -83,7 +102,7 @@ test("inspects shared live references and cycles without writes or serialization
 
 test("refresh and passage navigation read the current game values", async ({ page }) => {
   await page.goto(storyUrl);
-  const drawer = await openDrawer(page);
+  const drawer = await openVariables(page);
   await page.locator("#passages").getByRole("link", { name: "Continue" }).click();
   await expect(page.locator("#passages")).toContainText("Passage changed.");
   await expect(drawer.getByTitle("12", { exact: true })).toBeVisible();
@@ -95,14 +114,14 @@ test("a page reload replaces the prior MAIN-world inspector", async ({ page }) =
   await page.goto(storyUrl);
   for (let i = 0; i < 3; i++) {
     if (i) await page.reload();
-    const drawer = await openDrawer(page);
+    const drawer = await openVariables(page);
     await expect(drawer.getByText("score", { exact: true })).toBeVisible();
   }
 });
 
 test("automatically reacts to game writes without manual refresh", async ({ page }) => {
   await page.goto(storyUrl);
-  const drawer = await openDrawer(page);
+  const drawer = await openVariables(page);
   await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
 
   await page.evaluate(() => {
@@ -121,7 +140,7 @@ test("automatically reacts to game writes without manual refresh", async ({ page
 
 test("expanded tiles follow object replacement and nested in-place mutations", async ({ page }) => {
   await page.goto(storyUrl);
-  const drawer = await openDrawer(page);
+  const drawer = await openVariables(page);
 
   await page.evaluate(() => {
     const store = SugarCube.State.variables as unknown as Record<string, unknown>;
@@ -149,7 +168,7 @@ test("expanded tiles follow object replacement and nested in-place mutations", a
 
 test("reacts to in-place array, Map and Set changes", async ({ page }) => {
   await page.goto(storyUrl);
-  const drawer = await openDrawer(page);
+  const drawer = await openVariables(page);
   await drawer.getByRole("button", { name: "Expand inventory" }).click();
 
   await page.evaluate(() => {
@@ -184,7 +203,7 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
 
 test("offscreen tiles stop polling and refresh when scrolled back into view", async ({ page }) => {
   await page.goto(storyUrl);
-  const drawer = await openDrawer(page);
+  const drawer = await openVariables(page);
   await page.evaluate(() => {
     const store = SugarCube.State.variables as unknown as Record<string, unknown>;
     store.large = Object.fromEntries(
