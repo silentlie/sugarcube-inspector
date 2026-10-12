@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { hasState, type VariableStoreKey } from "../inspection/direct";
 import { variableWatcher } from "../inspection/variableWatcher";
 import VariableTree from "./VariableTree";
-import { benchMode } from "./tabBenchmark.temp";
 
 type Section = "overview" | "variables" | "scripts";
 type VariableScope = VariableStoreKey | "favorites";
@@ -50,14 +49,11 @@ function ReadyInspector() {
       activeKey={scope}
       aria-label="Variable scope"
       className="inspector-tabs"
-      destroyOnHidden={benchMode() === "destroy"}
+      destroyOnHidden={false}
       animated={false}
       onChange={(key) => setScope(key as VariableScope)}
       items={[
-        { key: "variables", label: "Story Variables",
-          children: benchMode() === "noTree"
-            ? <div data-benchmark-no-tree="true" style={{ flex: 1 }} />
-            : <VariableTree storeKey="variables" /> },
+        { key: "variables", label: "Story Variables", children: <VariableTree storeKey="variables" /> },
         { key: "temporary", label: "Temporary Variables", children: <VariableTree storeKey="temporary" /> },
         { key: "favorites", label: "Favorites" },
       ]}
@@ -87,7 +83,7 @@ function ReadyInspector() {
         activeKey={section}
         aria-label="Inspector sections"
         className="inspector-tabs"
-        destroyOnHidden={benchMode() === "destroy"}
+        destroyOnHidden={false}
         animated={false}
         onChange={(key) => setSection(key as Section)}
         items={[
