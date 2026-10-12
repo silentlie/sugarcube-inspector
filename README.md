@@ -5,16 +5,17 @@ It does not attach a debugger or use a cross-world messaging bridge.
 
 ## User interface
 
-- **MUI Community** provides the default appearance for Tabs, List, ListItem,
-  IconButton, Button, Typography, and Collapse. There are no copied shadcn
-  components or Tailwind stylesheets.
+- **MUI Community** provides Tabs, Typography, Button, and MUI X SimpleTreeView
+  with accessible native tree navigation. There are no copied shadcn
+  components, Tailwind stylesheets, or Pro dependencies.
 - Overview, Variables, and Scripts are top-level tabs. Under Variables are
   Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
   Favorites are placeholders.
-- The variable tree currently uses **MUI List + Collapse**, rather than
-  MUI X Tree View. This preserves lazy child mounting, per-node visibility
-  subscriptions, and live object inspection. MUI X Community Tree View can
-  be evaluated later for dedicated keyboard navigation.
+- The variable tree uses **MUI X Community SimpleTreeView + TreeItem**.
+  MUI owns keyboard tree navigation and expansion state. Expansion mounts child
+  discovery and structural watches lazily, while each tile retains direct
+  references and per-node visibility subscriptions. The free Tree View does
+  not provide built-in virtualization; we retain 100-child pagination.
 - The remaining layout settings handle drawer geometry, its resize handle,
   and value truncation. Most styling comes from MUI's default dark theme.
 

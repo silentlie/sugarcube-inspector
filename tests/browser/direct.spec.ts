@@ -1,5 +1,5 @@
 import type {} from "twine-sugarcube";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, storyUrl, test } from "./fixtures";
 
 async function openDrawer(page: Page) {
@@ -18,20 +18,27 @@ async function openVariables(page: Page) {
   return drawer;
 }
 
+async function expandVariable(drawer: Locator, name: string) {
+  const row = drawer.getByRole("treeitem", { name: new RegExp(`^${name}(?:\\s|$)`) });
+  await row.locator(".MuiTreeItem-iconContainer").click();
+  await expect(row).toHaveAttribute("aria-expanded", "true");
+  return row;
+}
+
 test("mounts the React inspector in the game's MAIN world", async ({ page }) => {
   await page.goto(storyUrl);
   await expect(page.locator("#passages")).toContainText("Smoke story ready.");
   const drawer = await openVariables(page);
 
   await expect(drawer.getByText("score", { exact: true })).toBeVisible();
-  await expect(drawer.locator(".MuiListItem-root").first()).toBeVisible();
+  await expect(drawer.getByRole("treeitem").first()).toBeVisible();
   await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
   await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
   await expect(drawer.getByText("choice", { exact: true })).toBeVisible();
   await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
 });
 
-test("MUI tabs group Story, Temporary, and Favorites beneath Variables", async ({ page }) => {
+test("MUI Tree View preserves scope navigation and lazy variable inspection", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openDrawer(page);
 
@@ -91,11 +98,9 @@ test("inspects shared live references and cycles without writes or serialization
   });
   await drawer.getByRole("button", { name: "Refresh variables" }).click();
   await expect(drawer.getByText("uncloneable", { exact: true })).toBeVisible();
-  const expandPlayer = drawer.getByRole("button", { name: "Expand player" });
-  await expect(drawer.locator("[data-variable-row]").first()).toHaveCount(1);
-  await expandPlayer.click();
-  await expect(drawer.getByRole("button", { name: "Collapse player" }))
-    .toHaveAttribute("aria-expanded", "true");
+  await expect(drawer.getByRole("tree", { name: "Story variables tree" })).toBeVisible();
+  await expect(drawer.getByRole("treeitem").first()).toBeVisible();
+  await expandVariable(drawer, "player");
   await expect(drawer.getByText("health", { exact: true })).toBeVisible();
   await expect(drawer.getByText("same reference", { exact: true })).toBeVisible();
   await expect(drawer.getByTitle("100", { exact: true })).toBeVisible();
@@ -152,7 +157,7 @@ test("expanded tiles follow object replacement and nested in-place mutations", a
     const store = SugarCube.State.variables as unknown as Record<string, unknown>;
     store.player = { health: 10, name: "Alex" };
   });
-  await drawer.getByRole("button", { name: "Expand player" }).click();
+  await expandVariable(drawer, "player");
   await expect(drawer.getByTitle("10", { exact: true })).toBeVisible();
 
   await page.evaluate(() => {
@@ -165,9 +170,8 @@ test("expanded tiles follow object replacement and nested in-place mutations", a
     const store = SugarCube.State.variables as unknown as { player: { health: number } };
     store.player = { health: 31 };
   });
-  await expect(drawer.getByRole("button", { name: "Collapse player" })).toHaveAttribute(
-    "aria-expanded", "true",
-  );
+  await expect(drawer.getByRole("treeitem", { name: /^player(?:\\s|$)/ }))
+    .toHaveAttribute("aria-expanded", "true");
   await expect(drawer.getByTitle("31", { exact: true })).toBeVisible();
   await expect(drawer.getByText("name", { exact: true })).toHaveCount(0);
 });
@@ -175,7 +179,7 @@ test("expanded tiles follow object replacement and nested in-place mutations", a
 test("reacts to in-place array, Map and Set changes", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
-  await drawer.getByRole("button", { name: "Expand inventory" }).click();
+  await expandVariable(drawer, "inventory");
 
   await page.evaluate(() => {
     const vars = SugarCube.State.variables as unknown as { inventory: string[] };
@@ -189,7 +193,7 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
     store.testMap = new Map([["one", 1]]);
     store.testSet = new Set(["north"]);
   });
-  await drawer.getByRole("button", { name: "Expand testMap" }).click();
+  await expandVariable(drawer, "testMap");
   await expect(drawer.getByTitle("1", { exact: true })).toBeVisible();
   await page.evaluate(() => {
     const store = SugarCube.State.variables as unknown as { testMap: Map<string, number> };
@@ -197,7 +201,7 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
   });
   await expect(drawer.getByTitle("4", { exact: true })).toBeVisible();
 
-  await drawer.getByRole("button", { name: "Expand testSet" }).click();
+  await expandVariable(drawer, "testSet");
   await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
   await page.evaluate(() => {
     const store = SugarCube.State.variables as unknown as { testSet: Set<string> };
@@ -216,9 +220,9 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
       Array.from({ length: 80 }, (_, i) => [`item${String(i).padStart(2, "0")}`, i]),
     );
   });
-  await drawer.getByRole("button", { name: "Expand large" }).click();
+  await expandVariable(drawer, "large");
 
-  const firstRow = drawer.locator("[data-variable-row]").filter({ hasText: "item00" });
+  const firstRow = drawer.getByRole("treeitem", { name: /^item00(?:\\s|$)/ });
   await firstRow.scrollIntoViewIfNeeded();
   await expect(firstRow.getByTitle("0", { exact: true })).toBeVisible();
 

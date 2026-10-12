@@ -1,14 +1,8 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Collapse from "@mui/material/Collapse";
-import IconButton from "@mui/material/IconButton";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { TreeItem } from "@mui/x-tree-view/TreeItem";
+import { createContext, useContext, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import type { VariableSlot } from "../inspection/variableSlots";
 import { listChildren } from "../inspection/variableStructure";
@@ -16,62 +10,69 @@ import { useStructure, useVariable } from "./useVariableWatch";
 
 const PAGE_SIZE = 100;
 
-/** Each row subscribes to its live location, including object replacements. */
-function VariableTile({
-  slot, name, ancestors,
+/** MUI owns expansion and keyboard behavior; our watchers own live values. */
+export const ExpandedTreeItemsContext = createContext<ReadonlySet<string>>(new Set());
+
+function ExpandedChildren({
+  expanded, value, ancestors, visible,
 }: {
+  expanded: boolean;
+  value: object;
+  ancestors: readonly object[];
+  visible: boolean;
+}) {
+  // Keep this component as a TreeItem child even when collapsed so that MUI
+  // knows the row can expand. Do not mount the structure watcher until open.
+  if (!expanded) return null;
+  return <VariableChildren value={value} ancestors={ancestors} visible={visible} />;
+}
+
+/** Each TreeItem keeps a direct subscription to its original live slot. */
+function VariableTile({
+  id, slot, name, ancestors,
+}: {
+  id: string;
   slot: VariableSlot;
   name: string;
   ancestors: readonly object[];
 }) {
   const { ref, inView: visible } = useInView();
   const current = useVariable(slot, visible);
-  const [expanded, setExpanded] = useState(false);
+  const expandedItems = useContext(ExpandedTreeItemsContext);
+  const expanded = expandedItems.has(id);
   const circular = current.expandable && ancestors.includes(current.value as object);
   const canExpand = current.expandable && !circular;
 
   return (
-    <Box ref={ref}>
-      <ListItem component="div" data-variable-row dense disableGutters>
-        {canExpand ? (
-          <IconButton size="small" aria-label={`${expanded ? "Collapse" : "Expand"} ${name}`}
-            aria-expanded={expanded} onClick={() => setExpanded((old) => !old)}>
-            {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-          </IconButton>
-        ) : (
-          <Box aria-hidden="true" sx={{ width: 34, flexShrink: 0 }} />
-        )}
-        <ListItemText primary={name} slotProps={{ primary: { noWrap: true } }}
-          sx={{ minWidth: 0 }} />
-        <Stack direction="row" spacing={1} sx={{ minWidth: 0, alignItems: "center" }}>
+    <TreeItem itemId={id} ref={ref} disableSelection
+      label={
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+          <Typography variant="body2" noWrap sx={{ minWidth: 0, flex: 1 }}>{name}</Typography>
           <Typography variant="caption" color="text.secondary" noWrap
-            title={current.preview} sx={{ fontFamily: "monospace", maxWidth: 150 }}>
+            title={current.preview} sx={{ fontFamily: "monospace", maxWidth: "50%" }}>
             {current.preview}
           </Typography>
           {circular && <Typography variant="caption" color="info.main">same reference</Typography>}
           {current.hidden && <Typography variant="caption" color="text.disabled">hidden</Typography>}
-        </Stack>
-      </ListItem>
-      {current.error && (
-        <Typography role="alert" variant="caption" color="error">{current.error}</Typography>
-      )}
-      <Collapse in={expanded && canExpand} unmountOnExit>
-        <Box sx={{ pl: 2 }}>
-          {canExpand && <VariableChildren value={current.value as object} ancestors={ancestors} />}
+          {current.error && <Typography role="alert" variant="caption" color="error">{current.error}</Typography>}
         </Box>
-      </Collapse>
-    </Box>
+      }>
+      {canExpand && (
+        <ExpandedChildren expanded={expanded} value={current.value as object}
+          ancestors={ancestors} visible={visible} />
+      )}
+    </TreeItem>
   );
 }
 
-/** Watches structure only in expanded containers, and pages child rows. */
+/** Discover children only while the owning TreeItem is expanded and visible. */
 export function VariableChildren({
-  value, ancestors,
+  value, ancestors, visible,
 }: {
   value: object;
   ancestors: readonly object[];
+  visible: boolean;
 }) {
-  const { ref, inView: visible } = useInView();
   const structure = useStructure(value, visible);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const lineage = useMemo(() => [...ancestors, value], [ancestors, value]);
@@ -84,25 +85,25 @@ export function VariableChildren({
     }
   }, [value, structure]);
 
+  if (structure.error) {
+    return <li><Typography role="alert" variant="caption" color="error">{structure.error}</Typography></li>;
+  }
+  if (children.length === 0) {
+    return <li><Typography variant="body2" color="text.secondary">No properties</Typography></li>;
+  }
   return (
-    <List component="div" disablePadding dense ref={ref}>
-      {structure.error ? (
-        <Typography role="alert" variant="caption" color="error">{structure.error}</Typography>
-      ) : children.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">No properties</Typography>
-      ) : (
-        <>
-          {children.slice(0, limit).map((child) => (
-            <VariableTile key={child.id} slot={child.slot} name={child.name}
-              ancestors={lineage} />
-          ))}
-          {limit < children.length && (
-            <Button size="small" onClick={() => setLimit((current) => current + PAGE_SIZE)}>
-              Load more ({Math.min(limit, children.length)}/{children.length})
-            </Button>
-          )}
-        </>
+    <>
+      {children.slice(0, limit).map((child) => (
+        <VariableTile key={child.id} id={child.id} slot={child.slot}
+          name={child.name} ancestors={lineage} />
+      ))}
+      {limit < children.length && (
+        <li>
+          <Button size="small" onClick={() => setLimit((count) => count + PAGE_SIZE)}>
+            Load more ({Math.min(limit, children.length)}/{children.length})
+          </Button>
+        </li>
       )}
-    </List>
+    </>
   );
 }
