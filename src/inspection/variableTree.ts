@@ -30,7 +30,7 @@ export function getVariableChildren(node: VariableNode): VariableNode[] {
   }
 
   const current = readVariable(location);
-  if (current.kind !== "value" || !current.expandable || !isObject(current.value) ||
+  if (current.kind !== "value" || !isObject(current.value) ||
       node.ancestors.includes(current.value)) return [];
 
   const nextAncestors = [...node.ancestors, current.value];
