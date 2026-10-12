@@ -86,10 +86,10 @@ test("MUI Tree View exposes keyboard-controlled expansion", async ({ page }) => 
   await inventory.focus();
   await inventory.press("ArrowRight");
   await expect(inventory).toHaveAttribute("aria-expanded", "true");
-  await expect(drawer.getByRole("treeitem", { name: /^\[0\]/ })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^0(?:\s|$)/ })).toBeVisible();
   await inventory.press("ArrowLeft");
   await expect(inventory).toHaveAttribute("aria-expanded", "false");
-  await expect(drawer.getByRole("treeitem", { name: /^\[0\]/ })).toHaveCount(0);
+  await expect(drawer.getByRole("treeitem", { name: /^0(?:\s|$)/ })).toHaveCount(0);
 });
 
 test("inspects shared live references and cycles without writes or serialization", async ({ page }) => {
