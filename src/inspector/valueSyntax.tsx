@@ -1,11 +1,8 @@
 import { Fragment } from "react";
 import { Highlight, themes } from "prism-react-renderer";
-import { bench, benchHit } from "./rowBench.temp";
 
 /** Type labels reuse the VS Dark palette rather than maintaining custom colors. */
 export function TypeSyntax({ type }: { type: string }) {
-  benchHit("typeSyntax");
-  if (bench()?.variant === "plainSyntax") return <span>{type}</span>;
   const tokenType = /^[A-Z]/.test(type) ? "class-name" : "keyword";
   const color = themes.vsDark.styles.find(({ types }) => types.includes(tokenType))?.style.color;
   return <span className={`token ${tokenType}`} style={{ color }}>{type}</span>;
@@ -23,8 +20,6 @@ export function inlinePreview(type: string, preview: string): string {
 
 /** Tokenize the displayed JavaScript value with Prism instead of mapping types to CSS classes. */
 export function ValueSyntax({ type, preview }: { type: string; preview: string }) {
-  benchHit("valueSyntax");
-  if (bench()?.variant === "plainSyntax") return <span>{inlinePreview(type, preview)}</span>;
   return (
     <Highlight code={inlinePreview(type, preview)} language="javascript" theme={themes.vsDark}>
       {({ tokens, getTokenProps }) => (

@@ -10,7 +10,6 @@ import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "../inspection/variableTree";
 import { useStructure, useVariable } from "./useVariableWatch";
 import { TypeSyntax, ValueSyntax } from "./valueSyntax";
-import { benchHit } from "./rowBench.temp";
 
 type TreeState = {
   expanded: ReadonlySet<string>;
@@ -128,7 +127,6 @@ function LiveVariableValue({
 
 /** MUI owns the tree and accessibility; these rows retain visibility-gated polling. */
 export function LiveVariableTreeItem(props: TreeItemProps) {
-  benchHit("liveTreeItem");
   const node = useTreeItemModel<VariableNode>(props.itemId);
   const { ref, inView } = useInView();
   const { expanded } = useContext(VariableTreeContext);
@@ -138,22 +136,4 @@ export function LiveVariableTreeItem(props: TreeItemProps) {
     <TreeItem {...props} ref={ref} disableSelection
       label={<LiveVariableValue node={node} visible={inView} expanded={expanded.has(node.id)} />} />
   );
-}
-
-/** Comparison: same MUI row and live values, but no IntersectionObserver hook. */
-export function NoObserverTreeItem(props: TreeItemProps) {
-  benchHit("noObserverTreeItem");
-  const node = useTreeItemModel<VariableNode>(props.itemId);
-  const { expanded } = useContext(VariableTreeContext);
-  if (!node) return <TreeItem {...props} />;
-  return <TreeItem {...props} disableSelection
-    label={<LiveVariableValue node={node} visible={true} expanded={expanded.has(node.id)} />} />;
-}
-
-/** Comparison: MUI row without custom preview, hooks, or syntax rendering. */
-export function MinimalTreeItem(props: TreeItemProps) {
-  benchHit("minimalTreeItem");
-  const node = useTreeItemModel<VariableNode>(props.itemId);
-  return <TreeItem {...props} disableSelection
-    label={node ? getLocationName(node.location) : undefined} />;
 }
