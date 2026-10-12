@@ -41,6 +41,8 @@ shadcn/ui component source is stored in `src/components/ui/` and configured
 using `components.json`. Its default dark-theme variables are defined once in
 the ShadowRoot stylesheet, so tab consumers need no CSS or style props.
 
+To add further shadcn/ui components, run `npx shadcn@latest add <component>`.
+
 `entrypoints/content.tsx` has `world: "MAIN"`. Because MAIN-world scripts do
 not receive WXT's usual content-script context, it creates a ShadowRoot
 directly, inlines compiled CSS, and mounts React into it.
