@@ -1,4 +1,4 @@
-import { detect, isError, isObject } from "@sindresorhus/is";
+import detect, { isError, isObject } from "@sindresorhus/is";
 import { getStore, preview, type VariableStoreKey } from "./direct";
 
 /** A location is an owner/key pair, not a cloned value or a root-relative path. */
