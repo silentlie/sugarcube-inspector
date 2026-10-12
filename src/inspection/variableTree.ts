@@ -1,4 +1,5 @@
 import { isObject } from "@sindresorhus/is";
+import { profiled } from "./performance.temp";
 import type { VariableLocation } from "./variableLocation";
 import { readVariable } from "./variableLocation";
 import { getLocationId, listChildren } from "./variableStructure";
@@ -20,7 +21,7 @@ function childNode(parent: VariableNode, location: VariableLocation, ancestors: 
 }
 
 /** MUI eagerly indexes the entire hierarchy, including collapsed nodes. */
-export function getVariableChildren(node: VariableNode): VariableNode[] {
+function getVariableChildrenImpl(node: VariableNode): VariableNode[] {
   const location = node.location;
   if (location.kind === "map" && location.part === undefined) {
     if (!Map.prototype.has.call(location.owner, location.key)) return [];
@@ -35,4 +36,8 @@ export function getVariableChildren(node: VariableNode): VariableNode[] {
 
   const nextAncestors = [...node.ancestors, current.value];
   return listChildren(current.value).map((child) => childNode(node, child, nextAncestors));
+}
+
+export function getVariableChildren(node: VariableNode): VariableNode[] {
+  return profiled("getVariableChildren", () => getVariableChildrenImpl(node));
 }

@@ -1,4 +1,5 @@
 import detect, { isObject } from "@sindresorhus/is";
+import { profiled } from "./performance.temp";
 import { getStore, type VariableStoreKey } from "./direct";
 import { boxedPrimitive, preview } from "./valuePreview";
 
@@ -29,7 +30,7 @@ function snapshot(value: unknown): VariableSnapshot {
 }
 
 /** Only SugarCube's two trusted State getters may be read as accessors. */
-export function readVariable(location: VariableLocation): VariableSnapshot {
+function readVariableImpl(location: VariableLocation): VariableSnapshot {
   switch (location.kind) {
     case "state": {
       const value = getStore(location.key);
@@ -68,4 +69,8 @@ export function sameVariable(a: VariableSnapshot, b: VariableSnapshot): boolean 
     case "missing":
       return true;
   }
+}
+
+export function readVariable(location: VariableLocation): VariableSnapshot {
+  return profiled("readVariable", () => readVariableImpl(location));
 }

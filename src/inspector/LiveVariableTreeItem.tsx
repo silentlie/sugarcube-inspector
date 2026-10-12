@@ -1,4 +1,5 @@
 import { isObject } from "@sindresorhus/is";
+import { hit } from "../inspection/performance.temp";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { TreeItem, type TreeItemProps } from "@mui/x-tree-view/TreeItem";
@@ -39,6 +40,7 @@ function ValueTokens({ current, showType = true }: {
   current: VariableSnapshot;
   showType?: boolean;
 }) {
+  hit("ValueTokens");
   const type = current.kind === "value" ? current.type :
     current.kind === "accessor" ? current.accessor : current.kind;
   const preview = current.kind === "value" ? current.preview :
@@ -76,6 +78,7 @@ function LiveVariableValue({
   visible: boolean;
   expanded: boolean;
 }) {
+  hit("LiveVariableValue");
   const { refresh } = useContext(VariableTreeContext);
   const current = useVariable(node.location, visible);
   const value = current.kind === "value" ? current.value : undefined;
@@ -127,6 +130,7 @@ function LiveVariableValue({
 
 /** MUI owns the tree and accessibility; these rows retain visibility-gated polling. */
 export function LiveVariableTreeItem(props: TreeItemProps) {
+  hit("LiveVariableTreeItem");
   const node = useTreeItemModel<VariableNode>(props.itemId);
   const { ref, inView } = useInView();
   const { expanded } = useContext(VariableTreeContext);
