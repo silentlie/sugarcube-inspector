@@ -1,5 +1,4 @@
 import { isArray, isMap, isObject, isSet } from "@sindresorhus/is";
-import { profiled } from "./performance.temp";
 import type { VariableLocation } from "./variableLocation";
 import { preview } from "./valuePreview";
 
@@ -43,7 +42,7 @@ export function getLocationId(location: VariableLocation): string {
 }
 
 /** A tree label is derived from a live location; no positional indices. */
-function getLocationNameImpl(location: VariableLocation): string {
+export function getLocationName(location: VariableLocation): string {
   switch (location.kind) {
     case "state":
       return location.key;
@@ -57,7 +56,7 @@ function getLocationNameImpl(location: VariableLocation): string {
 }
 
 /** Only expanded containers need a structural watcher. */
-function readStructureImpl(value: unknown): readonly StructurePart[] {
+export function readStructure(value: unknown): readonly StructurePart[] {
   if (!isObject(value)) return [];
   const parts: StructurePart[] = [];
   if (isMap(value)) {
@@ -111,7 +110,7 @@ export function sameStructure(a: readonly StructurePart[], b: readonly Structure
 }
 
 /** Enumerate direct live locations; a Map entry appears once, a Set member once. */
-function listChildrenImpl(value: unknown): VariableLocation[] {
+export function listChildren(value: unknown): VariableLocation[] {
   if (!isObject(value)) return [];
   const children: VariableLocation[] = [];
   if (isMap(value)) {
@@ -127,14 +126,4 @@ function listChildrenImpl(value: unknown): VariableLocation[] {
     children.push({ kind: "property", owner: value, key });
   }
   return children;
-}
-
-export function readStructure(value: unknown): readonly StructurePart[] {
-  return profiled("readStructure", () => readStructureImpl(value));
-}
-export function listChildren(value: unknown): VariableLocation[] {
-  return profiled("listChildren", () => listChildrenImpl(value));
-}
-export function getLocationName(location: VariableLocation): string {
-  return profiled("getLocationName", () => getLocationNameImpl(location));
 }

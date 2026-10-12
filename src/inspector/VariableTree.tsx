@@ -2,8 +2,7 @@ import { isObject } from "@sindresorhus/is";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { RichTreeView } from "@mui/x-tree-view/RichTreeView";
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
-import { currentBench, profiled, stamp } from "../inspection/performance.temp";
+import { useCallback, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
 import type { VariableLocation } from "../inspection/variableLocation";
@@ -24,7 +23,6 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const expanded = useMemo(() => new Set(expandedItems), [expandedItems]);
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
-  useLayoutEffect(() => { stamp("reactCommit"); }, [expandedItems]);
 
   const rootNode = useMemo<VariableNode>(() => ({
     id: storeKey,
@@ -35,7 +33,7 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
   // No values are serialized. Structural changes regenerate tree models, not
   // every 250ms value preview update.
   const items = useMemo(
-    () => profiled("rootItems", () => getVariableChildren(rootNode)),
+    () => getVariableChildren(rootNode),
     [rootNode, rootValue, structure, revision],
   );
   const getLabel = useCallback((node: VariableNode) => getLocationName(node.location), []);
@@ -53,11 +51,10 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
         disableSelection
         expansionTrigger="iconContainer"
         expandedItems={expandedItems}
-        onExpandedItemsChange={(_, ids) => { stamp("onExpandedItemsChange"); setExpandedItems(ids); }}
+        onExpandedItemsChange={(_, ids) => setExpandedItems(ids)}
         onItemExpansionToggle={(_, __, isExpanded) => {
           // Re-resolve live locations on opening even if the branch was offscreen.
-          stamp("onExpansionToggle");
-          if (isExpanded && !currentBench()?.skipRefresh) refresh();
+          if (isExpanded) refresh();
         }}
         slots={{ item: LiveVariableTreeItem }}
       />

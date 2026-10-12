@@ -1,5 +1,4 @@
 import detect, { isObject } from "@sindresorhus/is";
-import { profiled } from "./performance.temp";
 import { getStore, type VariableStoreKey } from "./direct";
 import { boxedPrimitive, preview } from "./valuePreview";
 
@@ -20,20 +19,17 @@ export type VariableSnapshot =
   | { kind: "missing" };
 
 function snapshot(value: unknown): VariableSnapshot {
-  return profiled("snapshot", () => ({
+  return {
     kind: "value",
     value,
-    preview: profiled("preview", () => preview(value)),
-    type: profiled("typeName", () => {
-      const boxed = profiled("boxedPrimitive", () => boxedPrimitive(value));
-      return boxed?.type ?? profiled("detect", () => detect(value));
-    }),
-    expandable: profiled("expandable", () => isObject(value)),
-  }));
+    preview: preview(value),
+    type: boxedPrimitive(value)?.type ?? detect(value),
+    expandable: isObject(value),
+  };
 }
 
 /** Only SugarCube's two trusted State getters may be read as accessors. */
-function readVariableImpl(location: VariableLocation): VariableSnapshot {
+export function readVariable(location: VariableLocation): VariableSnapshot {
   switch (location.kind) {
     case "state": {
       const value = getStore(location.key);
@@ -72,8 +68,4 @@ export function sameVariable(a: VariableSnapshot, b: VariableSnapshot): boolean 
     case "missing":
       return true;
   }
-}
-
-export function readVariable(location: VariableLocation): VariableSnapshot {
-  return profiled("readVariable", () => readVariableImpl(location));
 }
