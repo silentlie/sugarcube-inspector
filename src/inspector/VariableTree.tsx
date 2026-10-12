@@ -108,6 +108,7 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     className="sugarcube-variable-tree"
     blockNode
     selectable={false}
+    switcherIcon={(props) => <span aria-hidden="true">{props.expanded ? "▾" : "▸"}</span>}
     virtual
     height={height}
     treeData={items}
