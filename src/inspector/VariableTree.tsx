@@ -8,6 +8,7 @@ import { type VariableStoreKey } from "../inspection/direct";
 import { isExpandableNode } from "../inspection/isExpandableNode";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
+import { getLocationName } from "../inspection/variableStructure";
 import { LiveVariableLabel } from "./LiveVariableLabel";
 import { useStructure, useVariable } from "./useVariableWatch";
 
@@ -25,7 +26,7 @@ function makeItem(variable: VariableNode, previous?: Item): Item {
     : undefined;
   return {
     key: variable.id,
-    title: "",
+    title: getLocationName(variable.location),
     variable,
     isLeaf: !expandable,
     ...(children && { children }),
