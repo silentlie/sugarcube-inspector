@@ -32,6 +32,9 @@ test("shadcn tabs switch sections and preserve the variable overview", async ({ 
   const favorites = drawer.getByRole("tab", { name: "Favorites" });
   const scripts = drawer.getByRole("tab", { name: "Scripts" });
   await expect(overview).toHaveAttribute("aria-selected", "true");
+  const tabBackground = await drawer.getByRole("tablist", { name: "Inspector sections" })
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(tabBackground).not.toBe("rgba(0, 0, 0, 0)");
 
   await favorites.click();
   await expect(favorites).toHaveAttribute("aria-selected", "true");

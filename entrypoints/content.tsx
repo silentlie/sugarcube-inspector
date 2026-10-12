@@ -27,7 +27,6 @@ export default defineContentScript({
     shadow.append(style);
 
     const container = document.createElement("div");
-    container.className = "dark";
     shadow.append(container);
     document.documentElement.append(host);
 
