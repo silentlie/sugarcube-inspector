@@ -5,7 +5,7 @@ import { Highlight, themes } from "prism-react-renderer";
 export function TypeSyntax({ type }: { type: string }) {
   const tokenType = /^[A-Z]/.test(type) ? "class-name" : "keyword";
   const color = themes.vsDark.styles.find(({ types }) => types.includes(tokenType))?.style.color;
-  return <span style={{ color }}>{type}</span>;
+  return <span className={`token ${tokenType}`} style={{ color }}>{type}</span>;
 }
 
 /** Show the type once: next to the name, rather than also in the preview. */

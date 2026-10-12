@@ -317,6 +317,8 @@ test("renders VS Code-style type labels and value token colors", async ({ page }
 
   const inventory = drawer.getByText("inventory", { exact: true }).locator("..");
   await expect(inventory.locator(".token.class-name")).toHaveText("Array");
-  await expect(inventory.locator(".token.punctuation")).toHaveText("(2)");
-  await expect(inventory.locator(".token.punctuation")).toHaveAttribute("title", "Array(2)");
+  const inventoryPreview = inventory.locator('[title="Array(2)"]');
+  await expect(inventoryPreview).toHaveText("(2)");
+  await expect(inventoryPreview.locator(".token.punctuation")).toHaveText(["(", ")"]);
+  await expect(inventoryPreview.locator(".token.number")).toHaveText("2");
 });
