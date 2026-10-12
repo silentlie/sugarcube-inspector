@@ -1,4 +1,5 @@
-import { isArray, isError, isMap, isObject, isSet, isSymbol } from "@sindresorhus/is";
+import { isArray, isMap, isObject, isSet, isSymbol } from "@sindresorhus/is";
+import { errorMessage } from "../utils/errorMessage";
 import type { VariableLocation } from "./variableLocation";
 
 export type TreeChild = { id: string; name: string; location: VariableLocation };
@@ -21,10 +22,6 @@ function idForChild(owner: object, key: unknown): string {
     ids.set(key, id);
   }
   return id;
-}
-
-function errorMessage(cause: unknown): string {
-  return isError(cause) ? cause.message : String(cause);
 }
 
 /** Only expanded containers need a structural watcher. */

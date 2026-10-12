@@ -1,5 +1,7 @@
-import detect, { isError, isObject } from "@sindresorhus/is";
-import { getStore, preview, type VariableStoreKey } from "./direct";
+import detect, { isObject } from "@sindresorhus/is";
+import { errorMessage } from "../utils/errorMessage";
+import { getStore, type VariableStoreKey } from "./direct";
+import { preview } from "./valuePreview";
 
 /** A location is an owner/key pair, not a cloned value or a root-relative path. */
 export type VariableLocation =
@@ -17,10 +19,6 @@ export type VariableSnapshot =
   | { kind: "accessor"; accessor: AccessorKind }
   | { kind: "missing" }
   | { kind: "error"; error: string };
-
-function errorMessage(cause: unknown): string {
-  return isError(cause) ? cause.message : String(cause);
-}
 
 function typeName(value: unknown): string {
   try {
