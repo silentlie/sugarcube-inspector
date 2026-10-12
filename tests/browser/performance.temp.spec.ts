@@ -75,7 +75,7 @@ test("temporary expansion benchmark", async ({ page }) => {
           }
           observer.observe(shadow, { childList: true, subtree: true });
           const timeout = setTimeout(() => finish(new Error("Child did not render within 4s")), 4000);
-          icon.click();
+          (icon as HTMLElement).click();
           clickMs = performance.now() - start;
           if (exists()) finish();
         }), childName,
