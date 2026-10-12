@@ -15,7 +15,7 @@ describe("VS Dark syntax highlighting", () => {
   it("highlights JavaScript literals using Prism's tokens", () => {
     const stringHtml = renderToStaticMarkup(<ValueSyntax type="string" preview={'"Alex"'} />);
     expect(stringHtml).toContain('class="token string"');
-    expect(stringHtml).toContain('"Alex"');
+    expect(stringHtml).toContain("&quot;Alex&quot;");
 
     const numberHtml = renderToStaticMarkup(<ValueSyntax type="number" preview="42" />);
     expect(numberHtml).toContain('class="token number"');
