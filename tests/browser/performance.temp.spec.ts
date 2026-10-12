@@ -62,7 +62,6 @@ test("temporary expansion benchmark", async ({ page }) => {
           let clickMs = 0;
           const exists = () => Array.from(shadow.querySelectorAll('[role="treeitem"]'))
             .some(node => node.textContent?.includes(expectedName));
-          let timeout: ReturnType<typeof setTimeout>;
           const observer = new MutationObserver(() => {
             if (exists()) finish();
           });
@@ -75,7 +74,7 @@ test("temporary expansion benchmark", async ({ page }) => {
             else resolve({ clickMs, toDomMs: performance.now() - start, ownKeys, visited: visited.size, descriptors });
           }
           observer.observe(shadow, { childList: true, subtree: true });
-          timeout = setTimeout(() => finish(new Error("Child did not render within 4s")), 4000);
+          const timeout = setTimeout(() => finish(new Error("Child did not render within 4s")), 4000);
           icon.click();
           clickMs = performance.now() - start;
           if (exists()) finish();
