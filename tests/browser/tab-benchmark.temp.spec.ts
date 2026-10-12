@@ -41,7 +41,7 @@ test("temporary benchmark: cold/warm tabs and tree pipeline", async ({page}) => 
         }
         vars.benchNested10000=nodes[0];
       }
-    }, {width: scenario.width, nested: scenario.nested??false});
+    }, {width: scenario.width, nested: false});
     const drawer = p.locator("sugarcube-inspector");
     const handle = drawer.getByRole("button", {name:"Resize SugarCube Inspector"});
     await handle.press("Enter");
