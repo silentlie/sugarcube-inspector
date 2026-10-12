@@ -22,12 +22,12 @@ test("temporary variable row rendering breakdown", async ({ page }) => {
   await page.evaluate(() => {
     const store = SugarCube.State.variables as unknown as Record<string, unknown>;
     store.renderFixtures = Object.fromEntries(
-      [20, 200, 500, 1000].map((size) => [
-        `width${size}`,
+      [20, 200, 500, 1000].flatMap((size) => Array.from({ length: 3 }, (_, trial) => [
+        `width${size}Trial${trial}`,
         Object.fromEntries(Array.from({ length: size }, (_, i) => [
           `item${String(i).padStart(4, "0")}`, i,
         ])),
-      ]),
+      ])),
     );
   });
 
@@ -50,15 +50,13 @@ test("temporary variable row rendering breakdown", async ({ page }) => {
     await expect(parent).toHaveAttribute("aria-expanded", "true");
 
     for (const size of [20, 200, 500, 1000]) {
-      const row = drawer.getByRole("treeitem", { name: new RegExp(`^width${size}(?:\\s|$)`) });
-      await expect(row).toBeVisible();
-      const icon = row.locator(".MuiTreeItem-iconContainer").first();
       const samples: Sample[] = [];
       for (let repeat = 0; repeat < 3; repeat++) {
-        if (repeat > 0) {
-          await icon.click();
-          await expect(row).toHaveAttribute("aria-expanded", "false");
-        }
+        const row = drawer.getByRole("treeitem", {
+          name: new RegExp(`^width${size}Trial${repeat}(?:\\\\s|$)`),
+        });
+        await expect(row).toBeVisible();
+        const icon = row.locator(".MuiTreeItem-iconContainer").first();
         const measurement = await icon.evaluate((el): Promise<Sample> => new Promise((resolve, reject) => {
           const win = window as typeof window & { __scRowBench?: {
             counts: Record<string, number>;
@@ -110,10 +108,11 @@ test("temporary variable row rendering breakdown", async ({ page }) => {
           if (hasChild()) finish();
         }));
         samples.push(measurement);
+        await icon.click();
+        await expect(row).toHaveAttribute("aria-expanded", "false");
+        await page.waitForTimeout(250);
       }
       console.log("ROW_BENCH " + JSON.stringify({ variant, size, samples }));
-      await icon.click();
-      await expect(row).toHaveAttribute("aria-expanded", "false");
     }
     await drawer.getByRole("tab", { name: "Overview" }).click();
   }
