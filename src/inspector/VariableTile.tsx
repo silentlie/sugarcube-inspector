@@ -32,7 +32,7 @@ function VariableTile({
 
   return (
     <Box ref={ref}>
-      <ListItem data-variable-row dense disableGutters>
+      <ListItem component="div" data-variable-row dense disableGutters>
         {canExpand ? (
           <IconButton size="small" aria-label={`${expanded ? "Collapse" : "Expand"} ${name}`}
             aria-expanded={expanded} onClick={() => setExpanded((old) => !old)}>
