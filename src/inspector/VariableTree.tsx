@@ -69,9 +69,7 @@ export default function VariableTree({ storeKey }: { storeKey: VariableStoreKey 
 
   return (
     <Box ref={ref}>
-      {root.kind === "error" ? (
-        <Typography role="alert" variant="body2" color="error">{root.error}</Typography>
-      ) : root.kind !== "value" ? (
+      {root.kind !== "value" ? (
         <Typography variant="body2" color="text.secondary">Store unavailable</Typography>
       ) : isObject(root.value) ? (
         <RichVariableTree storeKey={storeKey} rootValue={root.value} visible={visible} />

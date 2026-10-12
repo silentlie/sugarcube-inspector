@@ -24,9 +24,9 @@ It does not attach a debugger or use a cross-world messaging bridge.
 - `VariableLocation` describes a direct owner/key or the trusted SugarCube
   `State.variables` / `State.temporary` store, with keys checked against the
   installed `StateAPI` type. Tree node models have no stored `children` arrays.
-- `VariableSnapshot` discriminates actual values, accessors, missing properties,
-  and read errors. Value previews and expandability are computed at read time, not
-  implemented as live getters; non-enumerable properties remain inspectable.
+- `VariableSnapshot` discriminates actual values, accessors, and missing properties.
+  Value previews and expandability are computed at read time, not implemented as
+  live getters; non-enumerable properties remain inspectable.
 - The drawer shows a loading status until `SugarCube.State` becomes available.
   Inspectors then use the required `getState(): StateAPI` accessor, which throws
   if the runtime unexpectedly loses its State API.
@@ -43,6 +43,9 @@ It does not attach a debugger or use a cross-world messaging bridge.
 - References retain object identity; ancestor cycles are marked and stop
   recursive discovery. Ordinary property accessors are displayed without
   invoking them; type classification uses the library defaults.
+- Unexpected inspection exceptions propagate unchanged instead of producing
+  placeholder error snapshots or silently empty child lists. Such failures may
+  interrupt the inspector; node-level error isolation is not part of this POC.
 - This Community Tree View is not virtualized. Large object graphs can be
   expensive to index; performance will be benchmarked separately. The inspector
   is read-only.

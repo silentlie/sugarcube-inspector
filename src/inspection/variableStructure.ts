@@ -1,5 +1,4 @@
 import { isArray, isMap, isObject, isSet, isSymbol } from "@sindresorhus/is";
-import { errorMessage } from "../utils/errorMessage";
 import type { VariableLocation } from "./variableLocation";
 
 export type TreeChild = { id: string; name: string; location: VariableLocation };
@@ -9,7 +8,7 @@ type StructurePart =
   | { kind: "accessor"; key: PropertyKey; getter: boolean; setter: boolean }
   | { kind: "map"; key: unknown }
   | { kind: "set"; key: unknown };
-export type StructureSnapshot = { parts: readonly StructurePart[]; error?: string };
+export type StructureSnapshot = { parts: readonly StructurePart[] };
 
 const childIds = new WeakMap<object, Map<unknown, string>>();
 let nextChildId = 0;
@@ -31,44 +30,40 @@ function idForChild(owner: object, key: unknown): string {
 /** Only expanded containers need a structural watcher. */
 export function readStructure(value: unknown): StructureSnapshot {
   if (!isObject(value)) return { parts: [] };
-  try {
-    const parts: StructurePart[] = [];
-    if (isMap(value)) {
-      for (const key of Map.prototype.keys.call(value) as MapIterator<unknown>) {
-        parts.push({ kind: "map", key });
-      }
-    } else if (isSet(value)) {
-      for (const member of Set.prototype.values.call(value) as SetIterator<unknown>) {
-        parts.push({ kind: "set", key: member });
-      }
+  const parts: StructurePart[] = [];
+  if (isMap(value)) {
+    for (const key of Map.prototype.keys.call(value) as MapIterator<unknown>) {
+      parts.push({ kind: "map", key });
     }
-    for (const key of Reflect.ownKeys(value)) {
-      const descriptor = Object.getOwnPropertyDescriptor(value, key);
-      if (!descriptor) continue;
-      if ("value" in descriptor) {
-        parts.push({
-          kind: "data",
-          key,
-          ...(isArray(value) && key === "length" &&
-            { length: descriptor.value as number }),
-        });
-      } else {
-        parts.push({
-          kind: "accessor",
-          key,
-          getter: Boolean(descriptor.get),
-          setter: Boolean(descriptor.set),
-        });
-      }
+  } else if (isSet(value)) {
+    for (const member of Set.prototype.values.call(value) as SetIterator<unknown>) {
+      parts.push({ kind: "set", key: member });
     }
-    return { parts };
-  } catch (cause) {
-    return { parts: [], error: errorMessage(cause) };
   }
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!descriptor) continue;
+    if ("value" in descriptor) {
+      parts.push({
+        kind: "data",
+        key,
+        ...(isArray(value) && key === "length" &&
+          { length: descriptor.value as number }),
+      });
+    } else {
+      parts.push({
+        kind: "accessor",
+        key,
+        getter: Boolean(descriptor.get),
+        setter: Boolean(descriptor.set),
+      });
+    }
+  }
+  return { parts };
 }
 
 export function sameStructure(a: StructureSnapshot, b: StructureSnapshot): boolean {
-  if (a.error !== b.error || a.parts.length !== b.parts.length) return false;
+  if (a.parts.length !== b.parts.length) return false;
   return a.parts.every((part, i) => {
     const other = b.parts[i];
     if (!other || part.kind !== other.kind || !Object.is(part.key, other.key)) return false;

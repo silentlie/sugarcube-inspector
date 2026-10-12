@@ -49,8 +49,7 @@ function LiveVariableValue({
   const type = current.kind === "value" ? current.type :
     current.kind === "accessor" ? current.accessor : current.kind;
   const preview = current.kind === "value" ? current.preview :
-    current.kind === "accessor" ? `[${current.accessor}]` :
-    current.kind === "missing" ? "[Missing]" : "[Error]";
+    current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
 
   useEffect(() => {
     const previous = previousValue.current;
@@ -78,8 +77,6 @@ function LiveVariableValue({
           {inlinePreview(type, preview)}
         </Typography>
         {circular && <Typography variant="caption" color="info.main">same reference</Typography>}
-        {current.kind === "error" &&
-          <Typography role="alert" variant="caption" color="error">{current.error}</Typography>}
       </Box>
       {expanded && visible && current.kind === "value" && current.expandable && !circular &&
         <VisibleStructureWatcher value={current.value as object} />}

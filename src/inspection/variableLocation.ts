@@ -1,5 +1,4 @@
 import detect, { isObject } from "@sindresorhus/is";
-import { errorMessage } from "../utils/errorMessage";
 import { getStore, type VariableStoreKey } from "./direct";
 import { preview } from "./valuePreview";
 
@@ -17,58 +16,45 @@ type AccessorKind = "getter" | "setter" | "getter/setter";
 export type VariableSnapshot =
   | { kind: "value"; value: unknown; preview: string; type: string; expandable: boolean }
   | { kind: "accessor"; accessor: AccessorKind }
-  | { kind: "missing" }
-  | { kind: "error"; error: string };
-
-function typeName(value: unknown): string {
-  try {
-    return detect(value);
-  } catch {
-    return "Object";
-  }
-}
+  | { kind: "missing" };
 
 function snapshot(value: unknown): VariableSnapshot {
   return {
     kind: "value",
     value,
     preview: preview(value),
-    type: typeName(value),
+    type: detect(value),
     expandable: isObject(value),
   };
 }
 
 /** Only SugarCube's two trusted State getters may be read as accessors. */
 export function readVariable(location: VariableLocation): VariableSnapshot {
-  try {
-    switch (location.kind) {
-      case "state": {
-        const value = getStore(location.key);
-        return value === undefined ? { kind: "missing" } : snapshot(value);
-      }
-      case "property": {
-        const descriptor = Object.getOwnPropertyDescriptor(location.owner, location.key);
-        if (!descriptor) return { kind: "missing" };
-        if (!("value" in descriptor)) {
-          const accessor = descriptor.get && descriptor.set ? "getter/setter"
-            : descriptor.get ? "getter" : "setter";
-          return { kind: "accessor", accessor };
-        }
-        return snapshot(descriptor.value);
-      }
-      case "map-key":
-        return Map.prototype.has.call(location.owner, location.key)
-          ? snapshot(location.key) : { kind: "missing" };
-      case "map-value":
-        return Map.prototype.has.call(location.owner, location.key)
-          ? snapshot(Map.prototype.get.call(location.owner, location.key))
-          : { kind: "missing" };
-      case "set-value":
-        return Set.prototype.has.call(location.owner, location.member)
-          ? snapshot(location.member) : { kind: "missing" };
+  switch (location.kind) {
+    case "state": {
+      const value = getStore(location.key);
+      return value === undefined ? { kind: "missing" } : snapshot(value);
     }
-  } catch (cause) {
-    return { kind: "error", error: errorMessage(cause) };
+    case "property": {
+      const descriptor = Object.getOwnPropertyDescriptor(location.owner, location.key);
+      if (!descriptor) return { kind: "missing" };
+      if (!("value" in descriptor)) {
+        const accessor = descriptor.get && descriptor.set ? "getter/setter"
+          : descriptor.get ? "getter" : "setter";
+        return { kind: "accessor", accessor };
+      }
+      return snapshot(descriptor.value);
+    }
+    case "map-key":
+      return Map.prototype.has.call(location.owner, location.key)
+        ? snapshot(location.key) : { kind: "missing" };
+    case "map-value":
+      return Map.prototype.has.call(location.owner, location.key)
+        ? snapshot(Map.prototype.get.call(location.owner, location.key))
+        : { kind: "missing" };
+    case "set-value":
+      return Set.prototype.has.call(location.owner, location.member)
+        ? snapshot(location.member) : { kind: "missing" };
   }
 }
 
@@ -83,7 +69,5 @@ export function sameVariable(a: VariableSnapshot, b: VariableSnapshot): boolean 
       return b.kind === "accessor" && a.accessor === b.accessor;
     case "missing":
       return true;
-    case "error":
-      return b.kind === "error" && a.error === b.error;
   }
 }

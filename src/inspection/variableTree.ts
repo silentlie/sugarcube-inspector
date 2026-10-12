@@ -18,16 +18,11 @@ export function getVariableChildren(node: VariableNode): VariableNode[] {
   if (snapshot.kind !== "value" || !snapshot.expandable || !isObject(snapshot.value) ||
       node.ancestors.includes(snapshot.value)) return [];
 
-  try {
-    const nextAncestors = [...node.ancestors, snapshot.value];
-    return listChildren(snapshot.value).map((child) => ({
-      id: `${node.id}/${child.id}`,
-      name: child.name,
-      location: child.location,
-      ancestors: nextAncestors,
-    }));
-  } catch {
-    // An object may be a Proxy whose ownKeys trap throws. Do not crash MUI.
-    return [];
-  }
+  const nextAncestors = [...node.ancestors, snapshot.value];
+  return listChildren(snapshot.value).map((child) => ({
+    id: `${node.id}/${child.id}`,
+    name: child.name,
+    location: child.location,
+    ancestors: nextAncestors,
+  }));
 }

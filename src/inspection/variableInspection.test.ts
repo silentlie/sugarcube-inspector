@@ -48,7 +48,7 @@ describe("recursive variable locations", () => {
     expect(missing).toEqual({ kind: "missing" });
   });
 
-  it("models undefined, non-enumerable, accessors, missing, and errors distinctly", () => {
+  it("models undefined, non-enumerable, accessors, and missing distinctly", () => {
     const obj = { present: undefined } as Record<string, unknown>;
     const present = { kind: "property" as const, owner: obj, key: "present" };
     expect(readVariable(present)).toEqual({
@@ -65,11 +65,6 @@ describe("recursive variable locations", () => {
     expect(readVariable({ kind: "property", owner: obj, key: "computed" }))
       .toEqual({ kind: "accessor", accessor: "getter/setter" });
 
-    const proxy = new Proxy({}, {
-      getOwnPropertyDescriptor() { throw new Error("uninspectable"); },
-    });
-    expect(readVariable({ kind: "property", owner: proxy, key: "x" }))
-      .toEqual({ kind: "error", error: "uninspectable" });
   });
 
   it("captures mutable previews when values retain their identity", () => {
@@ -84,17 +79,41 @@ describe("recursive variable locations", () => {
     expect(sameVariable(before, after)).toBe(false);
   });
 
-  it("compares snapshot kinds and accessor/error details", () => {
+  it("compares missing and accessor snapshots", () => {
     const missing = { kind: "missing" } as const;
     const getter = { kind: "accessor", accessor: "getter" } as const;
     const setter = { kind: "accessor", accessor: "setter" } as const;
-    const error = { kind: "error", error: "no access" } as const;
 
     expect(sameVariable(missing, missing)).toBe(true);
     expect(sameVariable(missing, getter)).toBe(false);
     expect(sameVariable(getter, setter)).toBe(false);
-    expect(sameVariable(error, { kind: "error", error: "no access" })).toBe(true);
-    expect(sameVariable(error, { kind: "error", error: "changed" })).toBe(false);
+  });
+
+  it("propagates unexpected property descriptor errors unchanged", () => {
+    const failure = new Error("uninspectable");
+    const proxy = new Proxy({}, {
+      getOwnPropertyDescriptor() { throw failure; },
+    });
+    expect(() => readVariable({ kind: "property", owner: proxy, key: "x" }))
+      .toThrow(failure);
+  });
+
+  it("propagates unexpected ownKeys errors through structure reads and tree indexing", () => {
+    const failure = new Error("uninspectable structure");
+    const proxy = new Proxy({}, {
+      ownKeys() { throw failure; },
+    });
+
+    expect(() => readStructure(proxy)).toThrow(failure);
+    expect(() => listChildren(proxy)).toThrow(failure);
+
+    const node: VariableNode = {
+      id: "broken",
+      name: "broken",
+      location: { kind: "property", owner: { proxy }, key: "proxy" },
+      ancestors: [],
+    };
+    expect(() => getVariableChildren(node)).toThrow(failure);
   });
 
   it("notices property additions without treating value edits as structural changes", () => {
