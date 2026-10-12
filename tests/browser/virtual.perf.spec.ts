@@ -49,42 +49,58 @@ test("temporary virtualized expansion performance, wide and nested", async ({ pa
       const row = drawer.getByRole("treeitem", { name: new RegExp(`^${fixture}Trial${n}`) });
       await expect(row).toBeVisible();
       const icon = row.locator(".ant-tree-switcher").first();
-      const metric = await icon.evaluate((el): Promise<Measure> => new Promise((resolve, reject) => {
+      await icon.evaluate((el) => {
         const host = el.getRootNode() as ShadowRoot;
         const parentId = el.closest('[role="treeitem"]')!.id;
-        const start = performance.now();
-        let done = false;
+        const state = {start:0, dom:0, frame1:0, frame2:0, mounted:0, done:false, error:""};
+        const win = window as typeof window & { __scVirtualMetric?: typeof state };
+        win.__scVirtualMetric = state;
         const hasChild = () => {
           const parent = host.getElementById(parentId);
           if (parent?.getAttribute("aria-expanded") !== "true") return false;
           return Array.from(host.querySelectorAll('[role="treeitem"]')).some((node) =>
-            node !== parent && (
-              node.textContent?.includes("item00000") ||
-              node.textContent?.includes("child")
-            ));
+            node !== parent && (node.textContent?.includes("item00000") ||
+              node.textContent?.includes("child")));
         };
-        const observer = new MutationObserver(() => { if (hasChild()) finish(); });
+        const observer = new MutationObserver(() => {
+          if (state.start > 0 && hasChild()) finish();
+        });
         const timer = window.setTimeout(() => {
           observer.disconnect();
-          reject(new Error("Expanded row never rendered a child"));
+          state.error = "Never rendered child; expanded=" +
+            host.getElementById(parentId)?.getAttribute("aria-expanded") +
+            "; rows=" + Array.from(host.querySelectorAll('[role="treeitem"]'))
+              .slice(0, 10).map((node) => node.textContent?.slice(0, 40)).join(",");
+          state.done = true;
         }, 12000);
         function finish() {
-          if (done) return;
-          done = true;
           observer.disconnect();
           clearTimeout(timer);
-          const dom = performance.now() - start;
-          const mounted = host.querySelectorAll('[role="treeitem"]').length;
+          state.dom = performance.now() - state.start;
+          state.mounted = host.querySelectorAll('[role="treeitem"]').length;
           requestAnimationFrame(() => {
-            const frame1 = performance.now() - start;
-            requestAnimationFrame(() =>
-              resolve({ dom, frame1, frame2: performance.now() - start, mounted }));
+            state.frame1 = performance.now() - state.start;
+            requestAnimationFrame(() => {
+              state.frame2 = performance.now() - state.start;
+              state.done = true;
+            });
           });
         }
+        el.addEventListener("click", () => { state.start = performance.now(); },
+          {capture:true, once:true});
         observer.observe(host, {childList:true, subtree:true, attributes:true});
-        (el as HTMLElement).click();
-        if (hasChild()) finish();
-      }));
+      });
+      await icon.click();
+      await page.waitForFunction(() =>
+        (window as typeof window & {__scVirtualMetric?: {done:boolean}}).__scVirtualMetric?.done,
+      null, {timeout: 15000});
+      const metric = await page.evaluate(() => {
+        const win = window as typeof window & { __scVirtualMetric?: Measure & {done:boolean;error:string;start:number} };
+        const state = win.__scVirtualMetric!;
+        delete win.__scVirtualMetric;
+        if (state.error) throw new Error(state.error);
+        return {dom:state.dom,frame1:state.frame1,frame2:state.frame2,mounted:state.mounted};
+      });
       samples.push(metric);
       await icon.click();
       await expect(row).toHaveAttribute("aria-expanded", "false");
