@@ -52,10 +52,6 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
         expansionTrigger="iconContainer"
         expandedItems={expandedItems}
         onExpandedItemsChange={(_, ids) => setExpandedItems(ids)}
-        onItemExpansionToggle={(_, __, isExpanded) => {
-          // Re-resolve live locations on opening even if the branch was offscreen.
-          if (isExpanded) refresh();
-        }}
         slots={{ item: LiveVariableTreeItem }}
       />
     </VariableTreeContext>
