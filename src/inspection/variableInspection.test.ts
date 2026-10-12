@@ -157,7 +157,7 @@ describe("Rich Tree View location adapter", () => {
       ancestors: [],
     };
     const firstLevel = getVariableChildren(parent);
-    const players = firstLevel.filter((node) => !isLoadMore(node));
+    const players = firstLevel.filter((node): node is VariableNode => !isLoadMore(node));
     expect(players.map((node) => node.id)).toHaveLength(2);
     expect(players[0]!.id).not.toBe(players[1]!.id);
     expect(readVariable(players[0]!.location).value).toBe(player);
