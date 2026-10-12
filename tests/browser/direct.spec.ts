@@ -218,7 +218,8 @@ test("reacts to in-place array, Map and Set changes", async ({ page }) => {
     const store = SugarCube.State.variables as unknown as { testMap: Map<string, number> };
     store.testMap.set("one", 4);
   });
-  await expect(drawer.getByTitle("4", { exact: true })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^value(?:\\s|$)/ })
+    .getByTitle("4", { exact: true })).toBeVisible();
 
   await expandVariable(drawer, "testSet");
   await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
