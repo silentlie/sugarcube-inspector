@@ -11,7 +11,7 @@ test("temporary expansion benchmark", async ({ page }) => {
   await handle.hover();
   await drawer.getByRole("tab", { name: "Variables", exact: true }).click();
 
-  const cases = ["simple3", "flat200", "nested4"] as const;
+  const cases = ["simple3", "simple3WithBackground", "flat200", "nested4"] as const;
   for (const kind of cases) {
     const results: { clickMs: number; toDomMs: number; ownKeys: number; visited: number; descriptors: number }[] = [];
     for (let i = 0; i < 4; i++) {
@@ -32,12 +32,14 @@ test("temporary expansion benchmark", async ({ page }) => {
           : {};
         if (kind !== "nested4") {
           tracked.add(data);
-          const count = kind === "simple3" ? 3 : 200;
+          const count = kind === "flat200" ? 200 : 3;
           for (let k = 0; k < count; k++) data[`${name}_child${k}`] = k;
         }
         (window as typeof window & { __inspectorPerfTracked?: WeakSet<object> })
           .__inspectorPerfTracked = tracked;
-        (SugarCube.State.variables as unknown as Record<string, unknown>)[name] = data;
+        const store = SugarCube.State.variables as unknown as Record<string, unknown>;
+        store[name] = data;
+        if (kind === "simple3WithBackground") store[`${name}_background`] = nested(4);
       }, { kind, name });
       const item = drawer.getByRole("treeitem", { name: new RegExp(`^${name}(?:\\s|$)`) });
       await expect(item).toBeVisible();
@@ -82,7 +84,9 @@ test("temporary expansion benchmark", async ({ page }) => {
       );
       results.push(result);
       await page.evaluate((name) => {
-        delete (SugarCube.State.variables as unknown as Record<string, unknown>)[name];
+        const store = SugarCube.State.variables as unknown as Record<string, unknown>;
+        delete store[name];
+        delete store[`${name}_background`];
         delete (window as typeof window & { __inspectorPerfTracked?: WeakSet<object> }).__inspectorPerfTracked;
       }, name);
       await expect(item).toHaveCount(0);
