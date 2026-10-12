@@ -324,7 +324,7 @@ test("renders boxed primitives without crashing the tree", async ({ page }) => {
     ["boolean", "Boolean", "false"],
     ["bigint", "BigInt", "42"],
     ["symbol", "Symbol", "Symbol(sample)"],
-  ]) {
+  ] as const) {
     const row = drawer.getByText(name, { exact: true }).locator("..");
     await expect(row.locator(".token.class-name")).toHaveText(type);
     await expect(row.getByTitle(expected, { exact: true })).toBeVisible();

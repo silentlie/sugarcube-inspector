@@ -81,7 +81,7 @@ describe("recursive variable locations", () => {
       ["boxedBoolean", "Boolean", "false"],
       ["boxedBigInt", "BigInt", "42"],
       ["boxedSymbol", "Symbol", "Symbol(sample)"],
-    ]) {
+    ] as const) {
       const location = { kind: "property" as const, owner: values, key };
       expect(readVariable(location)).toMatchObject({
         kind: "value", type, preview: text, expandable: true,
