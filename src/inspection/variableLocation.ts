@@ -20,13 +20,16 @@ export type VariableSnapshot =
   | { kind: "missing" };
 
 function snapshot(value: unknown): VariableSnapshot {
-  return {
+  return profiled("snapshot", () => ({
     kind: "value",
     value,
-    preview: preview(value),
-    type: boxedPrimitive(value)?.type ?? detect(value),
-    expandable: isObject(value),
-  };
+    preview: profiled("preview", () => preview(value)),
+    type: profiled("typeName", () => {
+      const boxed = profiled("boxedPrimitive", () => boxedPrimitive(value));
+      return boxed?.type ?? profiled("detect", () => detect(value));
+    }),
+    expandable: profiled("expandable", () => isObject(value)),
+  }));
 }
 
 /** Only SugarCube's two trusted State getters may be read as accessors. */
