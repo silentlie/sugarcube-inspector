@@ -4,7 +4,11 @@ import type { VariableLocation } from "./variableLocation";
 
 export type TreeChild = { id: string; name: string; location: VariableLocation };
 
-type StructurePart = { key: unknown; descriptor: string; length?: number };
+type StructurePart =
+  | { kind: "data"; key: PropertyKey; length?: number }
+  | { kind: "accessor"; key: PropertyKey; getter: boolean; setter: boolean }
+  | { kind: "map"; key: unknown }
+  | { kind: "set"; key: unknown };
 export type StructureSnapshot = { parts: readonly StructurePart[]; error?: string };
 
 const childIds = new WeakMap<object, Map<unknown, string>>();
@@ -31,25 +35,31 @@ export function readStructure(value: unknown): StructureSnapshot {
     const parts: StructurePart[] = [];
     if (isMap(value)) {
       for (const key of Map.prototype.keys.call(value) as MapIterator<unknown>) {
-        parts.push({ key, descriptor: "map" });
+        parts.push({ kind: "map", key });
       }
     } else if (isSet(value)) {
       for (const member of Set.prototype.values.call(value) as SetIterator<unknown>) {
-        parts.push({ key: member, descriptor: "set" });
+        parts.push({ kind: "set", key: member });
       }
     }
     for (const key of Reflect.ownKeys(value)) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (!descriptor) continue;
-      const isData = "value" in descriptor;
-      parts.push({
-        key,
-        descriptor: isData
-          ? `property:data:${descriptor.enumerable}:${descriptor.writable}`
-          : `property:accessor:${descriptor.enumerable}:${Boolean(descriptor.get)}:${Boolean(descriptor.set)}`,
-        ...(isArray(value) && key === "length" && isData &&
-          { length: descriptor.value as number }),
-      });
+      if ("value" in descriptor) {
+        parts.push({
+          kind: "data",
+          key,
+          ...(isArray(value) && key === "length" &&
+            { length: descriptor.value as number }),
+        });
+      } else {
+        parts.push({
+          kind: "accessor",
+          key,
+          getter: Boolean(descriptor.get),
+          setter: Boolean(descriptor.set),
+        });
+      }
     }
     return { parts };
   } catch (cause) {
@@ -61,8 +71,18 @@ export function sameStructure(a: StructureSnapshot, b: StructureSnapshot): boole
   if (a.error !== b.error || a.parts.length !== b.parts.length) return false;
   return a.parts.every((part, i) => {
     const other = b.parts[i];
-    return other !== undefined && Object.is(part.key, other.key) &&
-      part.descriptor === other.descriptor && Object.is(part.length, other.length);
+    if (!other || part.kind !== other.kind || !Object.is(part.key, other.key)) return false;
+
+    switch (part.kind) {
+      case "data":
+        return other.kind === "data" && Object.is(part.length, other.length);
+      case "accessor":
+        return other.kind === "accessor" &&
+          part.getter === other.getter && part.setter === other.setter;
+      case "map":
+      case "set":
+        return true;
+    }
   });
 }
 

@@ -35,7 +35,9 @@ It does not attach a debugger or use a cross-world messaging bridge.
   as expandable references.
 - Independently watched rows update values while in view. Expanded, visible
   containers additionally watch structure, array length, and Map/Set membership.
-  Structural changes rebuild the tree model; ordinary value changes do not.
+  Structure snapshots use typed data, accessor, Map, and Set entries; enumerable
+  and writable descriptor flags do not trigger tree rebuilds. Structural changes
+  rebuild the tree model; ordinary value changes do not.
 - `react-intersection-observer` tracks visible rows. Offscreen rows stop
   polling. A shared 250ms scheduler checks active subscriptions.
 - References retain object identity; ancestor cycles are marked and stop

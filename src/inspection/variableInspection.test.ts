@@ -107,14 +107,49 @@ describe("recursive variable locations", () => {
     expect(listChildren(root).map((entry) => entry.name)).toEqual(["day", "player"]);
   });
 
+  it("compares typed structure without tracking enumerable or writable flags", () => {
+    const obj: Record<string, unknown> = {};
+    Object.defineProperty(obj, "health", {
+      value: 100,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+
+    const initial = readStructure(obj);
+    expect(initial.parts).toEqual([{ kind: "data", key: "health" }]);
+
+    Object.defineProperty(obj, "health", { enumerable: false, writable: false });
+    expect(sameStructure(initial, readStructure(obj))).toBe(true);
+
+    Object.defineProperty(obj, "health", {
+      get: () => 100,
+      set: () => {},
+      configurable: true,
+    });
+    const accessor = readStructure(obj);
+    expect(accessor.parts).toEqual([
+      { kind: "accessor", key: "health", getter: true, setter: true },
+    ]);
+    expect(sameStructure(initial, accessor)).toBe(false);
+
+    Object.defineProperty(obj, "health", { set: undefined });
+    expect(readStructure(obj).parts).toEqual([
+      { kind: "accessor", key: "health", getter: true, setter: false },
+    ]);
+    expect(sameStructure(accessor, readStructure(obj))).toBe(false);
+  });
+
   it("notices changes to array length and Map and Set membership", () => {
     const array: unknown[] = new Array(3);
     const beforeArray = readStructure(array);
+    expect(beforeArray.parts).toEqual([{ kind: "data", key: "length", length: 3 }]);
     array.length = 5;
     expect(sameStructure(beforeArray, readStructure(array))).toBe(false);
 
     const map = new Map<unknown, unknown>([["one", 1]]);
     const mapShape = readStructure(map);
+    expect(mapShape.parts).toEqual([{ kind: "map", key: "one" }]);
     map.set("one", 2);
     expect(sameStructure(mapShape, readStructure(map))).toBe(true);
     const mapValue = listChildren(map).find((child) => child.name === "[0] value")!;
@@ -125,6 +160,7 @@ describe("recursive variable locations", () => {
 
     const set = new Set(["one"]);
     const setShape = readStructure(set);
+    expect(setShape.parts).toEqual([{ kind: "set", key: "one" }]);
     set.delete("one");
     set.add("two");
     expect(sameStructure(setShape, readStructure(set))).toBe(false);
