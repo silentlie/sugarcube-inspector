@@ -24,16 +24,12 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
   await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
 });
 
-test("the UI edits the actual game object without messaging or serialization", async ({ page }) => {
+test("inspects shared live references and cycles without writes or serialization", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openDrawer(page);
 
-  await drawer.getByRole("button", { name: "Increment score" }).click();
-  await expect(drawer.getByTitle("8", { exact: true })).toBeVisible();
-  expect(await page.evaluate(() => {
-    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
-    return vars.score;
-  })).toBe(8);
+  await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
+  await expect(drawer.getByRole("button", { name: /^Increment / })).toHaveCount(0);
 
   // A function and an object with circular references are not serializable
   // through ordinary JSON, but direct inspection still works.
@@ -50,10 +46,10 @@ test("the UI edits the actual game object without messaging or serialization", a
   await drawer.getByRole("button", { name: "Expand player" }).click();
   await expect(drawer.getByText("health", { exact: true })).toBeVisible();
   await expect(drawer.getByText("same reference", { exact: true })).toBeVisible();
-  await drawer.getByRole("button", { name: "Increment health" }).click();
+  await expect(drawer.getByTitle("100", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => {
     const vars = SugarCube.State.variables as unknown as Record<string, { health: number }>;
-    return vars.player?.health === 101 && vars.leader?.health === 101 &&
+    return vars.player?.health === 100 && vars.leader?.health === 100 &&
       Object.is(vars.player, vars.leader);
   })).toBe(true);
 });

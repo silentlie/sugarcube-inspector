@@ -16,19 +16,17 @@ Chrome's MAIN JavaScript world, next to SugarCube itself.
   tile's subtree intersects the viewport. Matching observers are shared. Offscreen tiles stop polling, including while the drawer is
   closed; visible ancestors stay active to detect object replacement.
 - One shared 250ms scheduler polls only active subscriptions. Passage changes
-  and inspector edits trigger an immediate check. No per-tile timers.
+  and manual refresh trigger immediate checks. No per-tile timers.
 - Nested lists receive **actual JS references**, not JSON or CDP object IDs.
 - Aliases and cycles stay referentially identical; accessors are described
   without invoking their getters.
-- A deliberately limited `+1` button mutates a writable numeric property
-  **in the game itself**. The proof is observable in both the UI and the page.
 - No `browser.scripting.executeScript`, RPC, background inspection service,
   side panel, or debugger attachment occurs during inspection.
 
 ## How it works
 
 The inspection logic is split into direct MAIN-world utilities
-(`src/inspection/direct.ts`), live location reads/writes
+(`src/inspection/direct.ts`), live location reads
 (`variableSlots.ts`), child/structure discovery (`variableStructure.ts`),
 and the shared polling scheduler (`variableWatcher.ts`). React's
 `VariableTree.tsx` and `VariableTile.tsx` render the recursive tree, with
@@ -50,15 +48,15 @@ Do not use this POC on untrusted pages.
 2. Load `.output/chrome-mv3` in `chrome://extensions` and allow access to
    local file URLs.
 3. Open a SugarCube HTML game and reveal the right-edge drawer.
-4. Expand any object, then click `+1` next to a writable number. The
-   actual game variable changes immediately.
+4. Expand any object to inspect its live properties. Variable changes made
+   by the game appear automatically while visible.
 5. Test with `npm run lint && npm run compile && npm test &&
    npm run test:browser`.
 
-This is a **limited writable POC**, not a full variable editor. Invoking
-getters, setters, and arbitrary functions is deliberately omitted. Active tiles automatically detect
-changes on a shared 250ms polling interval **while visible**. Scrolling a tile
-back into view re-reads its current value. Expanded container structures are
-observed while their subtree is visible, so scrolling into the tree detects new
-or removed entries. Passage navigation, manual refresh, and explicit edits
+This proof of concept is read-only. Getter and setter invocation and
+arbitrary function calls are deliberately omitted. Active tiles automatically
+detect changes on a shared 250ms polling interval **while visible**. Scrolling
+a tile back into view re-reads its current value. Expanded container structures
+are observed while their subtree is visible, so scrolling into the tree
+detects new or removed entries. Passage navigation and manual refresh
 trigger immediate checks of active subscriptions.

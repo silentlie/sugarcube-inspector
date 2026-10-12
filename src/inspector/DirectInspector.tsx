@@ -30,7 +30,7 @@ export default function DirectInspector() {
         </button>
       </header>
       <p className="py-2 text-xs text-zinc-500">
-        Live variable tiles update independently. +1 edits actual game values.
+        Live variable tiles update independently without copying game values.
       </p>
       <div role="tablist" aria-label="Variable scope" className="flex border-b border-zinc-700">
         {(["story", "temporary"] as const).map((option) => (

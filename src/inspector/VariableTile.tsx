@@ -1,15 +1,10 @@
 import { useMemo, useState } from "react";
-import { incrementSlot, type VariableSlot } from "../inspection/variableSlots";
+import type { VariableSlot } from "../inspection/variableSlots";
 import { listChildren } from "../inspection/variableStructure";
-import { variableWatcher } from "../inspection/variableWatcher";
 import { useInView } from "react-intersection-observer";
 import { useStructure, useVariable } from "./useVariableWatch";
 
 const PAGE_SIZE = 100;
-
-function errorText(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause);
-}
 
 /** Each row subscribes to its own live location, not a copied parent entry. */
 function VariableTile({
@@ -22,18 +17,7 @@ function VariableTile({
   const { ref, inView: visible } = useInView();
   const current = useVariable(slot, visible);
   const [expanded, setExpanded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const circular = current.expandable && ancestors.includes(current.value as object);
-
-  function increment(): void {
-    try {
-      incrementSlot(slot);
-      setError(null);
-      variableWatcher.refresh();
-    } catch (cause) {
-      setError(errorText(cause));
-    }
-  }
 
   return (
     <div ref={ref}>
@@ -52,14 +36,9 @@ function VariableTile({
           title={current.preview}>{current.preview}</span>
         {circular && <span className="text-[10px] text-sky-400">same reference</span>}
         {current.hidden && <span className="text-[10px] text-zinc-500">hidden</span>}
-        {current.writableNumber && (
-          <button type="button" aria-label={`Increment ${name}`}
-            className="cursor-pointer rounded border border-sky-500 px-1 text-sky-300"
-            onClick={increment}>+1</button>
-        )}
       </div>
-      {(error || current.error) && (
-        <p role="alert" className="p-2 text-xs text-red-400">{error || current.error}</p>
+      {current.error && (
+        <p role="alert" className="p-2 text-xs text-red-400">{current.error}</p>
       )}
       {expanded && current.expandable && !circular && (
         <div className="ml-3 border-l border-zinc-700 pl-2">

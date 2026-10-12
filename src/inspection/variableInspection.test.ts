@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { incrementSlot, readSlot, sameSlot } from "./variableSlots";
+import { readSlot, sameSlot } from "./variableSlots";
 import { listChildren, readStructure, sameStructure } from "./variableStructure";
 import { VariableWatcher } from "./variableWatcher";
 
@@ -51,9 +51,6 @@ describe("recursive variable slots", () => {
     expect(sameStructure(mapShape, readStructure(map))).toBe(true);
     const mapValue = listChildren(map).find((child) => child.name === "[0] value")!;
     expect(readSlot(mapValue.slot).value).toBe(2);
-    incrementSlot(mapValue.slot);
-    expect(map.get("one")).toBe(3);
-
     map.delete("one");
     map.set("two", 2);
     expect(sameStructure(mapShape, readStructure(map))).toBe(false);
@@ -80,18 +77,6 @@ describe("recursive variable slots", () => {
     expect(getter).not.toHaveBeenCalled();
   });
 
-
-  it("rejects writes to missing and readonly properties", () => {
-    const object = {};
-    Object.defineProperty(object, "readonly", {
-      value: 5, writable: false, enumerable: true,
-    });
-    const readonly = listChildren(object)[0]!.slot;
-    expect(readSlot(readonly).writableNumber).toBe(false);
-    expect(() => incrementSlot(readonly)).toThrow("cannot be incremented");
-    expect(() => incrementSlot({ kind: "property", owner: object, key: "missing" }))
-      .toThrow("cannot be incremented");
-  });
 
 
   it("keeps collection tile identity when earlier Map and Set members disappear", () => {
