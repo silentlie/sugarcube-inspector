@@ -146,6 +146,19 @@ describe("shared variable watcher", () => {
 });
 
 describe("Rich Tree View location adapter", () => {
+  it("discovers properties on live function references", () => {
+    const fn = Object.assign(() => 1, { answer: 42 });
+    const parent: VariableNode = {
+      id: "fn",
+      name: "fn",
+      location: { kind: "property", owner: { fn }, key: "fn" },
+      ancestors: [],
+    };
+    const answer = getVariableChildren(parent).find((node) => node.name === "answer");
+    expect(answer).toBeDefined();
+    expect(readVariable(answer!.location).value).toBe(42);
+  });
+
   it("keeps original references, unique path IDs, and stops ancestor cycles", () => {
     const player: Record<string, unknown> = { health: 50 };
     player.self = player;

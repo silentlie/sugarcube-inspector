@@ -22,6 +22,8 @@ It does not attach a debugger or use a cross-world messaging bridge.
   `State.variables` / `State.temporary` store, with keys checked against the
   installed `StateAPI` type. Tree node models have no stored `children` arrays.
 - Components read live SugarCube values directly without serialization or cloning.
+  Runtime checks use named `@sindresorhus/is` type guards, including functions
+  as expandable references.
 - Independently watched rows update values while in view. Expanded, visible
   containers additionally watch structure, array length, and Map/Set membership.
   Structural changes rebuild the tree model; ordinary value changes do not.
