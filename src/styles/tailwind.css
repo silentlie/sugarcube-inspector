@@ -1,3 +1,4 @@
+/* eslint-disable css/no-invalid-at-rules -- Tailwind CSS v4 @theme is a build-time directive. */
 @import "tailwindcss";
 
 /* shadcn/ui theme tokens live in the inspector's isolated ShadowRoot. */
