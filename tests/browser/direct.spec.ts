@@ -24,6 +24,30 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
   await expect(drawer.getByTitle('"north"', { exact: true })).toBeVisible();
 });
 
+test("shadcn tabs switch sections and preserve the variable overview", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openDrawer(page);
+
+  const overview = drawer.getByRole("tab", { name: "Overview" });
+  const favorites = drawer.getByRole("tab", { name: "Favorites" });
+  const scripts = drawer.getByRole("tab", { name: "Scripts" });
+  await expect(overview).toHaveAttribute("aria-selected", "true");
+
+  await favorites.click();
+  await expect(favorites).toHaveAttribute("aria-selected", "true");
+  await expect(drawer.getByText("score", { exact: true })).toHaveCount(0);
+
+  await scripts.click();
+  await expect(scripts).toHaveAttribute("aria-selected", "true");
+  await expect(drawer.getByText("score", { exact: true })).toHaveCount(0);
+
+  await overview.click();
+  await expect(overview).toHaveAttribute("aria-selected", "true");
+  await expect(drawer.getByText("score", { exact: true })).toBeVisible();
+  await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
+  await expect(drawer.getByText("choice", { exact: true })).toBeVisible();
+});
+
 test("inspects shared live references and cycles without writes or serialization", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openDrawer(page);

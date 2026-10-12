@@ -1,13 +1,11 @@
 import { RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { Scope } from "../inspection/direct";
+import { useEffect } from "react";
 import { variableWatcher } from "../inspection/variableWatcher";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import VariableTree from "./VariableTree";
 
 /** Entire tree and all subscriptions run in SugarCube's MAIN JS world. */
 export default function DirectInspector() {
-  const [scope, setScope] = useState<Scope>("story");
-
   useEffect(() => {
     const passages = document.getElementById("passages");
     if (!passages) return;
@@ -29,22 +27,32 @@ export default function DirectInspector() {
           <RefreshCw size={16} />
         </button>
       </header>
-      <p className="py-2 text-xs text-zinc-500">
-        Live variable tiles update independently without copying game values.
-      </p>
-      <div role="tablist" aria-label="Variable scope" className="flex border-b border-zinc-700">
-        {(["story", "temporary"] as const).map((option) => (
-          <button key={option} role="tab" type="button"
-            aria-selected={scope === option} onClick={() => setScope(option)}
-            className={`px-3 py-2 text-xs ${scope === option
-              ? "border-b-2 border-sky-400 text-white" : "text-zinc-400"}`}>
-            {option === "story" ? "Story Variables" : "Temporary Variables"}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" aria-label={scope === "story" ? "Story Variables" : "Temporary Variables"}>
-        <VariableTree scope={scope} />
-      </div>
+      <Tabs defaultValue="overview">
+        <TabsList aria-label="Inspector sections">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="favorites">Favorites</TabsTrigger>
+          <TabsTrigger value="scripts">Scripts</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview">
+          <p className="py-2 text-xs text-zinc-500">
+            Live variable tiles update independently without copying game values.
+          </p>
+          <Tabs defaultValue="story">
+            <TabsList aria-label="Variable scope">
+              <TabsTrigger value="story">Story Variables</TabsTrigger>
+              <TabsTrigger value="temporary">Temporary Variables</TabsTrigger>
+            </TabsList>
+            <TabsContent value="story">
+              <VariableTree scope="story" />
+            </TabsContent>
+            <TabsContent value="temporary">
+              <VariableTree scope="temporary" />
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+        <TabsContent value="favorites" />
+        <TabsContent value="scripts" />
+      </Tabs>
     </section>
   );
 }
