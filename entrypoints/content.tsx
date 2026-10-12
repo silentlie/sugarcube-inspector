@@ -1,8 +1,7 @@
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
 import ScopedCssBaseline from "@mui/material/ScopedCssBaseline";
-import ThemeProvider from "@mui/material/styles/ThemeProvider";
-import createTheme from "@mui/material/styles/createTheme";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
 import Drawer from "@/src/inspector/Drawer";
 import DirectInspector from "@/src/inspector/DirectInspector";
 import ReactDOM from "react-dom/client";

@@ -28,7 +28,7 @@ export default function DirectInspector() {
 
   return (
     <Box component="section">
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
+      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
         <Box>
           <Typography variant="h6">SugarCube Inspector</Typography>
           <Typography variant="caption" color="text.secondary">

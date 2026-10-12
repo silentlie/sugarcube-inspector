@@ -43,7 +43,7 @@ function VariableTile({
         )}
         <ListItemText primary={name} slotProps={{ primary: { noWrap: true } }}
           sx={{ minWidth: 0 }} />
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+        <Stack direction="row" spacing={1} sx={{ minWidth: 0, alignItems: "center" }}>
           <Typography variant="caption" color="text.secondary" noWrap
             title={current.preview} sx={{ fontFamily: "monospace", maxWidth: 150 }}>
             {current.preview}
