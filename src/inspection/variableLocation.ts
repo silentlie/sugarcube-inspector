@@ -1,4 +1,4 @@
-import { isObject } from "@sindresorhus/is";
+import { isError, isObject } from "@sindresorhus/is";
 import { getStore, preview, type VariableStoreKey } from "./direct";
 
 /** A location is an owner/key pair, not a cloned value or a root-relative path. */
@@ -20,7 +20,7 @@ export type VariableSnapshot = {
 };
 
 function errorMessage(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause);
+  return isError(cause) ? cause.message : String(cause);
 }
 
 function snapshot(

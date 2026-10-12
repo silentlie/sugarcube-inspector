@@ -1,4 +1,4 @@
-import { isArray, isFunction, isNull, isPrimitive, isString } from "@sindresorhus/is";
+import { isArray, isFunction, isMap, isNull, isPrimitive, isSet, isString } from "@sindresorhus/is";
 import type { StateAPI } from "twine-sugarcube";
 
 /** These keys are checked against SugarCube's StateAPI, not an independent scope enum. */
@@ -25,7 +25,7 @@ export function preview(value: unknown): string {
   if (isFunction(value)) return "[Function]";
   if (isPrimitive(value)) return String(value);
   if (isArray(value)) return `Array(${value.length})`;
-  if (value instanceof Map) return `Map(${value.size})`;
-  if (value instanceof Set) return `Set(${value.size})`;
+  if (isMap(value)) return `Map(${value.size})`;
+  if (isSet(value)) return `Set(${value.size})`;
   return "Object";
 }

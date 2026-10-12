@@ -1,4 +1,4 @@
-import { isArray, isObject, isSymbol } from "@sindresorhus/is";
+import { isArray, isError, isMap, isObject, isSet, isSymbol } from "@sindresorhus/is";
 import type { VariableLocation } from "./variableLocation";
 
 export type TreeChild = { id: string; name: string; location: VariableLocation };
@@ -24,7 +24,7 @@ function idForChild(owner: object, key: unknown): string {
 }
 
 function errorMessage(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause);
+  return isError(cause) ? cause.message : String(cause);
 }
 
 /** Only expanded containers need a structural watcher. */
@@ -32,11 +32,11 @@ export function readStructure(value: unknown): StructureSnapshot {
   if (!isObject(value)) return { parts: [] };
   try {
     const parts: StructurePart[] = [];
-    if (value instanceof Map) {
+    if (isMap(value)) {
       for (const key of Map.prototype.keys.call(value) as MapIterator<unknown>) {
         parts.push({ key, descriptor: "map" });
       }
-    } else if (value instanceof Set) {
+    } else if (isSet(value)) {
       for (const member of Set.prototype.values.call(value) as SetIterator<unknown>) {
         parts.push({ key: member, descriptor: "set" });
       }
@@ -73,7 +73,7 @@ export function sameStructure(a: StructureSnapshot, b: StructureSnapshot): boole
 export function listChildren(value: unknown): TreeChild[] {
   if (!isObject(value)) return [];
   const children: TreeChild[] = [];
-  if (value instanceof Map) {
+  if (isMap(value)) {
     let i = 0;
     for (const key of Map.prototype.keys.call(value) as MapIterator<unknown>) {
       children.push({
@@ -85,7 +85,7 @@ export function listChildren(value: unknown): TreeChild[] {
       });
       i++;
     }
-  } else if (value instanceof Set) {
+  } else if (isSet(value)) {
     let i = 0;
     for (const member of Set.prototype.values.call(value) as SetIterator<unknown>) {
       children.push({

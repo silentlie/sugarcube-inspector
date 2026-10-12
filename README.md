@@ -23,15 +23,15 @@ It does not attach a debugger or use a cross-world messaging bridge.
   installed `StateAPI` type. Tree node models have no stored `children` arrays.
 - Components read live SugarCube values directly without serialization or cloning.
   Runtime checks use named `@sindresorhus/is` type guards, including functions
-  as expandable references. Map/Set and Error checks retain native
-  `instanceof` to avoid executing custom `Symbol.toStringTag` accessors.
+  as expandable references.
 - Independently watched rows update values while in view. Expanded, visible
   containers additionally watch structure, array length, and Map/Set membership.
   Structural changes rebuild the tree model; ordinary value changes do not.
 - `react-intersection-observer` tracks visible rows. Offscreen rows stop
   polling. A shared 250ms scheduler checks active subscriptions.
 - References retain object identity; ancestor cycles are marked and stop
-  recursive discovery. Arbitrary property getters are not invoked.
+  recursive discovery. Ordinary property accessors are displayed without
+  invoking them; type classification uses the library defaults.
 - This Community Tree View is not virtualized. Large object graphs can be
   expensive to index; performance will be benchmarked separately. The inspector
   is read-only.
