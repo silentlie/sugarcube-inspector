@@ -65,7 +65,7 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     ancestors: [],
   }), [storeKey]);
   const [items, setItems] = useState<Item[]>(() => reconcile(getVariableChildren(rootNode)));
-   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
 
   // Root structural mutations are the only reason to replace top-level items.

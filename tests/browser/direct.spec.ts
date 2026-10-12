@@ -294,20 +294,25 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   await expect(firstRow.getByTitle("999", { exact: true })).toBeVisible();
 });
 
-test("Ant Design Tree exposes all children without pagination", async ({ page }) => {
+test("virtual tree reaches all 10,000 children without mounting offscreen rows", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
   await page.evaluate(() => {
     const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
     vars.bulk = Object.fromEntries(
-      Array.from({ length: 125 }, (_, i) => [`item${String(i).padStart(3, "0")}`, i]),
+      Array.from({ length: 10_000 }, (_, i) => [`item${String(i).padStart(5, "0")}`, i]),
     );
   });
   await expandVariable(drawer, "bulk");
   const virtualHolder = drawer.locator(".ant-tree-list-holder").first();
+  const first = drawer.getByRole("treeitem", { name: /^item00000/ });
+  await expect(first).toBeVisible();
   await virtualHolder.evaluate((el) => { el.scrollTop = el.scrollHeight; });
-  await expect(drawer.getByText("item124", { exact: true })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^item09999/ })).toBeVisible();
+  await expect(first).toHaveCount(0);
   expect(await drawer.getByRole("treeitem").count()).toBeLessThan(100);
+  await virtualHolder.evaluate((el) => { el.scrollTop = 0; });
+  await expect(first).toBeVisible();
   await expect(drawer.getByRole("button", { name: /Load more/ })).toHaveCount(0);
 });
 

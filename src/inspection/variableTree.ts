@@ -3,11 +3,11 @@ import type { VariableLocation } from "./variableLocation";
 import { readVariable } from "./variableLocation";
 import { getLocationId, listChildren } from "./variableStructure";
 
-/** MUI's node model holds live locations, never copied values or child arrays. */
+/** Tree nodes hold live locations, never copied values or child arrays. */
 export type VariableNode = {
   id: string;
   location: VariableLocation;
-  /** Ancestors stop circular traversal during eager indexing. */
+  /** Ancestors prevent circular traversal when discovering a branch. */
   ancestors: readonly object[];
 };
 
@@ -19,7 +19,7 @@ function childNode(parent: VariableNode, location: VariableLocation, ancestors: 
   };
 }
 
-/** MUI eagerly indexes the entire hierarchy, including collapsed nodes. */
+/** Discover only direct children when their branch is opened or refreshed. */
 export function getVariableChildren(node: VariableNode): VariableNode[] {
   const location = node.location;
   if (location.kind === "map" && location.part === undefined) {
