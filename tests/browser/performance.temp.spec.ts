@@ -50,7 +50,7 @@ test("temporary end-to-end expansion breakdown", async ({ page }) => {
 
     const treeitem = drawer.getByRole("treeitem", { name: new RegExp(`^${name}(?:\\s|$)`) });
     await expect(treeitem).toBeVisible();
-    const icon = treeitem.locator(".MuiTreeItem-iconContainer");
+    const icon = treeitem.locator(".MuiTreeItem-iconContainer").first();
     const measurements: Metrics[] = [];
     const childText = fixture === "flat200" ? "value0"
       : fixture === "nested" ? "branch0" : "alpha";
