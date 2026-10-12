@@ -26,7 +26,10 @@ export default defineContentScript({
         display: flex; flex: 1; flex-direction: column; min-height: 0;
       }
       .inspector-tabs > .ant-tabs-nav { flex: none; }
-      .inspector-tabs > .ant-tabs-content.ant-tabs-content-active {
+      .inspector-tabs > .ant-tabs-body-holder,
+      .inspector-tabs > .ant-tabs-body-holder > .ant-tabs-body,
+      .inspector-tabs > .ant-tabs-body-holder > .ant-tabs-body
+        > .ant-tabs-content.ant-tabs-content-active {
         display: flex;
         flex: 1;
         flex-direction: column;
