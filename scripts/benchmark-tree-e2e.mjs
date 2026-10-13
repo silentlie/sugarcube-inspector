@@ -1,3 +1,4 @@
+/* global SugarCube */
 import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -201,6 +202,6 @@ try {
   }, null, 2));
 } finally {
   for (const variant of variants)
-    try { command("git", ["worktree", "remove", "--force", join(tmp, variant)]); } catch {}
+    try { command("git", ["worktree", "remove", "--force", join(tmp, variant)]); } catch (error) { console.warn("Cannot remove benchmark worktree", variant, error.message); }
   await rm(tmp, { recursive: true, force: true });
 }
