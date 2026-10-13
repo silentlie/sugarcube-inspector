@@ -65,11 +65,10 @@ describe.skipIf(process.env.SC_TREE_BENCH !== "1")("reconciliation CPU benchmark
       const nestedRoot = shared[0]!;
       const nestedOld = baseline[0]!;
       const newOwner = {...(data.item1 as Record<string, unknown>)};
-      const replacedData = {...data, item1:newOwner};
-      const ownerRoot = rootNode(replacedData);
-      const ownerBefore = getVariableChildren(ownerRoot);
-      const ownerOld = reconcileChildren(current,shared);
-      const ownerBaseline = recursive(current,baseline);
+      data.item1 = newOwner;
+      const ownerBefore = getVariableChildren(root);
+      const ownerOld = shared;
+      const ownerBaseline = baseline;
       const cases = [
         {scenario:"unchanged-root", old:baseline, current:shared,
           before: current, sharedNodes: current},
