@@ -53,7 +53,7 @@ function ExpandedStructureWatcher({ value, onChange }: {
 
 /** Only virtualized rows mount these hooks and live value subscriptions. */
 export function LiveVariableLabel({ node, expanded, refresh, isLeaf, loadedValue, childrenLoaded }: {
-  node: VariableNode; expanded: boolean; refresh: (id: string, load?: boolean) => void;
+  node: VariableNode; expanded: boolean; refresh: (id: number, load?: boolean) => void;
   isLeaf: boolean; loadedValue: unknown; childrenLoaded: boolean;
 }) {
   const current = useVariable(node.location);
