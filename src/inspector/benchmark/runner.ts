@@ -211,12 +211,11 @@ export function installBenchmark(): BenchmarkAPI {
       const wasMounted = !!shadow.querySelector('[aria-label="Story variables tree"]');
       const previous = benchmarkVariant();
       const periods: Period[] = [];
-      let budget = 16.667;
       try {
         setBenchmarkVariant(variant);
         await clickTab(shadow, from);
         await delay(settleMs);
-        budget = await frameBudget();
+        const budget = await frameBudget();
         for (let i = 0; i < cycles; i++) {
           await delay(settleMs);
           const frame = rafFrames();

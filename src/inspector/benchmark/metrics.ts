@@ -47,7 +47,7 @@ export function timed<T>(name: string, work: () => T): T {
 }
 export function reactCommit(
   id: string, phase: string, durationMs: number,
-  startMs: number, commitMs: number,
+  _baseDurationMs: number, startMs: number, commitMs: number,
 ): void {
   if (!current) return;
   current.commits.push({ id, phase, startMs, commitMs, durationMs });

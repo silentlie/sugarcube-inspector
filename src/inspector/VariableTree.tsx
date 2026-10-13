@@ -116,10 +116,7 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     return Promise.resolve();
   }, [refresh]);
 
-  return <div ref={setViewport} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-    {height > 0 && (benchmarkVariant() === "noAnt"
-      ? <div data-benchmark-no-ant="true" style={{ height: "100%" }} />
-      : (BENCHMARK_BUILD ? <Profiler id="antTree" onRender={reactCommit}>
+  const antTree = <Tree
     aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
     className="sugarcube-variable-tree"
     blockNode
@@ -133,7 +130,6 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     loadData={loadData}
     onExpand={(keys, info) => {
       setExpandedKeys(keys.map(String));
-      // When reopening a loaded branch, refresh only that branch.
       if (info.expanded && (info.node as Item).children) {
         refresh(String(info.node.key));
       }
@@ -145,23 +141,14 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
       return <LiveVariableLabel
         node={item.variable} expanded={expanded.has(item.key)} refresh={refresh} />;
     }}
-  /> </Profiler> : <Tree
-    aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
-    className="sugarcube-variable-tree"
-    blockNode selectable={false}
-    switcherIcon={(props) => <span aria-hidden="true">{props.expanded ? "▾" : "▸"}</span>}
-    virtual height={height} treeData={items} expandedKeys={expandedKeys}
-    autoExpandParent={false} loadData={loadData}
-    onExpand={(keys, info) => {
-      setExpandedKeys(keys.map(String));
-      if (info.expanded && (info.node as Item).children) refresh(String(info.node.key));
-    }}
-    titleRender={(data) => {
-      const item = data as Item;
-      return <LiveVariableLabel node={item.variable}
-        expanded={expanded.has(item.key)} refresh={refresh} />;
-    }}
-  />))}
+  />;
+
+  return <div ref={setViewport} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+    {height > 0 && (benchmarkVariant() === "noAnt"
+      ? <div data-benchmark-no-ant="true" style={{ height: "100%" }} />
+      : BENCHMARK_BUILD
+        ? <Profiler id="antTree" onRender={reactCommit}>{antTree}</Profiler>
+        : antTree)}
   </div>;
 }
 
