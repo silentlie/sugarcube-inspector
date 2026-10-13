@@ -1,8 +1,6 @@
-name: Temporary Inspection Lifecycle Cost Benchmark
+name: Inspection Lifecycle Benchmark
 
 on:
-  push:
-    branches: [feat/direct-main-world-inspector-poc]
   workflow_dispatch:
 
 permissions:

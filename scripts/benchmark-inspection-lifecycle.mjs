@@ -48,7 +48,7 @@ async function instrument(filename, names, transform) {
 }
 async function build() {
   run("git", ["worktree", "add", "--detach", stage, "HEAD"]);
-  await symlink(join(root, "node_modules"), join(stage, "node_modules"), "dir");
+  await symlink(join(root, "node_modules"), join(stage, "node_modules"), process.platform === "win32" ? "junction" : "dir");
   await instrument("src/inspection/variableStructure.ts", [
     "readStructure", "sameStructure", "listChildren", "getLocationId", "getLocationName",
   ]);
