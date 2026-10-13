@@ -116,9 +116,12 @@ async function setup(context, size) {
 }
 async function measure({page, client}, variant, size, round, scenario) {
   const before = metrics(await client.send("Performance.getMetrics"));
-  await page.evaluate((testCase) => {
+  await page.evaluate(async (testCase) => {
     const p = window.__scBench;
     p.begin();
+    // Establish the previous rAF timestamp before blocking the next frame.
+    await new Promise(requestAnimationFrame);
+    p.start = performance.now();
     const vars = SugarCube.State.variables;
     if (testCase === "root-add") vars.benchAdded = "new";
     if (testCase === "nested-add") vars.benchBranch0.newProperty = 47;
@@ -140,6 +143,35 @@ async function measure({page, client}, variant, size, round, scenario) {
   console.log("TREE_E2E_SAMPLE=" + JSON.stringify(row));
   samples.push(row);
 }
+async function measureTabReturn({page, client}, variant, size, round) {
+  const drawer = page.locator("sugarcube-inspector");
+  await drawer.getByRole("tab", { name: "Overview" }).click();
+  await page.waitForTimeout(200);
+  const before = metrics(await client.send("Performance.getMetrics"));
+  await page.evaluate(async () => {
+    const p = window.__scBench;
+    p.begin();
+    await new Promise(requestAnimationFrame);
+    p.start = performance.now();
+  });
+  await drawer.getByRole("tab", { name: "Variables", exact: true }).click();
+  await drawer.getByRole("treeitem", { name: /^benchBranch0/ })
+    .waitFor({state:"visible", timeout:7000});
+  const elapsedToVisibleMs = await page.evaluate(() => performance.now() - window.__scBench.start);
+  await page.waitForTimeout(150);
+  const result = await page.evaluate(() => window.__scBench.end());
+  const after = metrics(await client.send("Performance.getMetrics"));
+  const row = {
+    variant, size, round, scenario: "tab-return", ...result, elapsedToVisibleMs,
+    taskMs: delta(before, after, "TaskDuration"),
+    scriptMs: delta(before, after, "ScriptDuration"),
+    layoutMs: delta(before, after, "LayoutDuration"),
+    recalcStyleMs: delta(before, after, "RecalcStyleDuration"),
+  };
+  if (row.frames < 3) throw new Error("Tab frame sample too short: " + JSON.stringify(row));
+  console.log("TREE_E2E_SAMPLE=" + JSON.stringify(row));
+  samples.push(row);
+}
 async function run(variant, size, round, stages) {
   const extension = join(stages[variant], ".output/chrome-mv3");
   const context = await chromium.launchPersistentContext(join(tmp, ["profile", variant, size, round].join("-")), {
@@ -150,6 +182,7 @@ async function run(variant, size, round, stages) {
     const session = await setup(context, size);
     try {
       for (const scenario of cases) await measure(session, variant, size, round, scenario);
+      await measureTabReturn(session, variant, size, round);
     } finally {
       await session.client.detach();
       await session.page.close();
@@ -174,7 +207,7 @@ try {
       await run(variant, size, round, stages);
   }
   const summary = [];
-  for (const size of sizes) for (const scenario of cases) {
+  for (const size of sizes) for (const scenario of [...cases, "tab-return"]) {
     const outcome = { size, scenario };
     for (const variant of variants) {
       const rows = samples.filter(r => r.size === size && r.scenario === scenario && r.variant === variant);
@@ -183,6 +216,7 @@ try {
         medianTaskMs: median(rows.map(r => r.taskMs)),
         medianScriptMs: median(rows.map(r => r.scriptMs)),
         medianCommitMs: median(rows.map(r => r.elapsedToCommitMs)),
+        medianVisibleMs: median(rows.map(r => r.elapsedToVisibleMs)),
         medianRowRenders: median(rows.map(r => r.rowRenders)),
         medianWatcherCreates: median(rows.map(r => r.watchersCreated)),
         medianSubscriptions: median(rows.map(r => r.subscriptions)),
