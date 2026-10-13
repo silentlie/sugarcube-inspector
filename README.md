@@ -38,10 +38,11 @@ It does not attach a debugger or use a cross-world messaging bridge.
   Structure snapshots use typed data, accessor, Map, and Set entries; enumerable
   and writable descriptor flags do not trigger tree rebuilds. Structural changes
   rebuild the tree model; ordinary value changes do not.
-- A single `react-intersection-observer` tracks the Variables panel's visibility,
-  suspending polling when its tab is hidden. Ant Tree unmounts offscreen virtualized
-  rows; React automatically unsubscribes them. A shared 250ms scheduler checks
-  active subscriptions.
+- A single `react-intersection-observer` tracks each Variables panel's visibility.
+  `VariableWatcher` pauses the corresponding scope when its tab is hidden and
+  refreshes subscribed snapshots when it becomes visible again. Ant Tree unmounts
+  offscreen virtualized rows, which React automatically unsubscribes. A shared
+  250ms scheduler checks only active subscriptions.
 - References retain object identity; ancestor cycles are marked and stop
   recursive discovery. Ordinary property accessors are displayed without
   invoking them; type classification uses the library defaults.

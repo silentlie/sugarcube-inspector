@@ -353,6 +353,56 @@ describe("shared variable watcher", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("keeps story and temporary scopes independent while tabs stay mounted", async () => {
+    vi.useFakeTimers();
+    const watcher = new VariableWatcher(50);
+    let story = 1;
+    let temporary = 2;
+    const a = watcher.watch(() => story, Object.is, "variables");
+    const b = watcher.watch(() => temporary, Object.is, "temporary");
+    const notifyStory = vi.fn();
+    const notifyTemporary = vi.fn();
+    const stopStory = a.subscribe(notifyStory);
+    const stopTemporary = b.subscribe(notifyTemporary);
+
+    expect(vi.getTimerCount()).toBe(0);
+    watcher.setScopeVisible("variables", true);
+    expect(vi.getTimerCount()).toBe(1);
+    story = 5;
+    temporary = 6;
+    await vi.advanceTimersByTimeAsync(50);
+    expect(a.getSnapshot()).toBe(5);
+    expect(b.getSnapshot()).toBe(2);
+    expect(notifyStory).toHaveBeenCalledTimes(1);
+    expect(notifyTemporary).not.toHaveBeenCalled();
+
+    watcher.setScopeVisible("variables", false);
+    expect(vi.getTimerCount()).toBe(0);
+    story = 7;
+    watcher.setScopeVisible("temporary", true);
+    expect(b.getSnapshot()).toBe(6);
+    expect(notifyTemporary).toHaveBeenCalledTimes(1);
+    expect(a.getSnapshot()).toBe(5);
+
+    watcher.setScopeVisible("variables", true);
+    expect(a.getSnapshot()).toBe(7);
+    expect(notifyStory).toHaveBeenCalledTimes(2);
+    stopStory();
+    watcher.setScopeVisible("variables", false);
+    stopTemporary();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not reactivate subscriptions that unmounted while hidden", () => {
+    vi.useFakeTimers();
+    const watcher = new VariableWatcher();
+    const subscription = watcher.watch(() => 1, Object.is, "variables");
+    const unsubscribe = subscription.subscribe(vi.fn());
+    unsubscribe();
+    watcher.setScopeVisible("variables", true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("catches a mutation that happens before a component subscribes", () => {
     const watcher = new VariableWatcher();
     let value = "old";

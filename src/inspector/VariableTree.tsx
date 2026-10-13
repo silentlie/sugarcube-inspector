@@ -7,8 +7,9 @@ import { isExpandableNode } from "../inspection/isExpandableNode";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
 import { getLocationName } from "../inspection/variableStructure";
+import { variableWatcher } from "../inspection/variableWatcher";
 import { LiveVariableLabel } from "./LiveVariableLabel";
-import { useStructure, useVariable } from "./useVariableWatch";
+import { VariableScopeContext, useStructure, useVariable } from "./useVariableWatch";
 
 type Item = TreeDataNode & {
   key: string;
@@ -53,10 +54,10 @@ function replaceChildren(items: Item[], target: string, children: Item[]): Item[
   return changed ? next : items;
 }
 
-function RichVariableTree({ storeKey, rootValue, visible }: {
-  storeKey: VariableStoreKey; rootValue: object; visible: boolean;
+function RichVariableTree({ storeKey, rootValue }: {
+  storeKey: VariableStoreKey; rootValue: object;
 }) {
-  const structure = useStructure(rootValue, visible);
+  const structure = useStructure(rootValue);
   const rootNode = useMemo<VariableNode>(() => ({
     id: storeKey,
     location: { kind: "state", key: storeKey },
@@ -134,25 +135,35 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     titleRender={(data) => {
       const item = data as Item;
       return <LiveVariableLabel
-        node={item.variable} expanded={expanded.has(item.key)} refresh={refresh}
-        visible={visible} />;
+        node={item.variable} expanded={expanded.has(item.key)} refresh={refresh} />;
     }}
   />}
   </div>;
 }
 
-export default function VariableTree({ storeKey }: {storeKey: VariableStoreKey}) {
-  const { ref, inView: visible } = useInView();
+function VariableTreeContent({ storeKey }: { storeKey: VariableStoreKey }) {
   const location = useMemo<VariableLocation>(() => ({ kind: "state", key: storeKey }), [storeKey]);
-  const root = useVariable(location, visible);
+  const root = useVariable(location);
+  return root.kind !== "value"
+    ? <Typography.Text type="secondary">Store unavailable</Typography.Text>
+    : isObject(root.value)
+      ? <RichVariableTree storeKey={storeKey} rootValue={root.value} />
+      : <Typography.Text type="secondary">{root.preview}</Typography.Text>;
+}
+
+export default function VariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
+  const { ref, inView } = useInView();
+  useEffect(() => {
+    variableWatcher.setScopeVisible(storeKey, inView);
+    return () => variableWatcher.setScopeVisible(storeKey, false);
+  }, [storeKey, inView]);
+
   return <div ref={ref} style={{
     display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
     overflow: "hidden",
   }}>
-    {root.kind !== "value"
-      ? <Typography.Text type="secondary">Store unavailable</Typography.Text>
-      : isObject(root.value)
-        ? <RichVariableTree storeKey={storeKey} rootValue={root.value} visible={visible} />
-        : <Typography.Text type="secondary">{root.preview}</Typography.Text>}
+    <VariableScopeContext.Provider value={storeKey}>
+      <VariableTreeContent storeKey={storeKey} />
+    </VariableScopeContext.Provider>
   </div>;
 }

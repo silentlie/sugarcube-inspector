@@ -342,6 +342,24 @@ test("virtualized rows unsubscribe on unmount and refresh when scrolled back", a
   await expect(firstRow.getByTitle("999", { exact: true })).toBeVisible();
 });
 
+test("retained Story and Temporary trees catch up independently after being hidden", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
+
+  await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
+  await expect(drawer.getByTitle('"north"', { exact: true }).last()).toBeVisible();
+  await page.evaluate(() => {
+    const state = SugarCube.State;
+    (state.variables as Record<string, unknown>).score = 93;
+    (state.temporary as Record<string, unknown>).choice = "east";
+  });
+  await expect(drawer.getByTitle('"east"', { exact: true }).last()).toBeVisible();
+
+  await drawer.getByRole("tab", { name: "Story Variables" }).click();
+  await expect(drawer.getByTitle("93", { exact: true })).toBeVisible();
+});
+
 test("retained tree catches up after its Variables tab was hidden", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);

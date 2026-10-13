@@ -1,29 +1,32 @@
-import { useMemo, useSyncExternalStore } from "react";
+import { createContext, useContext, useMemo, useSyncExternalStore } from "react";
+import type { VariableStoreKey } from "../inspection/direct";
 import { readVariable, sameVariable, type VariableLocation } from "../inspection/variableLocation";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { variableWatcher } from "../inspection/variableWatcher";
 
-const noSubscription = () => () => {};
+export const VariableScopeContext = createContext<VariableStoreKey | null>(null);
 
-export function useVariable(location: VariableLocation, visible: boolean) {
-  const subscription = useMemo(
-    () => variableWatcher.watch(() => readVariable(location), sameVariable),
-    [location, visible],
-  );
-  return useSyncExternalStore(
-    visible ? subscription.subscribe : noSubscription,
-    subscription.getSnapshot,
-  );
+function useScope(): VariableStoreKey {
+  const scope = useContext(VariableScopeContext);
+  if (scope === null) throw new Error("Variable watcher requires a tree scope");
+  return scope;
 }
 
-export function useStructure(value: object, visible: boolean) {
+export function useVariable(location: VariableLocation) {
+  const scope = useScope();
   const subscription = useMemo(
-    () => variableWatcher.watch(() => readStructure(value), sameStructure),
-    [value, visible],
+    () => variableWatcher.watch(() => readVariable(location), sameVariable, scope),
+    [location, scope],
   );
-  return useSyncExternalStore(
-    visible ? subscription.subscribe : noSubscription,
-    subscription.getSnapshot,
+  return useSyncExternalStore(subscription.subscribe, subscription.getSnapshot);
+}
+
+export function useStructure(value: object) {
+  const scope = useScope();
+  const subscription = useMemo(
+    () => variableWatcher.watch(() => readStructure(value), sameStructure, scope),
+    [value, scope],
   );
+  return useSyncExternalStore(subscription.subscribe, subscription.getSnapshot);
 }
 

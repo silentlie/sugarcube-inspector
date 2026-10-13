@@ -28,18 +28,18 @@ function ValueTokens({ current, showType = true }: { current: VariableSnapshot; 
   </>;
 }
 
-function MapKeyPreview({ location, visible }: {
-  location: Extract<VariableLocation, {kind:"map"}>; visible: boolean;
+function MapKeyPreview({ location }: {
+  location: Extract<VariableLocation, {kind:"map"}>;
 }) {
   const keyLocation = useMemo(() => ({ ...location, part: "key" as const }), [location]);
-  const key = useVariable(keyLocation, visible);
+  const key = useVariable(keyLocation);
   return <ValueTokens current={key} showType={false} />;
 }
 
 function ExpandedStructureWatcher({ value, onChange }: {
   value: object; onChange: () => void;
 }) {
-  const structure = useStructure(value, true);
+  const structure = useStructure(value);
   const previousRef = useRef(structure);
   useEffect(() => {
     if (structure !== previousRef.current) {
@@ -51,11 +51,10 @@ function ExpandedStructureWatcher({ value, onChange }: {
 }
 
 /** Only virtualized rows mount these hooks and live value subscriptions. */
-export function LiveVariableLabel({ node, expanded, refresh, visible }: {
+export function LiveVariableLabel({ node, expanded, refresh }: {
   node: VariableNode; expanded: boolean; refresh: (id: string) => void;
-  visible: boolean;
 }) {
-  const current = useVariable(node.location, visible);
+  const current = useVariable(node.location);
   const value = current.kind === "value" ? current.value : undefined;
   const previousValueRef = useRef(value);
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
@@ -66,16 +65,16 @@ export function LiveVariableLabel({ node, expanded, refresh, visible }: {
   useEffect(() => {
     const previous = previousValueRef.current;
     previousValueRef.current = value;
-    if (visible && !Object.is(previous, value) &&
+    if (!Object.is(previous, value) &&
         (isObject(previous) || isObject(value))) refresh(node.id);
-  }, [value, visible, node.id, refresh]);
+  }, [value, node.id, refresh]);
 
   return <span style={{
     display: "flex", alignItems: "center", gap: 8, minWidth: 0, width: "100%",
   }}>
     {isMapEntry ? <>
       <span style={{ display: "flex", flex: 1, minWidth: 0 }}>
-        <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} visible={visible} />
+        <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} />
       </span>
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>→</Typography.Text>
       <ValueTokens current={current} />
@@ -94,7 +93,7 @@ export function LiveVariableLabel({ node, expanded, refresh, visible }: {
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         same reference
       </Typography.Text>}
-    {expanded && visible && !isMapEntry && current.kind === "value" &&
+    {expanded && !isMapEntry && current.kind === "value" &&
       current.expandable && !circular &&
       <ExpandedStructureWatcher value={current.value as object} onChange={() => refresh(node.id)} />}
   </span>;
