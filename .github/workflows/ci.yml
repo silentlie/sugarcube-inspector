@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/direct-main-world-inspector-poc]
+    branches: [main, feat/direct-main-world-inspector]
   pull_request:
     branches: [main]
   workflow_dispatch:
