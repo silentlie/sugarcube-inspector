@@ -33,13 +33,15 @@ It does not attach a debugger or use a cross-world messaging bridge.
   Runtime checks use named `@sindresorhus/is` type guards, including functions
   as expandable references. Boxed primitives are handled explicitly because the
   library's general-purpose type detector rejects them; their values remain inspectable.
-- Independently watched rows update values while in view. Expanded, visible
-  containers additionally watch structure, array length, and Map/Set membership.
+- Mounted virtualized rows update values while the Variables tab is visible.
+  Expanded, mounted containers additionally watch structure, array length, and Map/Set membership.
   Structure snapshots use typed data, accessor, Map, and Set entries; enumerable
   and writable descriptor flags do not trigger tree rebuilds. Structural changes
   rebuild the tree model; ordinary value changes do not.
-- `react-intersection-observer` tracks visible rows. Offscreen rows stop
-  polling. A shared 250ms scheduler checks active subscriptions.
+- A single `react-intersection-observer` tracks the Variables panel's visibility,
+  suspending polling when its tab is hidden. Ant Tree unmounts offscreen virtualized
+  rows; React automatically unsubscribes them. A shared 250ms scheduler checks
+  active subscriptions.
 - References retain object identity; ancestor cycles are marked and stop
   recursive discovery. Ordinary property accessors are displayed without
   invoking them; type classification uses the library defaults.
@@ -67,82 +69,3 @@ can affect the inspector, and vice versa. Do not run on untrusted pages.
    Variables → Story Variables or Temporary Variables.
 4. Expand objects and change game values. Visible entries update automatically.
 5. Run `npm run lint && npm run compile && npm test && npm run test:browser`.
-
-## Benchmark tab-switch jank on your own PC
-
-A benchmark build exposes `scInspectorBench` to the game page's **MAIN-world DevTools console**.
-It makes no changes to game variables and exports only numeric measurements.
-
-1. Run `npm ci && npm run build:benchmark` from PowerShell or your terminal.
-2. In `chrome://extensions`, load or reload `.output/chrome-mv3` and permit **Allow access to file URLs**.
-3. Reload your actual SugarCube game. Open its drawer and select Overview.
-4. In the game page's DevTools console, run:
-
-```js
-await scInspectorBench.run({ cycles: 8, from: "Overview" })
-```
-
-The first opening is reported separately from subsequent visits. Results include frame budget
-(calibrated for your display), worst and p95 frame gaps, approximate missed frames,
-50 ms+ long tasks, Ant React commit duration (if available in this build),
-root reconciliation cost, row renders, and watcher creation/subscribe/read counts.
-
-For jank caused by actual mouse interaction rather than scripted clicks:
-
-```js
-await scInspectorBench.record({ seconds: 15 })
-```
-
-Switch manually between Overview, Variables, and Scripts while recording.
-The manual report gives per-click frame gaps. `aggregateStats` in the JSON
-contains watcher and tree metrics for the full recording period.
-
-To run **all twelve variants and export a combined JSON report in one command**:
-
-```js
-await scInspectorBench.runAll({ cycles: 10, sampleMs: 750, settleMs: 400 })
-```
-
-This runs each variant sequentially, resets the inspector Tabs/tree before each one
-(without reloading the game or losing its current variable state), prints a comparison
-table, and downloads a single `sugarcube-inspector-benchmark-*.json` containing every
-measurement. `scInspectorBench.export()` returns the combined report after completion.
-Each variant tests the same live game, but other activity on the page may affect timing.
-The reset isolates React/Ant tree state, **not** all page/extension initialization state.
-
-To investigate causes individually, you can still **reload the page between variants**
-and run one at a time:
-
-```js
-await scInspectorBench.run({ variant: "destroyOnHidden" }) // Unmount the entire Variables tab on exit
-await scInspectorBench.run({ variant: "noTree" })      // Tabs only
-await scInspectorBench.run({ variant: "noAnt" })       // Tree data, no Ant component
-await scInspectorBench.run({ variant: "plainRows" })   // Ant, no live row renderer
-await scInspectorBench.run({ variant: "staticRows" })  // Formatted snapshots, no live row hooks
-await scInspectorBench.run({ variant: "noPrism" })     // Live row hooks, no syntax highlighting
-await scInspectorBench.run({ variant: "noRowVisibility" }) // Poll mounted rows while tab visible
-await scInspectorBench.run({ variant: "stableWatchers" }) // Keep watches when visibility changes
-await scInspectorBench.run({ variant: "stableTreeData" }) // Reuse equivalent tree item arrays
-await scInspectorBench.run({ variant: "noRootWatch" }) // Disable root polling
-await scInspectorBench.run({ variant: "noRowWatch" })  // Disable visible row polling
-```
-
-Compare `normal` (the default, which retains the Variables tree between switches) with
-`destroyOnHidden` (which forces a fresh tree mount on each switch). Each recorded
-period's `cold` flag reflects whether Ant Tree was absent just before that click.
-
-Ablations are diagnostic, not intended as user-facing optimizations. The command restores
-the original tab and variant when done; a reload resets the tree to its first-mount state.
-If the tree was already mounted, the tool warns that there is no cold sample.
-
-Copy the numeric report without sharing game data:
-
-```js
-copy(scInspectorBench.export())
-```
-
-**Important:** Use the page console, not the isolated extension service-worker console.
-The benchmark is enabled for WXT development builds or `build:benchmark`, but omitted
-from ordinary `npm run build` output. Headless CI and an open DevTools window can produce
-different frame pacing from your normal browser. A 50 ms long task may be enough to miss
-multiple frames, especially at 120/144 Hz.

@@ -1,12 +1,9 @@
 import { Button, Divider, Flex, Tabs, Typography } from "antd";
 import { RefreshCw } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { hasState, type VariableStoreKey } from "../inspection/direct";
 import { variableWatcher } from "../inspection/variableWatcher";
 import VariableTree from "./VariableTree";
-import {
-  benchmarkResetId, benchmarkVariant, subscribeBenchmarkVariant, type BenchVariant,
-} from "./benchmark/metrics";
 
 type Section = "overview" | "variables" | "scripts";
 type VariableScope = VariableStoreKey | "favorites";
@@ -31,18 +28,11 @@ export default function DirectInspector() {
     );
   }
 
-  return <ReadyInspector />;
+  return <InspectorSections />;
 }
 
 /** Entire tree and all subscriptions run in SugarCube's MAIN JS world. */
-function ReadyInspector() {
-  const variant = useSyncExternalStore(subscribeBenchmarkVariant, benchmarkVariant);
-  const resetId = useSyncExternalStore(subscribeBenchmarkVariant, benchmarkResetId);
-  return <InspectorSections key={resetId} variant={variant} />;
-}
-
-/** Keyed remount resets both the selected tab and the Story Variables scope. */
-function InspectorSections({ variant }: { variant: BenchVariant }) {
+function InspectorSections() {
   const [section, setSection] = useState<Section>("overview");
   const [scope, setScope] = useState<VariableScope>("variables");
 
@@ -63,10 +53,7 @@ function InspectorSections({ variant }: { variant: BenchVariant }) {
       animated={false}
       onChange={(key) => setScope(key as VariableScope)}
       items={[
-        { key: "variables", label: "Story Variables", children:
-          variant === "noTree"
-            ? <div data-benchmark-no-tree="true" style={{ flex: 1 }} />
-            : <VariableTree storeKey="variables" /> },
+        { key: "variables", label: "Story Variables", children: <VariableTree storeKey="variables" /> },
         { key: "temporary", label: "Temporary Variables", children: <VariableTree storeKey="temporary" /> },
         { key: "favorites", label: "Favorites" },
       ]}
@@ -96,7 +83,7 @@ function InspectorSections({ variant }: { variant: BenchVariant }) {
         activeKey={section}
         aria-label="Inspector sections"
         className="inspector-tabs"
-        destroyOnHidden={variant === "destroyOnHidden"}
+        destroyOnHidden={false}
         animated={false}
         onChange={(key) => setSection(key as Section)}
         items={[

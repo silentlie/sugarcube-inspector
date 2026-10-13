@@ -1,5 +1,3 @@
-import { count, timed } from "../inspector/benchmark/metrics";
-
 export interface VariableSubscription<T> {
   getSnapshot: () => T;
   subscribe: (callback: () => void) => () => void;
@@ -15,15 +13,12 @@ export class VariableWatcher {
   constructor(private readonly intervalMs = 250) {}
 
   watch<T>(read: () => T, equal: (a: T, b: T) => boolean): VariableSubscription<T> {
-    count("watch.create");
-    let current = timed("watch.read", read);
+    let current = read();
     const listeners = new Set<() => void>();
     const observer: ActiveWatch = {
       check: () => {
-        count("watch.check");
-        const next = timed("watch.read", read);
+        const next = read();
         if (equal(current, next)) return;
-        count("watch.changed");
         current = next;
         for (const listener of [...listeners]) listener();
       },
@@ -32,12 +27,10 @@ export class VariableWatcher {
     return {
       getSnapshot: () => current,
       subscribe: (callback) => {
-        count("watch.subscribe");
         listeners.add(callback);
         if (listeners.size === 1) this.start(observer);
         observer.check(); // Catch mutations between React render and subscription.
         return () => {
-          count("watch.unsubscribe");
           listeners.delete(callback);
           if (listeners.size === 0) this.stop(observer);
         };
@@ -46,9 +39,7 @@ export class VariableWatcher {
   }
 
   refresh(): void {
-    timed("watch.refreshAll", () => {
-      for (const watcher of [...this.active]) watcher.check();
-    });
+    for (const watcher of [...this.active]) watcher.check();
   }
 
   private start(observer: ActiveWatch): void {

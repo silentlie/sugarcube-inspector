@@ -1,15 +1,14 @@
 import { isObject } from "@sindresorhus/is";
 import { Tree, Typography, type TreeDataNode } from "antd";
-import { Profiler, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
 import { isExpandableNode } from "../inspection/isExpandableNode";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
 import { getLocationName } from "../inspection/variableStructure";
-import { LiveVariableLabel, StaticVariableLabel } from "./LiveVariableLabel";
+import { LiveVariableLabel } from "./LiveVariableLabel";
 import { useStructure, useVariable } from "./useVariableWatch";
-import { BENCHMARK_BUILD, benchmarkVariant, count, reactCommit, timed } from "./benchmark/metrics";
 
 type Item = TreeDataNode & {
   key: string;
@@ -34,15 +33,7 @@ function makeItem(variable: VariableNode, previous?: Item): Item {
 
 function reconcile(nodes: VariableNode[], old: readonly Item[] = []): Item[] {
   const byId = new Map(old.map((node) => [node.key, node]));
-  const next = nodes.map((node) => makeItem(node, byId.get(node.id)));
-  // Experimental structural sharing: preserve treeData identity when the
-  // same keys, leaf flags, and child arrays were rebuilt.
-  if (benchmarkVariant() === "stableTreeData" && next.length === old.length &&
-      next.every((item, i) => item.key === old[i]?.key &&
-        item.isLeaf === old[i]?.isLeaf && item.children === old[i]?.children)) {
-    return old as Item[];
-  }
-  return next;
+  return nodes.map((node) => makeItem(node, byId.get(node.id)));
 }
 
 /** Share unchanged sibling arrays when replacing one subtree. */
@@ -65,14 +56,13 @@ function replaceChildren(items: Item[], target: string, children: Item[]): Item[
 function RichVariableTree({ storeKey, rootValue, visible }: {
   storeKey: VariableStoreKey; rootValue: object; visible: boolean;
 }) {
-  const structure = useStructure(rootValue, visible && benchmarkVariant() !== "noRootWatch");
+  const structure = useStructure(rootValue, visible);
   const rootNode = useMemo<VariableNode>(() => ({
     id: storeKey,
     location: { kind: "state", key: storeKey },
     ancestors: [],
   }), [storeKey]);
-  const [items, setItems] = useState<Item[]>(() =>
-    timed("tree.initial", () => reconcile(getVariableChildren(rootNode))));
+  const [items, setItems] = useState<Item[]>(() => reconcile(getVariableChildren(rootNode)));
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
@@ -93,8 +83,7 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
-      if (active) setItems((old) =>
-        timed("tree.rootReconcile", () => reconcile(getVariableChildren(rootNode), old)));
+      if (active) setItems((old) => reconcile(getVariableChildren(rootNode), old));
     });
     return () => { active = false; };
   }, [rootNode, rootValue, structure]);
@@ -113,8 +102,7 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     setItems((old) => {
       const item = find(old);
       if (!item) return old;
-      const children = timed("tree.branchReconcile", () =>
-        reconcile(getVariableChildren(item.variable), item.children));
+      const children = reconcile(getVariableChildren(item.variable), item.children);
       return replaceChildren(old, id, children);
     });
   }, []);
@@ -124,7 +112,8 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     return Promise.resolve();
   }, [refresh]);
 
-  const antTree = <Tree
+  return <div ref={setViewport} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+    {height > 0 && <Tree
     aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
     className="sugarcube-variable-tree"
     blockNode
@@ -143,22 +132,12 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
       }
     }}
     titleRender={(data) => {
-      count("tree.titleRender");
       const item = data as Item;
-      if (benchmarkVariant() === "plainRows") return item.title as string;
-      if (benchmarkVariant() === "staticRows") return <StaticVariableLabel node={item.variable} />;
       return <LiveVariableLabel
         node={item.variable} expanded={expanded.has(item.key)} refresh={refresh}
-        parentVisible={visible} />;
+        visible={visible} />;
     }}
-  />;
-
-  return <div ref={setViewport} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-    {height > 0 && (benchmarkVariant() === "noAnt"
-      ? <div data-benchmark-no-ant="true" style={{ height: "100%" }} />
-      : BENCHMARK_BUILD
-        ? <Profiler id="antTree" onRender={reactCommit}>{antTree}</Profiler>
-        : antTree)}
+  />}
   </div>;
 }
 

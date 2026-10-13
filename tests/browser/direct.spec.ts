@@ -310,7 +310,7 @@ test("Map object keys and values can each expand independently", async ({ page }
   await expect(drawer.getByTitle("90", { exact: true })).toBeVisible();
 });
 
-test("offscreen tiles stop polling and refresh when scrolled back into view", async ({ page }) => {
+test("virtualized rows unsubscribe on unmount and refresh when scrolled back", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
   await page.evaluate(() => {
@@ -329,9 +329,6 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
   await holder.evaluate((el) => { el.scrollTop = el.scrollHeight; });
   await expect(drawer.getByText("item79", { exact: true })).toBeVisible();
   await expect(firstRow).toHaveCount(0);
-  // Allow the IntersectionObserver to mark the first row as offscreen.
-  await page.waitForTimeout(250);
-
   await page.evaluate(() => {
     const store = SugarCube.State.variables as unknown as {
       large: Record<string, number>;
@@ -343,6 +340,21 @@ test("offscreen tiles stop polling and refresh when scrolled back into view", as
 
   await holder.evaluate((el) => { el.scrollTop = 0; });
   await expect(firstRow.getByTitle("999", { exact: true })).toBeVisible();
+});
+
+test("retained tree catches up after its Variables tab was hidden", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
+
+  await drawer.getByRole("tab", { name: "Overview" }).click();
+  await page.evaluate(() => {
+    const variables = SugarCube.State.variables as unknown as { score: number };
+    variables.score = 101;
+  });
+  await page.waitForTimeout(350);
+  await drawer.getByRole("tab", { name: "Variables", exact: true }).click();
+  await expect(drawer.getByTitle("101", { exact: true })).toBeVisible();
 });
 
 test("virtual tree reaches all 10,000 children without mounting offscreen rows", async ({ page }) => {

@@ -1,32 +1,29 @@
 import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
 import { useEffect, useMemo, useRef } from "react";
-import { useInView } from "react-intersection-observer";
-import { readVariable, type VariableLocation, type VariableSnapshot } from "../inspection/variableLocation";
+import type { VariableLocation, VariableSnapshot } from "../inspection/variableLocation";
 import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "../inspection/variableTree";
 import { useStructure, useVariable } from "./useVariableWatch";
 import { TypeSyntax, ValueSyntax } from "./valueSyntax";
-import { benchmarkVariant, count } from "./benchmark/metrics";
 
 function ValueTokens({ current, showType = true }: { current: VariableSnapshot; showType?: boolean }) {
   const type = current.kind === "value" ? current.type :
     current.kind === "accessor" ? current.accessor : current.kind;
   const preview = current.kind === "value" ? current.preview :
     current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
-  const noPrism = benchmarkVariant() === "noPrism";
   return <>
     {showType && <span style={{
       fontFamily: "monospace", fontSize: 12, flexShrink: 0, whiteSpace: "nowrap",
     }}>
-      {noPrism ? type : <TypeSyntax type={type} />}
+      <TypeSyntax type={type} />
     </span>}
     <span title={preview} style={{
       fontFamily: "monospace", fontSize: 12,
       maxWidth: showType ? "45%" : "100%", overflow: "hidden",
       textOverflow: "ellipsis", whiteSpace: "nowrap",
     }}>
-      {noPrism ? preview : <ValueSyntax type={type} preview={preview} />}
+      <ValueSyntax type={type} preview={preview} />
     </span>
   </>;
 }
@@ -53,28 +50,12 @@ function ExpandedStructureWatcher({ value, onChange }: {
   return null;
 }
 
-/** Formatted snapshot-only row; no hooks or live row subscriptions. */
-export function StaticVariableLabel({ node }: { node: VariableNode }) {
-  const current = readVariable(node.location);
-  return <span style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", whiteSpace: "nowrap" }}>
-      {getLocationName(node.location)}
-    </span>
-    <ValueTokens current={current} />
-  </span>;
-}
-
 /** Only virtualized rows mount these hooks and live value subscriptions. */
-export function LiveVariableLabel({ node, expanded, refresh, parentVisible }: {
+export function LiveVariableLabel({ node, expanded, refresh, visible }: {
   node: VariableNode; expanded: boolean; refresh: (id: string) => void;
-  parentVisible: boolean;
+  visible: boolean;
 }) {
-  count("row.render");
-  const noRowVisibility = benchmarkVariant() === "noRowVisibility";
-  const { ref, inView } = useInView({ skip: noRowVisibility });
-  const rowVisible = (noRowVisibility ? parentVisible : inView) &&
-    benchmarkVariant() !== "noRowWatch";
-  const current = useVariable(node.location, rowVisible);
+  const current = useVariable(node.location, visible);
   const value = current.kind === "value" ? current.value : undefined;
   const previousValueRef = useRef(value);
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
@@ -85,16 +66,16 @@ export function LiveVariableLabel({ node, expanded, refresh, parentVisible }: {
   useEffect(() => {
     const previous = previousValueRef.current;
     previousValueRef.current = value;
-    if (rowVisible && !Object.is(previous, value) &&
+    if (visible && !Object.is(previous, value) &&
         (isObject(previous) || isObject(value))) refresh(node.id);
-  }, [value, rowVisible, node.id, refresh]);
+  }, [value, visible, node.id, refresh]);
 
-  return <span ref={ref} style={{
+  return <span style={{
     display: "flex", alignItems: "center", gap: 8, minWidth: 0, width: "100%",
   }}>
     {isMapEntry ? <>
       <span style={{ display: "flex", flex: 1, minWidth: 0 }}>
-        <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} visible={rowVisible} />
+        <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} visible={visible} />
       </span>
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>→</Typography.Text>
       <ValueTokens current={current} />
@@ -113,7 +94,7 @@ export function LiveVariableLabel({ node, expanded, refresh, parentVisible }: {
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         same reference
       </Typography.Text>}
-    {expanded && rowVisible && !isMapEntry && current.kind === "value" &&
+    {expanded && visible && !isMapEntry && current.kind === "value" &&
       current.expandable && !circular &&
       <ExpandedStructureWatcher value={current.value as object} onChange={() => refresh(node.id)} />}
   </span>;
