@@ -74,15 +74,6 @@ object is replaced. The old string/path ID helper is removed.
 [CI for the candidate](https://github.com/silentlie/sugarcube-inspector/actions/runs/38481666766)
 passed lint, TypeScript, unit/integration tests, and Chromium browser tests.
 
-## Reproduction
+## Archived measurements
 
-Run the manually dispatched
-[`Numeric Tree ID A/B Benchmark` workflow](https://github.com/silentlie/sugarcube-inspector/actions/workflows/tree-id-benchmark.yml)
-for the current feature branch. It checks out both revisions in separate
-worktrees, reuses the same dependencies and Chromium fixture, and uploads
-`baseline.json`, `numeric.json`, and `comparison.md` as an artifact.
-
-This benchmark is manual-only to avoid long-running checks on every push.
-Future code changes to either version can invalidate direct attribution.
-A stronger performance claim would require randomized or alternating A/B
-runs, more repetitions, and a representative desktop browser/fixture.
+The source instrumentation, runner scripts and benchmark workflows were removed after these measurements were recorded. The linked GitHub Actions run and raw artifacts preserve the original results; the measured commits remain available in Git history. These results support a directional comparison, not a conclusive claim about desktop frame pacing.

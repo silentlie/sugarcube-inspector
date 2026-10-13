@@ -101,14 +101,6 @@ Browser style recalculation was 2.9 / 2.7 / 2.9 ms and layout was 1.4 / 1.1 / 1.
 3. **Tab-return cost did not scale with root node count and had no reconciliation calls.** Profiling should next target the Ant Tabs/Tree and React presentation pipeline with browser tracing or deliberate ablations, rather than adding more tree reconciliation complexity.
 4. Chrome's unattributed script time is still substantial. To name the dominant *framework* function, capture a CPU sampling profile/trace with JavaScript stack attribution on the actual computer where jank is felt.
 
-## Reproduction
+## Archived measurements
 
-```sh
-npm ci
-npx playwright install chromium
-npm run benchmark:lifecycle
-```
-
-Set `COST_SIZES=200,2000,10000` and `COST_REPEATS=4` in the environment to customise the workload. The script builds a temporary instrumented production extension from a detached worktree, writes `benchmark-results/lifecycle.json`, and cleans up the instrumented worktree. No profiler hooks are shipped in the normal extension build.
-
-The GitHub workflow is kept as **manual `workflow_dispatch`**, not an automatic push-triggered benchmark.
+These results document the historical benchmark run linked above. The temporary instrumentation runner, npm benchmark command and associated GitHub Actions workflow have been removed from the feature branch. The original commits and run artifacts retain the measurements and their methodology.

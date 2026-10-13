@@ -13,7 +13,6 @@
     "zip:firefox": "wxt zip -b firefox",
     "test": "vitest run",
     "test:watch": "vitest",
-    "benchmark:lifecycle": "node scripts/benchmark-inspection-lifecycle.mjs",
     "test:browser": "npm run build && node tests/browser/prepare-story.mjs && playwright test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
