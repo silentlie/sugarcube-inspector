@@ -1,0 +1,49 @@
+import { expect, storyUrl, test } from "./fixtures";
+
+type BenchReport = {
+  mode: string;
+  frameBudgetMs: number;
+  periods: {
+    maxFrameGapMs: number;
+    stats: Record<string, {calls:number;totalMs:number;maxMs:number}>;
+  }[];
+};
+type API = {
+  run(options?: {cycles?:number; sampleMs?:number; settleMs?:number}):Promise<BenchReport>;
+  record(options?: {seconds?:number}):Promise<BenchReport>;
+  export():string;
+  last:BenchReport | null;
+};
+const globalBenchmark = () => (window as typeof window & {scInspectorBench?:API}).scInspectorBench;
+
+test("opt-in benchmark build profiles tab switches in the MAIN world", async ({page}) => {
+  test.setTimeout(20_000);
+  await page.goto(storyUrl);
+  const inspector = page.locator("sugarcube-inspector");
+  const handle = inspector.getByRole("button", {name:"Resize SugarCube Inspector"});
+  await handle.press("Enter");
+  await handle.hover();
+  await expect(inspector.getByRole("tab",{name:"Overview"})).toHaveAttribute("aria-selected","true");
+  await page.waitForFunction(() => typeof globalBenchmark() !== "undefined");
+  const report = await page.evaluate(async () =>
+    await globalBenchmark()!.run({cycles:2,sampleMs:160,settleMs:80}));
+  expect(report.mode).toBe("auto");
+  expect(report.frameBudgetMs).toBeGreaterThan(0);
+  expect(report.periods).toHaveLength(2);
+  expect(report.periods[0]!.maxFrameGapMs).toBeGreaterThan(0);
+  expect(report.periods[0]!.stats["tree.initial"]?.calls).toBeGreaterThan(0);
+  expect(await page.evaluate(() => globalBenchmark()!.export())).toContain("maxFrameGapMs");
+  await expect(inspector.getByRole("tab",{name:"Overview"}))
+    .toHaveAttribute("aria-selected","true");
+
+  const recording = page.evaluate(async () =>
+    await globalBenchmark()!.record({seconds:2}));
+  await page.waitForTimeout(350);
+  await inspector.getByRole("tab",{name:"Variables",exact:true}).click();
+  await page.waitForTimeout(220);
+  await inspector.getByRole("tab",{name:"Scripts"}).click();
+  const manual = await recording;
+  expect(manual.mode).toBe("manual");
+  expect(manual.periods.length).toBeGreaterThanOrEqual(2);
+  expect(manual.periods.every(p => p.maxFrameGapMs > 0)).toBe(true);
+});
