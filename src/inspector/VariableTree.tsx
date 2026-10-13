@@ -15,12 +15,12 @@ function RichVariableTree({ storeKey, rootValue }: {
 }) {
   const structure = useStructure(rootValue);
   const rootNode = useMemo<VariableNode>(() => ({
-    id: storeKey,
+    id: storeKey === "variables" ? 0 : 1,
     location: { kind: "state", key: storeKey },
     ancestors: [],
   }), [storeKey]);
   const [items, setItems] = useState<Item[]>(() => reconcileChildren(getVariableChildren(rootNode)));
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const [height, setHeight] = useState(0);
@@ -45,12 +45,12 @@ function RichVariableTree({ storeKey, rootValue }: {
     return () => { active = false; };
   }, [rootNode, rootValue, structure]);
 
-  const refresh = useCallback((id: string, load = false) => {
+  const refresh = useCallback((id: number, load = false) => {
     setItems((old) => updateTreeItem(old, id, (item) => refreshItem(item, load)));
   }, []);
 
   const loadData = useCallback((item: TreeDataNode): Promise<void> => {
-    refresh(String(item.key), true);
+    refresh(item.key as number, true);
     return Promise.resolve();
   }, [refresh]);
 
@@ -68,9 +68,9 @@ function RichVariableTree({ storeKey, rootValue }: {
     autoExpandParent={false}
     loadData={loadData}
     onExpand={(keys, info) => {
-      setExpandedKeys(keys.map(String));
+      setExpandedKeys(keys.filter((key): key is number => typeof key === "number"));
       if (info.expanded && (info.node as Item).children) {
-        refresh(String(info.node.key), true);
+        refresh(info.node.key as number, true);
       }
     }}
     titleRender={(data) => {
