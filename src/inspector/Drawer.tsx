@@ -86,32 +86,25 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   useEffect(() => () => cancelClose(), []);
 
   return (
-    <aside onMouseEnter={handleEnter} onMouseLeave={handleLeave}
+    <aside className="fixed right-0 top-0 h-screen max-w-[100vw] transition-transform duration-150"
+      onMouseEnter={handleEnter} onMouseLeave={handleLeave}
       style={{
-        position: "fixed", top: 0, right: 0, height: "100vh", width,
-        maxWidth: "100vw", background: token.colorBgElevated,
+        width, background: token.colorBgElevated,
         color: token.colorText, boxShadow: token.boxShadowSecondary,
         fontFamily: token.fontFamily, fontSize: token.fontSize,
         transform: open ? "translateX(0)" :
           `translateX(calc(100% - ${HANDLE_WIDTH}px))`,
-        transition: "transform 150ms",
       }}>
-      <button type="button" aria-label="Resize SugarCube Inspector"
+      <button type="button" className="absolute left-0 top-0 h-full cursor-ew-resize touch-none border-0 p-0" aria-label="Resize SugarCube Inspector"
         aria-expanded={open} onPointerDown={handleResizeStart}
         onPointerMove={handleResize} onPointerUp={handleResizeEnd}
         onPointerCancel={handleResizeEnd}
         onLostPointerCapture={() => { resizePointerIdRef.current = null; }}
         onKeyDown={handleKeyDown}
-        style={{
-          position: "absolute", top: 0, left: 0, height: "100%",
-          width: HANDLE_WIDTH, touchAction: "none", cursor: "ew-resize",
-          border: 0, background: token.colorFillSecondary, padding: 0,
-        }}
+        style={{ width: HANDLE_WIDTH, background: token.colorFillSecondary }}
       />
-      <div style={{
-        height: "100%", display: "flex", flexDirection: "column",
-        minHeight: 0, overflow: "hidden", padding: 16, marginLeft: HANDLE_WIDTH,
-      }}>
+      <div className="flex h-full min-h-0 flex-col overflow-hidden p-[16px]"
+        style={{ marginLeft: HANDLE_WIDTH }}>
         {children}
       </div>
     </aside>

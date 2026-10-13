@@ -39,6 +39,27 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
   await expect(drawer.getByTitle('"north"', { exact: true }).last()).toBeVisible();
 });
 
+test("Tailwind utilities stay inside the inspector ShadowRoot", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  const result = await drawer.evaluate((host) => {
+    const shadow = host.shadowRoot!;
+    const layout = shadow.querySelector<HTMLElement>("[data-tailwind-layout]")!;
+    const aside = shadow.querySelector<HTMLElement>("aside")!;
+    const css = shadow.querySelector<HTMLStyleElement>("style[data-inspector-styles='tailwind']")?.textContent ?? "";
+    return {
+      display: getComputedStyle(layout).display,
+      direction: getComputedStyle(layout).flexDirection,
+      position: getComputedStyle(aside).position,
+      generated: css.includes(".flex-col") && css.includes(".min-h-0"),
+      leaked: [...document.querySelectorAll("style")].some(
+        (style) => style.textContent?.includes(".min-h-0") && style.textContent?.includes(".flex-col"),
+      ),
+    };
+  });
+  expect(result).toEqual({ display: "flex", direction: "column", position: "fixed", generated: true, leaked: false });
+});
+
 test("Ant Design Tree View preserves scope navigation and variable inspection", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openDrawer(page);

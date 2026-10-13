@@ -1,0 +1,22 @@
+/* Keep Ant Design base styles; Tailwind is utilities-only. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "../inspector";
+
+:host { color-scheme: dark; }
+:host *, :host *::before, :host *::after { box-sizing: border-box; }
+
+.inspector-tabs { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.inspector-tabs > .ant-tabs-nav { flex: none; }
+.inspector-tabs > .ant-tabs-body-holder,
+.inspector-tabs > .ant-tabs-body-holder > .ant-tabs-body,
+.inspector-tabs > .ant-tabs-body-holder > .ant-tabs-body
+  > .ant-tabs-content.ant-tabs-content-active {
+  display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden;
+}
+.sugarcube-variable-tree { height: 100%; display: flex; flex-direction: column; }
+.sugarcube-variable-tree > .ant-tree-list {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+}
+.sugarcube-variable-tree .ant-tree-list-holder { flex: 1; min-height: 0; }

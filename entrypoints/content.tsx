@@ -3,10 +3,12 @@ import { ConfigProvider, theme } from "antd";
 import Drawer from "@/src/inspector/Drawer";
 import DirectInspector from "@/src/inspector/DirectInspector";
 import ReactDOM from "react-dom/client";
+import tailwindStyles from "@/src/styles/tailwind.css?inline";
 
 /** The inspector runs in SugarCube's MAIN world, isolated by its ShadowRoot. */
 export default defineContentScript({
   matches: ["file:///*"],
+  cssInjectionMode: "manual",
   world: "MAIN",
   runAt: "document_idle",
 
@@ -19,33 +21,8 @@ export default defineContentScript({
       "position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647";
     const shadow = host.attachShadow({ mode: "open" });
     const baseline = document.createElement("style");
-    baseline.textContent = `
-      :host { color-scheme: dark; }
-      :host *, :host *::before, :host *::after { box-sizing: border-box; }
-      .inspector-tabs {
-        display: flex; flex: 1; flex-direction: column; min-height: 0;
-      }
-      .inspector-tabs > .ant-tabs-nav { flex: none; }
-      .inspector-tabs > .ant-tabs-body-holder,
-      .inspector-tabs > .ant-tabs-body-holder > .ant-tabs-body,
-      .inspector-tabs > .ant-tabs-body-holder > .ant-tabs-body
-        > .ant-tabs-content.ant-tabs-content-active {
-        display: flex;
-        flex: 1;
-        flex-direction: column;
-        min-height: 0;
-        overflow: hidden;
-      }
-      .sugarcube-variable-tree {
-        height: 100%; display: flex; flex-direction: column;
-      }
-      .sugarcube-variable-tree > .ant-tree-list {
-        flex: 1; min-height: 0; display: flex; flex-direction: column;
-      }
-      .sugarcube-variable-tree .ant-tree-list-holder {
-        flex: 1; min-height: 0;
-      }
-    `;
+    baseline.dataset.inspectorStyles = "tailwind";
+    baseline.textContent = tailwindStyles;
     const container = document.createElement("div");
     shadow.append(baseline, container);
     document.documentElement.append(host);

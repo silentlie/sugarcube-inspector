@@ -54,7 +54,7 @@ function RichVariableTree({ storeKey, rootValue }: {
     return Promise.resolve();
   }, [refresh]);
 
-  return <div ref={setViewport} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+  return <div ref={setViewport} className="min-h-0 flex-1 overflow-hidden">
     {height > 0 && <Tree
     aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
     className="sugarcube-variable-tree"
@@ -101,10 +101,7 @@ export default function VariableTree({ storeKey }: { storeKey: VariableStoreKey 
     return () => variableWatcher.setScopeVisible(storeKey, false);
   }, [storeKey, inView]);
 
-  return <div ref={ref} style={{
-    display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
-    overflow: "hidden",
-  }}>
+  return <div ref={ref} className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <VariableScopeContext.Provider value={storeKey}>
       <VariableTreeContent storeKey={storeKey} />
     </VariableScopeContext.Provider>

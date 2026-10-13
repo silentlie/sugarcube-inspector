@@ -5,8 +5,8 @@ It reads live story and temporary variables directly without attaching a debugge
 
 ## User interface
 
-- **Ant Design** provides the tabs, labels, buttons, dark/compact theme and virtualized Tree.
-  No MUI, Tailwind, shadcn, or commercial UI dependencies are needed.
+- **Ant Design** provides tabs, labels, buttons, dark/compact theme and the virtualized Tree.
+- **Tailwind CSS v4** handles layout, spacing and text utilities. Its Preflight reset is deliberately omitted to preserve Ant Design component styles.
 - Overview, Variables, and Scripts are top-level tabs. Under Variables are
   Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
   Favorites are placeholders.
@@ -19,8 +19,7 @@ It reads live story and temporary variables directly without attaching a debugge
 - Variable rows syntax-highlight values with `prism-react-renderer` and its
   built-in VS Dark theme. Type labels reuse that palette instead of custom color
   definitions; the existing live-data behavior is unchanged.
-- The remaining layout settings handle drawer geometry, its resize handle,
-  and value truncation. Ant's dark/compact theme supplies the default styling.
+- Tailwind classes provide static drawer/layout styling; inline styles remain for live width, open/closed transform and Ant Design theme tokens.
 
 ## Behavior
 
@@ -61,7 +60,9 @@ It reads live story and temporary variables directly without attaching a debugge
 `entrypoints/content.tsx` mounts React in a manually created ShadowRoot in
 Chrome's MAIN world. Ant's `StyleProvider` inserts styles in the ShadowRoot.
 A dark and compact `ConfigProvider` directs popups to the inspector container.
-A small scoped baseline avoids modifying the game's page.
+Tailwind utilities and the scoped tabs/tree flex-height rules are compiled into one stylesheet and mounted only inside that ShadowRoot. The game page receives no CSS reset.
+
+Tailwind uses `@tailwindcss/vite` and an inline CSS-string import in the MAIN-world entrypoint. `cssInjectionMode: "manual"` prevents automatic document-level stylesheet injection.
 
 Shadow DOM isolates appearance but not JavaScript. A hostile or broken game
 can affect the inspector, and vice versa. Do not run on untrusted pages.

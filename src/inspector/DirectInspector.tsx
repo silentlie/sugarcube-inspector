@@ -61,12 +61,9 @@ function InspectorSections() {
   );
 
   return (
-    <section style={{
-      display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
-      overflow: "hidden",
-    }}>
+    <section data-tailwind-layout className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Flex align="center" justify="space-between">
-        <div>
+        <div className="min-w-0">
           <Typography.Title level={5} style={{ margin: 0 }}>
             SugarCube Inspector
           </Typography.Title>
