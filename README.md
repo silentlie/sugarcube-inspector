@@ -12,8 +12,10 @@ It does not attach a debugger or use a cross-world messaging bridge.
   Favorites are placeholders.
 - The variable tree uses Ant Design's built-in virtualization and discovers children
   lazily on expansion. ID-based, one-level reconciliation reuses unchanged nodes and
-  child arrays; replaced objects refresh only loaded branches. All logical children
-  remain accessible through scrolling.
+  child arrays; replaced objects refresh only loaded branches. Expanded rows
+  revalidate their loaded children when remounted after virtualization, including
+  in-place changes made while offscreen. All logical children remain accessible
+  through scrolling.
 - Variable rows syntax-highlight values with `prism-react-renderer` and its
   built-in VS Dark theme. Type labels reuse that palette instead of custom color
   definitions; the existing live-data behavior is unchanged.
