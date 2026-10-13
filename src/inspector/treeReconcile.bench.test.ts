@@ -61,7 +61,7 @@ describe.skipIf(process.env.SC_TREE_BENCH !== "1")("reconciliation CPU benchmark
       const added = getVariableChildren(root);
       delete data.newVariable;
       const changed = data.item0 as Record<string, unknown>;
-      changed.nested2 = 999;
+      changed.addedNested = 999;
       const nestedRoot = shared[0]!;
       const nestedOld = baseline[0]!;
       const newOwner = {...(data.item1 as Record<string, unknown>)};
@@ -91,7 +91,7 @@ describe.skipIf(process.env.SC_TREE_BENCH !== "1")("reconciliation CPU benchmark
         ()=>recursive(getVariableChildren(nestedOld.variable),nestedOld.children),runs);
       const sharedBranch = sample(()=>refreshItem(nestedRoot,true),runs);
       console.log("TREE_RECONCILE_BENCH="+JSON.stringify({
-        size,scenario:"direct-expanded-refresh",baseline:baselineBranch,shared:sharedBranch,
+        size,scenario:"direct-expanded-add-property",baseline:baselineBranch,shared:sharedBranch,
         initialReusesArray:false
       }));
     });

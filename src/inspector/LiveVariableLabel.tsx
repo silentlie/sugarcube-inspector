@@ -59,6 +59,7 @@ export function LiveVariableLabel({ node, expanded, refresh, isLeaf, loadedValue
   const current = useVariable(node.location);
   const value = current.kind === "value" ? current.value : undefined;
   const previousValueRef = useRef(value);
+  const mountedRef = useRef(false);
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
   const circular = !isMapEntry && current.kind === "value" && current.expandable &&
@@ -67,12 +68,15 @@ export function LiveVariableLabel({ node, expanded, refresh, isLeaf, loadedValue
   useEffect(() => {
     const previous = previousValueRef.current;
     previousValueRef.current = value;
-    // A virtualized row can remount after its object changed while offscreen.
-    // Repair loaded children as soon as its expanded parent is rendered again.
+    const firstRender = !mountedRef.current;
+    mountedRef.current = true;
+    // An expanded virtual row can remount after in-place structural mutations
+    // that weren't polled while it was offscreen.
     const changedObject = !Object.is(previous, value) &&
       (isObject(previous) || isObject(value));
     const staleChildren = expanded && (!childrenLoaded || !Object.is(loadedValue, value));
-    if (changedObject || staleChildren || isLeaf !== !isExpandableNode(node)) {
+    if ((firstRender && expanded) || changedObject || staleChildren ||
+        isLeaf !== !isExpandableNode(node)) {
       refresh(node.id, expanded);
     }
   }, [value, expanded, loadedValue, childrenLoaded, isLeaf, node, refresh]);

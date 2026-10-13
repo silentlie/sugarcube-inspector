@@ -400,6 +400,19 @@ test("offscreen expanded object replacement refreshes its children on return", a
   await holder.evaluate((el) => { el.scrollTop = 0; });
   await expect(drawer.getByText("after", { exact: true })).toBeVisible();
   await expect(drawer.getByText("before", { exact: true })).toHaveCount(0);
+
+  // Also recover an in-place mutation made while the expanded parent was unmounted.
+  await holder.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  await expect(drawer.getByRole("treeitem", { name: /^replaceWhileOffscreen/ })).toHaveCount(0);
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as {
+      replaceWhileOffscreen: Record<string, number>;
+    };
+    vars.replaceWhileOffscreen.added = 17;
+  });
+  await holder.evaluate((el) => { el.scrollTop = 0; });
+  await expect(drawer.getByText("added", { exact: true })).toBeVisible();
+  await expect(drawer.getByTitle("17", { exact: true })).toBeVisible();
 });
 
 test("virtual tree reaches all 10,000 children without mounting offscreen rows", async ({ page }) => {
