@@ -9,6 +9,7 @@ import { getVariableChildren, type VariableNode } from "../inspection/variableTr
 import { getLocationName } from "../inspection/variableStructure";
 import { LiveVariableLabel } from "./LiveVariableLabel";
 import { useStructure, useVariable } from "./useVariableWatch";
+import { frameMode } from "./frameBenchmark.temp";
 
 type Item = TreeDataNode & {
   key: string;
@@ -113,7 +114,9 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
   }, [refresh]);
 
   return <div ref={setViewport} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-    {height > 0 && <Tree
+    {height > 0 && (frameMode() === "noAnt"
+      ? <div data-frame-no-ant="true" style={{ height: "100%" }} />
+      : <Tree
     aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
     className="sugarcube-variable-tree"
     blockNode
@@ -134,10 +137,11 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     }}
     titleRender={(data) => {
       const item = data as Item;
-      return <LiveVariableLabel
-        node={item.variable} expanded={expanded.has(item.key)} refresh={refresh} />;
+      return frameMode() === "plain" ? item.variable.id
+        : <LiveVariableLabel
+          node={item.variable} expanded={expanded.has(item.key)} refresh={refresh} />;
     }}
-  />}
+  />)}
   </div>;
 }
 
