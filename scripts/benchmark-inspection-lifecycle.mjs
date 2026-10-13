@@ -53,11 +53,11 @@ async function build() {
   run("git", ["worktree", "add", "--detach", stage, "HEAD"]);
   await symlink(join(root, "node_modules"), join(stage, "node_modules"), process.platform === "win32" ? "junction" : "dir");
   await instrument("src/inspection/variableStructure.ts", [
-    "readStructure", "sameStructure", "listChildren", "getLocationId", "getLocationName",
+    "readStructure", "sameStructure", "listChildren", "getLocationName",
   ]);
   await instrument("src/inspection/variableLocation.ts", ["snapshot", "readVariable", "sameVariable"]);
   await instrument("src/inspection/valuePreview.ts", ["preview", "boxedPrimitive"]);
-  await instrument("src/inspection/variableTree.ts", ["getVariableChildren"]);
+  await instrument("src/inspection/variableTree.ts", ["getChildId", "getVariableChildren"]);
   await instrument("src/inspection/isExpandableNode.ts", ["isExpandableNode"]);
   await instrument("src/inspector/variableTreeItems.ts", [
     "reconcileChildren", "refreshItem", "updateTreeItem", "valueAt",
@@ -280,7 +280,7 @@ function stageCosts(costs) {
   const groups = {
     "Structure scan/compare": ["readStructure", "sameStructure"],
     "Value inspection": ["readVariable", "sameVariable", "snapshot", "preview", "boxedPrimitive"],
-    "Child discovery / ID": ["getVariableChildren", "listChildren", "getLocationId", "getLocationName"],
+    "Child discovery / ID": ["getVariableChildren", "listChildren", "getChildId", "getLocationName"],
     "Tree reconciliation": ["reconcileChildren", "refreshItem", "updateTreeItem", "valueAt", "isExpandableNode"],
     "Watcher callback": ["watchCheck"],
     "Inspector React components": ["VariableTree", "VariableTreeContent", "RichVariableTree",
