@@ -99,7 +99,9 @@ test("runAll measures every variant with a fresh tree and downloads one JSON rep
   expect(download.suggestedFilename()).toMatch(/^sugarcube-inspector-benchmark-.*\.json$/);
   expect(suite.mode).toBe("suite");
   expect(suite.results.map(result => result.variant)).toEqual([
-    "normal", "destroyOnHidden", "noTree", "noAnt", "plainRows", "noRootWatch", "noRowWatch",
+    "normal", "destroyOnHidden", "noTree", "noAnt", "plainRows",
+    "staticRows", "noPrism", "noRowVisibility", "stableWatchers", "stableTreeData",
+    "noRootWatch", "noRowWatch",
   ]);
   expect(suite.summary.every(summary => summary.switches === 2)).toBe(true);
   expect(suite.results[0]!.periods.map(period => period.cold)).toEqual([true, false]);

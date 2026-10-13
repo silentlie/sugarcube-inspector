@@ -7,7 +7,7 @@ import { isExpandableNode } from "../inspection/isExpandableNode";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
 import { getLocationName } from "../inspection/variableStructure";
-import { LiveVariableLabel } from "./LiveVariableLabel";
+import { LiveVariableLabel, StaticVariableLabel } from "./LiveVariableLabel";
 import { useStructure, useVariable } from "./useVariableWatch";
 import { BENCHMARK_BUILD, benchmarkVariant, count, reactCommit, timed } from "./benchmark/metrics";
 
@@ -34,7 +34,15 @@ function makeItem(variable: VariableNode, previous?: Item): Item {
 
 function reconcile(nodes: VariableNode[], old: readonly Item[] = []): Item[] {
   const byId = new Map(old.map((node) => [node.key, node]));
-  return nodes.map((node) => makeItem(node, byId.get(node.id)));
+  const next = nodes.map((node) => makeItem(node, byId.get(node.id)));
+  // Experimental structural sharing: preserve treeData identity when the
+  // same keys, leaf flags, and child arrays were rebuilt.
+  if (benchmarkVariant() === "stableTreeData" && next.length === old.length &&
+      next.every((item, i) => item.key === old[i]?.key &&
+        item.isLeaf === old[i]?.isLeaf && item.children === old[i]?.children)) {
+    return old as Item[];
+  }
+  return next;
 }
 
 /** Share unchanged sibling arrays when replacing one subtree. */
@@ -138,8 +146,10 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
       count("tree.titleRender");
       const item = data as Item;
       if (benchmarkVariant() === "plainRows") return item.title as string;
+      if (benchmarkVariant() === "staticRows") return <StaticVariableLabel node={item.variable} />;
       return <LiveVariableLabel
-        node={item.variable} expanded={expanded.has(item.key)} refresh={refresh} />;
+        node={item.variable} expanded={expanded.has(item.key)} refresh={refresh}
+        parentVisible={visible} />;
     }}
   />;
 

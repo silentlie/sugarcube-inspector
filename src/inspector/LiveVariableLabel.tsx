@@ -2,7 +2,7 @@ import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
 import { useEffect, useMemo, useRef } from "react";
 import { useInView } from "react-intersection-observer";
-import type { VariableLocation, VariableSnapshot } from "../inspection/variableLocation";
+import { readVariable, type VariableLocation, type VariableSnapshot } from "../inspection/variableLocation";
 import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "../inspection/variableTree";
 import { useStructure, useVariable } from "./useVariableWatch";
@@ -14,18 +14,19 @@ function ValueTokens({ current, showType = true }: { current: VariableSnapshot; 
     current.kind === "accessor" ? current.accessor : current.kind;
   const preview = current.kind === "value" ? current.preview :
     current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
+  const noPrism = benchmarkVariant() === "noPrism";
   return <>
     {showType && <span style={{
       fontFamily: "monospace", fontSize: 12, flexShrink: 0, whiteSpace: "nowrap",
     }}>
-      <TypeSyntax type={type} />
+      {noPrism ? type : <TypeSyntax type={type} />}
     </span>}
     <span title={preview} style={{
       fontFamily: "monospace", fontSize: 12,
       maxWidth: showType ? "45%" : "100%", overflow: "hidden",
       textOverflow: "ellipsis", whiteSpace: "nowrap",
     }}>
-      <ValueSyntax type={type} preview={preview} />
+      {noPrism ? preview : <ValueSyntax type={type} preview={preview} />}
     </span>
   </>;
 }
@@ -52,13 +53,27 @@ function ExpandedStructureWatcher({ value, onChange }: {
   return null;
 }
 
+/** Formatted snapshot-only row; no hooks or live row subscriptions. */
+export function StaticVariableLabel({ node }: { node: VariableNode }) {
+  const current = readVariable(node.location);
+  return <span style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", whiteSpace: "nowrap" }}>
+      {getLocationName(node.location)}
+    </span>
+    <ValueTokens current={current} />
+  </span>;
+}
+
 /** Only virtualized rows mount these hooks and live value subscriptions. */
-export function LiveVariableLabel({ node, expanded, refresh }: {
+export function LiveVariableLabel({ node, expanded, refresh, parentVisible }: {
   node: VariableNode; expanded: boolean; refresh: (id: string) => void;
+  parentVisible: boolean;
 }) {
   count("row.render");
-  const { ref, inView } = useInView();
-  const rowVisible = inView && benchmarkVariant() !== "noRowWatch";
+  const noRowVisibility = benchmarkVariant() === "noRowVisibility";
+  const { ref, inView } = useInView({ skip: noRowVisibility });
+  const rowVisible = (noRowVisibility ? parentVisible : inView) &&
+    benchmarkVariant() !== "noRowWatch";
   const current = useVariable(node.location, rowVisible);
   const value = current.kind === "value" ? current.value : undefined;
   const previousValueRef = useRef(value);

@@ -63,7 +63,9 @@ export type BenchmarkAPI = {
   last: BenchmarkResult | BenchmarkSuiteResult | null;
 };
 const variants: BenchVariant[] = [
-  "normal", "destroyOnHidden", "noTree", "noAnt", "plainRows", "noRootWatch", "noRowWatch",
+  "normal", "destroyOnHidden", "noTree", "noAnt", "plainRows",
+  "staticRows", "noPrism", "noRowVisibility", "stableWatchers", "stableTreeData",
+  "noRootWatch", "noRowWatch",
 ];
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const median = (numbers: number[]) => {

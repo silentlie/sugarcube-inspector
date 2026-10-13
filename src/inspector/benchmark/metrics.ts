@@ -3,7 +3,9 @@ export const BENCHMARK_BUILD =
   import.meta.env.DEV || import.meta.env.VITE_SC_INSPECTOR_BENCHMARK === "1";
 
 export type BenchVariant =
-  "normal" | "destroyOnHidden" | "noTree" | "noAnt" | "plainRows" | "noRootWatch" | "noRowWatch";
+  "normal" | "destroyOnHidden" | "noTree" | "noAnt" | "plainRows" |
+  "staticRows" | "noPrism" | "noRowVisibility" | "stableWatchers" |
+  "stableTreeData" | "noRootWatch" | "noRowWatch";
 
 export type Stat = { calls: number; totalMs: number; maxMs: number };
 export type Stats = Record<string, Stat>;

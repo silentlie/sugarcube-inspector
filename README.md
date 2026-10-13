@@ -97,7 +97,7 @@ Switch manually between Overview, Variables, and Scripts while recording.
 The manual report gives per-click frame gaps. `aggregateStats` in the JSON
 contains watcher and tree metrics for the full recording period.
 
-To run **all seven variants and export a combined JSON report in one command**:
+To run **all twelve variants and export a combined JSON report in one command**:
 
 ```js
 await scInspectorBench.runAll({ cycles: 10, sampleMs: 750, settleMs: 400 })
@@ -118,6 +118,11 @@ await scInspectorBench.run({ variant: "destroyOnHidden" }) // Unmount the entire
 await scInspectorBench.run({ variant: "noTree" })      // Tabs only
 await scInspectorBench.run({ variant: "noAnt" })       // Tree data, no Ant component
 await scInspectorBench.run({ variant: "plainRows" })   // Ant, no live row renderer
+await scInspectorBench.run({ variant: "staticRows" })  // Formatted snapshots, no live row hooks
+await scInspectorBench.run({ variant: "noPrism" })     // Live row hooks, no syntax highlighting
+await scInspectorBench.run({ variant: "noRowVisibility" }) // Poll mounted rows while tab visible
+await scInspectorBench.run({ variant: "stableWatchers" }) // Keep watches when visibility changes
+await scInspectorBench.run({ variant: "stableTreeData" }) // Reuse equivalent tree item arrays
 await scInspectorBench.run({ variant: "noRootWatch" }) // Disable root polling
 await scInspectorBench.run({ variant: "noRowWatch" })  // Disable visible row polling
 ```
