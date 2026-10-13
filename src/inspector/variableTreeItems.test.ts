@@ -3,7 +3,7 @@ import { getVariableChildren, type VariableNode } from "../inspection/variableTr
 import { reconcileChildren, refreshItem, updateTreeItem } from "./variableTreeItems";
 
 function parent(value: object): VariableNode {
-  return { id: "root", location: { kind: "property", owner: { value }, key: "value" }, ancestors: [] };
+  return { id: 0, location: { kind: "property", owner: { value }, key: "value" }, ancestors: [] };
 }
 function child(items: ReturnType<typeof reconcileChildren>, name: string) {
   return items.find((item) => item.variable.location.kind === "property" &&
