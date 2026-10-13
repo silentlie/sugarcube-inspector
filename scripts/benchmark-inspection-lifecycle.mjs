@@ -153,8 +153,8 @@ async function setup(context, size) {
         const own = Object.values(this.costs).reduce((sum, c) => sum + c.exclusiveMs, 0);
         return {
           costs: this.costs, counts: this.counts, commits: this.commits,
-          namedExclusiveMs: round3(own),
-          firstCommitMs: this.commits ? round3(this.committedAt - this.beganAt) : null,
+          namedExclusiveMs: Math.round(own * 1000) / 1000,
+          firstCommitMs: this.commits ? Math.round((this.committedAt - this.beganAt) * 1000) / 1000 : null,
           frames: frames.length,
           dropped25: frames.filter(x => x > 25).length,
           p95FrameMs: frames[Math.max(0, Math.ceil(frames.length * 0.95) - 1)] ?? null,
