@@ -1,4 +1,5 @@
 import { isObject } from "@sindresorhus/is";
+import { isExpandableNode } from "../inspection/isExpandableNode";
 import { Typography } from "antd";
 import { useEffect, useMemo, useRef } from "react";
 import type { VariableLocation, VariableSnapshot } from "../inspection/variableLocation";
@@ -51,8 +52,9 @@ function ExpandedStructureWatcher({ value, onChange }: {
 }
 
 /** Only virtualized rows mount these hooks and live value subscriptions. */
-export function LiveVariableLabel({ node, expanded, refresh }: {
+export function LiveVariableLabel({ node, expanded, refresh, isLeaf, loadedValue, childrenLoaded }: {
   node: VariableNode; expanded: boolean; refresh: (id: string) => void;
+  isLeaf: boolean; loadedValue: unknown; childrenLoaded: boolean;
 }) {
   const current = useVariable(node.location);
   const value = current.kind === "value" ? current.value : undefined;
@@ -65,9 +67,15 @@ export function LiveVariableLabel({ node, expanded, refresh }: {
   useEffect(() => {
     const previous = previousValueRef.current;
     previousValueRef.current = value;
-    if (!Object.is(previous, value) &&
-        (isObject(previous) || isObject(value))) refresh(node.id);
-  }, [value, node.id, refresh]);
+    // A virtualized row can remount after its object changed while offscreen.
+    // Repair loaded children as soon as its expanded parent is rendered again.
+    const changedObject = !Object.is(previous, value) &&
+      (isObject(previous) || isObject(value));
+    const staleChildren = expanded && (!childrenLoaded || !Object.is(loadedValue, value));
+    if (changedObject || staleChildren || isLeaf !== !isExpandableNode(node)) {
+      refresh(node.id, expanded);
+    }
+  }, [value, expanded, loadedValue, childrenLoaded, isLeaf, node, refresh]);
 
   return <span style={{
     display: "flex", alignItems: "center", gap: 8, minWidth: 0, width: "100%",

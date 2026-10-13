@@ -375,6 +375,33 @@ test("retained tree catches up after its Variables tab was hidden", async ({ pag
   await expect(drawer.getByTitle("101", { exact: true })).toBeVisible();
 });
 
+
+test("offscreen expanded object replacement refreshes its children on return", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    vars.replaceWhileOffscreen = { before: 1 };
+    vars.scrollPadding = Object.fromEntries(
+      Array.from({ length: 100 }, (_, i) => [`row${String(i).padStart(3, "0")}`, i]),
+    );
+  });
+  await expandVariable(drawer, "replaceWhileOffscreen");
+  await expect(drawer.getByText("before", { exact: true })).toBeVisible();
+  const holder = drawer.locator(".ant-tree-list-holder").first();
+  await holder.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  await expect(drawer.getByRole("treeitem", { name: /^row099/ })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^replaceWhileOffscreen/ })).toHaveCount(0);
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    vars.replaceWhileOffscreen = { after: 9 };
+  });
+  await page.waitForTimeout(350);
+  await holder.evaluate((el) => { el.scrollTop = 0; });
+  await expect(drawer.getByText("after", { exact: true })).toBeVisible();
+  await expect(drawer.getByText("before", { exact: true })).toHaveCount(0);
+});
+
 test("virtual tree reaches all 10,000 children without mounting offscreen rows", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);

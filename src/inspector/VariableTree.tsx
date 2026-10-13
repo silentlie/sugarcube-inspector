@@ -3,56 +3,12 @@ import { Tree, Typography, type TreeDataNode } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
-import { isExpandableNode } from "../inspection/isExpandableNode";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
-import { getLocationName } from "../inspection/variableStructure";
 import { variableWatcher } from "../inspection/variableWatcher";
 import { LiveVariableLabel } from "./LiveVariableLabel";
 import { VariableScopeContext, useStructure, useVariable } from "./useVariableWatch";
-
-type Item = TreeDataNode & {
-  key: string;
-  variable: VariableNode;
-  children?: Item[];
-};
-
-/** Only expanded branches have child data; unexpanded locations stay lazy. */
-function makeItem(variable: VariableNode, previous?: Item): Item {
-  const expandable = isExpandableNode(variable);
-  const children = expandable && previous?.children
-    ? reconcile(getVariableChildren(variable), previous.children)
-    : undefined;
-  return {
-    key: variable.id,
-    title: getLocationName(variable.location),
-    variable,
-    isLeaf: !expandable,
-    ...(children && { children }),
-  };
-}
-
-function reconcile(nodes: VariableNode[], old: readonly Item[] = []): Item[] {
-  const byId = new Map(old.map((node) => [node.key, node]));
-  return nodes.map((node) => makeItem(node, byId.get(node.id)));
-}
-
-/** Share unchanged sibling arrays when replacing one subtree. */
-function replaceChildren(items: Item[], target: string, children: Item[]): Item[] {
-  let changed = false;
-  const next = items.map((item) => {
-    if (item.key === target) {
-      changed = true;
-      return { ...item, isLeaf: children.length === 0, children };
-    }
-    if (!item.children) return item;
-    const descendants = replaceChildren(item.children, target, children);
-    if (descendants === item.children) return item;
-    changed = true;
-    return { ...item, children: descendants };
-  });
-  return changed ? next : items;
-}
+import { reconcileChildren, refreshItem, updateTreeItem, type Item } from "./variableTreeItems";
 
 function RichVariableTree({ storeKey, rootValue }: {
   storeKey: VariableStoreKey; rootValue: object;
@@ -63,7 +19,7 @@ function RichVariableTree({ storeKey, rootValue }: {
     location: { kind: "state", key: storeKey },
     ancestors: [],
   }), [storeKey]);
-  const [items, setItems] = useState<Item[]>(() => reconcile(getVariableChildren(rootNode)));
+  const [items, setItems] = useState<Item[]>(() => reconcileChildren(getVariableChildren(rootNode)));
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
@@ -84,32 +40,17 @@ function RichVariableTree({ storeKey, rootValue }: {
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
-      if (active) setItems((old) => reconcile(getVariableChildren(rootNode), old));
+      if (active) setItems((old) => reconcileChildren(getVariableChildren(rootNode), old));
     });
     return () => { active = false; };
   }, [rootNode, rootValue, structure]);
 
-  const refresh = useCallback((id: string) => {
-    const find = (nodes: readonly Item[]): Item | undefined => {
-      for (const node of nodes) {
-        if (node.key === id) return node;
-        if (node.children) {
-          const child = find(node.children);
-          if (child) return child;
-        }
-      }
-      return undefined;
-    };
-    setItems((old) => {
-      const item = find(old);
-      if (!item) return old;
-      const children = reconcile(getVariableChildren(item.variable), item.children);
-      return replaceChildren(old, id, children);
-    });
+  const refresh = useCallback((id: string, load = false) => {
+    setItems((old) => updateTreeItem(old, id, (item) => refreshItem(item, load)));
   }, []);
 
   const loadData = useCallback((item: TreeDataNode): Promise<void> => {
-    refresh(String(item.key));
+    refresh(String(item.key), true);
     return Promise.resolve();
   }, [refresh]);
 
@@ -129,13 +70,15 @@ function RichVariableTree({ storeKey, rootValue }: {
     onExpand={(keys, info) => {
       setExpandedKeys(keys.map(String));
       if (info.expanded && (info.node as Item).children) {
-        refresh(String(info.node.key));
+        refresh(String(info.node.key), true);
       }
     }}
     titleRender={(data) => {
       const item = data as Item;
       return <LiveVariableLabel
-        node={item.variable} expanded={expanded.has(item.key)} refresh={refresh} />;
+        node={item.variable} expanded={expanded.has(item.key)} refresh={refresh}
+        isLeaf={Boolean(item.isLeaf)} loadedValue={item.loadedValue}
+        childrenLoaded={item.children !== undefined} />;
     }}
   />}
   </div>;

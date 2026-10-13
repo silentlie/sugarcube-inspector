@@ -11,7 +11,9 @@ It does not attach a debugger or use a cross-world messaging bridge.
   Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
   Favorites are placeholders.
 - The variable tree uses Ant Design's built-in virtualization and discovers children
-  lazily on expansion. All logical children remain accessible through scrolling.
+  lazily on expansion. ID-based, one-level reconciliation reuses unchanged nodes and
+  child arrays; replaced objects refresh only loaded branches. All logical children
+  remain accessible through scrolling.
 - Variable rows syntax-highlight values with `prism-react-renderer` and its
   built-in VS Dark theme. Type labels reuse that palette instead of custom color
   definitions; the existing live-data behavior is unchanged.
