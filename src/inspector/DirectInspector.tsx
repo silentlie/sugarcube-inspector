@@ -41,6 +41,11 @@ function ReadyInspector() {
   const variant = useSyncExternalStore(subscribeBenchmarkVariant, benchmarkVariant);
   const resetId = useSyncExternalStore(subscribeBenchmarkVariant, benchmarkResetId);
 
+  // Each benchmark variant starts in Story Variables, regardless of previous scope.
+  useEffect(() => {
+    setScope("variables");
+  }, [resetId]);
+
   useEffect(() => {
     const passages = document.getElementById("passages");
     if (!passages) return;
