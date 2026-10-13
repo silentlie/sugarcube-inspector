@@ -412,7 +412,8 @@ test("offscreen expanded object replacement refreshes its children on return", a
   });
   await holder.evaluate((el) => { el.scrollTop = 0; });
   await expect(drawer.getByText("added", { exact: true })).toBeVisible();
-  await expect(drawer.getByTitle("17", { exact: true })).toBeVisible();
+  await expect(drawer.getByRole("treeitem", { name: /^added/ })
+    .getByTitle("17", { exact: true })).toBeVisible();
 });
 
 test("virtual tree reaches all 10,000 children without mounting offscreen rows", async ({ page }) => {
