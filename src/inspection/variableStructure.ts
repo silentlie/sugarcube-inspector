@@ -8,39 +8,6 @@ type StructurePart =
   | { kind: "map"; key: unknown }
   | { kind: "set"; key: unknown };
 
-const childIds = new WeakMap<object, Map<unknown, string>>();
-let nextChildId = 0;
-
-function idForChild(owner: object, key: unknown): string {
-  let ids = childIds.get(owner);
-  if (!ids) {
-    ids = new Map();
-    childIds.set(owner, ids);
-  }
-  let id = ids.get(key);
-  if (!id) {
-    id = String(++nextChildId);
-    ids.set(key, id);
-  }
-  return id;
-}
-
-/** IDs depend on the owner and key, not collection positions or display names. */
-export function getLocationId(location: VariableLocation): string {
-  switch (location.kind) {
-    case "state":
-      return location.key;
-    case "property":
-      return `property-${idForChild(location.owner, location.key)}`;
-    case "map": {
-      const id = idForChild(location.owner, location.key);
-      return location.part ? `map-${id}-${location.part}` : `map-${id}`;
-    }
-    case "set":
-      return `set-${idForChild(location.owner, location.member)}`;
-  }
-}
-
 /** A tree label is derived from a live location; no positional indices. */
 export function getLocationName(location: VariableLocation): string {
   switch (location.kind) {
