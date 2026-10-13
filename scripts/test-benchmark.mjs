@@ -9,6 +9,7 @@ const steps = [
 for (const [command, args] of steps) {
   const result = spawnSync(command, args, {
     stdio: "inherit",
+    env: { ...process.env, SC_INSPECTOR_BENCHMARK_TEST: "1" },
     shell: process.platform === "win32" && command === npm,
   });
   if (result.error) throw result.error;
