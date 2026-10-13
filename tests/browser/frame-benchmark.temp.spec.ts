@@ -62,7 +62,7 @@ test("temporary benchmark animation-frame gaps on tab switches", async ({page}) 
             };
             requestAnimationFrame(tick);
           });
-          const baselineIntervals=baseline.slice(1).map((t,i)=>t-baseline[i]);
+          const baselineIntervals=baseline.slice(1).map((t,i)=>t-baseline[i]!);
           const longTasks: {startTime:number;duration:number}[]=[];
           let observer:PerformanceObserver|undefined;
           if(PerformanceObserver.supportedEntryTypes.includes("longtask")){
@@ -111,7 +111,7 @@ test("temporary benchmark animation-frame gaps on tab switches", async ({page}) 
           // Wait one additional task to let the observer report completed LongTasks.
           await new Promise<void>(resolve=>setTimeout(resolve,0));
           observer?.disconnect();
-          const intervals=times.slice(1).map((t,i)=>t-times[i]);
+          const intervals=times.slice(1).map((t,i)=>t-times[i]!);
           const baselineMaxGapMs=Math.max(...baselineIntervals);
           // Keep a fixed 60 Hz reporting budget, but show the baseline too.
           const missedFrames60=intervals.reduce((sum,gap)=>sum+Math.max(0,Math.floor((gap+0.25)/16.667)-1),0);
