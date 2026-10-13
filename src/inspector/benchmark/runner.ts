@@ -43,7 +43,7 @@ export type BenchmarkAPI = {
   last: BenchmarkResult | null;
 };
 const variants: BenchVariant[] = [
-  "normal", "noTree", "noAnt", "plainRows", "noRootWatch", "noRowWatch",
+  "normal", "destroyOnHidden", "noTree", "noAnt", "plainRows", "noRootWatch", "noRowWatch",
 ];
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const median = (numbers: number[]) => {
@@ -228,6 +228,9 @@ export function installBenchmark(): BenchmarkAPI {
         const budget = await frameBudget();
         for (let i = 0; i < cycles; i++) {
           await delay(settleMs);
+          // Detect each remount separately, including destroyOnHidden revisits.
+          const treeWasMounted = !!shadow.querySelector('[aria-label="Story variables tree"]');
+          const cold = variant !== "noTree" && variant !== "noAnt" && !treeWasMounted;
           const frame = rafFrames();
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           const tasks = longTasks();
@@ -241,7 +244,7 @@ export function installBenchmark(): BenchmarkAPI {
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           tasks.stop();
           periods.push(summarisePeriod(
-            "Variables", i === 0 && !wasMounted,
+            "Variables", cold,
             budget, frame.times, tasks.entries, begin, end, capture, shadow,
           ));
           await clickTab(shadow, from);
@@ -249,8 +252,11 @@ export function installBenchmark(): BenchmarkAPI {
         const result: BenchmarkResult = {
           mode: "auto", variant, frameBudgetMs: budget, periods,
           hints: [
-            wasMounted ? "Tree was already mounted; no cold first-mount sample." :
-              "First visit measures mounting; later visits measure retained-tree switches.",
+            variant === "destroyOnHidden"
+              ? "Outer Tabs destroyOnHidden=true: each Variables visit should remount the tree."
+              : wasMounted ? "Tree was already mounted before the run; no initial cold mount." :
+                "Normal Tabs retain their tree after the first mount; cold flags reflect DOM absence before each click.",
+            "noTree/noAnt variants do not render Ant Tree, so cold is reported as false.",
             "For comparable ablations, reload the game before each variant.",
             "No game values or variable names are included in the exported report.",
           ],

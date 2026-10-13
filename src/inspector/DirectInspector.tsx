@@ -1,10 +1,10 @@
 import { Button, Divider, Flex, Tabs, Typography } from "antd";
 import { RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { hasState, type VariableStoreKey } from "../inspection/direct";
 import { variableWatcher } from "../inspection/variableWatcher";
 import VariableTree from "./VariableTree";
-import { benchmarkVariant } from "./benchmark/metrics";
+import { benchmarkVariant, subscribeBenchmarkVariant } from "./benchmark/metrics";
 
 type Section = "overview" | "variables" | "scripts";
 type VariableScope = VariableStoreKey | "favorites";
@@ -36,6 +36,7 @@ export default function DirectInspector() {
 function ReadyInspector() {
   const [section, setSection] = useState<Section>("overview");
   const [scope, setScope] = useState<VariableScope>("variables");
+  const variant = useSyncExternalStore(subscribeBenchmarkVariant, benchmarkVariant);
 
   useEffect(() => {
     const passages = document.getElementById("passages");
@@ -55,7 +56,7 @@ function ReadyInspector() {
       onChange={(key) => setScope(key as VariableScope)}
       items={[
         { key: "variables", label: "Story Variables", children:
-          benchmarkVariant() === "noTree"
+          variant === "noTree"
             ? <div data-benchmark-no-tree="true" style={{ flex: 1 }} />
             : <VariableTree storeKey="variables" /> },
         { key: "temporary", label: "Temporary Variables", children: <VariableTree storeKey="temporary" /> },
@@ -87,7 +88,7 @@ function ReadyInspector() {
         activeKey={section}
         aria-label="Inspector sections"
         className="inspector-tabs"
-        destroyOnHidden={false}
+        destroyOnHidden={variant === "destroyOnHidden"}
         animated={false}
         onChange={(key) => setSection(key as Section)}
         items={[

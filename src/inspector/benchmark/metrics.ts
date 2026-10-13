@@ -3,7 +3,7 @@ export const BENCHMARK_BUILD =
   import.meta.env.DEV || import.meta.env.VITE_SC_INSPECTOR_BENCHMARK === "1";
 
 export type BenchVariant =
-  "normal" | "noTree" | "noAnt" | "plainRows" | "noRootWatch" | "noRowWatch";
+  "normal" | "destroyOnHidden" | "noTree" | "noAnt" | "plainRows" | "noRootWatch" | "noRowWatch";
 
 export type Stat = { calls: number; totalMs: number; maxMs: number };
 export type Stats = Record<string, Stat>;
@@ -13,12 +13,22 @@ export type ReactCommit = {
 export type Capture = { stats: Stats; commits: ReactCommit[] };
 let current: Capture | undefined;
 let variant: BenchVariant = "normal";
+const variantListeners = new Set<() => void>();
+
+/** Notify the inspector so Tabs props update before a benchmark switch. */
+export function subscribeBenchmarkVariant(listener: () => void): () => void {
+  if (!BENCHMARK_BUILD) return () => {};
+  variantListeners.add(listener);
+  return () => { variantListeners.delete(listener); };
+}
 
 export function benchmarkVariant(): BenchVariant {
   return BENCHMARK_BUILD ? variant : "normal";
 }
 export function setBenchmarkVariant(next: BenchVariant): void {
-  if (BENCHMARK_BUILD) variant = next;
+  if (!BENCHMARK_BUILD || variant === next) return;
+  variant = next;
+  for (const notify of variantListeners) notify();
 }
 export function startCapture(): Capture {
   const capture: Capture = { stats: {}, commits: [] };

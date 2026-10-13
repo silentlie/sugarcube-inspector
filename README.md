@@ -100,12 +100,17 @@ contains watcher and tree metrics for the full recording period.
 To investigate causes, **reload the page between variants** and run one at a time:
 
 ```js
+await scInspectorBench.run({ variant: "destroyOnHidden" }) // Unmount the entire Variables tab on exit
 await scInspectorBench.run({ variant: "noTree" })      // Tabs only
 await scInspectorBench.run({ variant: "noAnt" })       // Tree data, no Ant component
 await scInspectorBench.run({ variant: "plainRows" })   // Ant, no live row renderer
 await scInspectorBench.run({ variant: "noRootWatch" }) // Disable root polling
 await scInspectorBench.run({ variant: "noRowWatch" })  // Disable visible row polling
 ```
+
+Compare `normal` (the default, which retains the Variables tree between switches) with
+`destroyOnHidden` (which forces a fresh tree mount on each switch). Each recorded
+period's `cold` flag reflects whether Ant Tree was absent just before that click.
 
 Ablations are diagnostic, not intended as user-facing optimizations. The command restores
 the original tab and variant when done; a reload resets the tree to its first-mount state.

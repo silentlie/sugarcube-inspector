@@ -5,11 +5,12 @@ type BenchReport = {
   frameBudgetMs: number;
   periods: {
     maxFrameGapMs: number;
+    cold: boolean;
     stats: Record<string, {calls:number;totalMs:number;maxMs:number}>;
   }[];
 };
 type API = {
-  run(options?: {cycles?:number; sampleMs?:number; settleMs?:number}):Promise<BenchReport>;
+  run(options?: {cycles?:number; sampleMs?:number; settleMs?:number; variant?:string}):Promise<BenchReport>;
   record(options?: {seconds?:number}):Promise<BenchReport>;
   export():string;
   last:BenchReport | null;
@@ -46,4 +47,29 @@ test("opt-in benchmark build profiles tab switches in the MAIN world", async ({p
   expect(manual.mode).toBe("manual");
   expect(manual.periods.length).toBeGreaterThanOrEqual(2);
   expect(manual.periods.every(p => p.maxFrameGapMs > 0)).toBe(true);
+});
+
+
+test("destroyOnHidden measures a fresh tree mount on every Variables visit", async ({page}) => {
+  test.setTimeout(20_000);
+  await page.goto(storyUrl);
+  const inspector = page.locator("sugarcube-inspector");
+  const handle = inspector.getByRole("button", {name:"Resize SugarCube Inspector"});
+  await handle.press("Enter");
+  await handle.hover();
+  await page.waitForFunction(() => typeof (window as typeof window & {scInspectorBench?:API}).scInspectorBench !== "undefined");
+
+  const destroyed = await page.evaluate(async () =>
+    await (window as typeof window & {scInspectorBench?:API}).scInspectorBench!.run({
+      variant:"destroyOnHidden", cycles:3, sampleMs:160, settleMs:80,
+    }));
+  expect(destroyed.periods.map(period => period.cold)).toEqual([true, true, true]);
+  expect(destroyed.periods.every(period => (period.stats["tree.initial"]?.calls ?? 0) > 0)).toBe(true);
+
+  // The benchmark must restore the retained-tree behavior after it finishes.
+  const retained = await page.evaluate(async () =>
+    await (window as typeof window & {scInspectorBench?:API}).scInspectorBench!.run({
+      cycles:2, sampleMs:160, settleMs:80,
+    }));
+  expect(retained.periods.map(period => period.cold)).toEqual([true, false]);
 });
