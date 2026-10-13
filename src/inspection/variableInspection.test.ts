@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readVariable, sameVariable } from "./variableLocation";
-import { getLocationId, getLocationName, listChildren, readStructure, sameStructure } from "./variableStructure";
+import { getLocationName, listChildren, readStructure, sameStructure } from "./variableStructure";
 import { getVariableChildren, type VariableNode } from "./variableTree";
 import { VariableWatcher } from "./variableWatcher";
 
@@ -87,7 +87,7 @@ describe("recursive variable locations", () => {
         kind: "value", type, preview: text, expandable: true,
       });
       expect(() => getVariableChildren({
-        id: key, location, ancestors: [],
+        id: 0, location, ancestors: [],
       })).not.toThrow();
     }
   });
@@ -133,7 +133,7 @@ describe("recursive variable locations", () => {
     expect(() => listChildren(proxy)).toThrow(failure);
 
     const node: VariableNode = {
-      id: "broken",
+      id: 0,
         location: { kind: "property", owner: { proxy }, key: "proxy" },
       ancestors: [],
     };
@@ -236,19 +236,23 @@ describe("recursive variable locations", () => {
 
 
 
-  it("keeps collection tile identity when earlier Map and Set members disappear", () => {
+  it("keeps numeric Map and Set node IDs when earlier members disappear", () => {
     const map = new Map([["first", 1], ["second", 2]]);
-    const second = getLocationId(listChildren(map)[1]!);
+    const mapRoot: VariableNode = {
+      id: 0, location: { kind: "property", owner: { map }, key: "map" }, ancestors: [],
+    };
+    const second = getVariableChildren(mapRoot)[1]!.id;
     map.delete("first");
-    expect(getLocationId(listChildren(map)[0]!))
-      .toBe(second);
+    expect(getVariableChildren(mapRoot)[0]!.id).toBe(second);
 
     const set = new Set(["first", "second"]);
-    const secondSet = getLocationId(listChildren(set)[1]!);
+    const setRoot: VariableNode = {
+      id: 1, location: { kind: "property", owner: { set }, key: "set" }, ancestors: [],
+    };
+    const secondSet = getVariableChildren(setRoot)[1]!.id;
     set.delete("first");
-    expect(getLocationId(listChildren(set)[0]!)).toBe(secondSet);
+    expect(getVariableChildren(setRoot)[0]!.id).toBe(secondSet);
   });
-
 
   it("represents each Map entry once, with independently expandable key and value", () => {
     const key = { name: "Alex" };
@@ -256,7 +260,7 @@ describe("recursive variable locations", () => {
     const map = new Map<unknown, unknown>([[key, value]]);
     const holder = { map };
     const root: VariableNode = {
-      id: "variables/map",
+      id: 0,
       location: { kind: "property", owner: holder, key: "map" },
       ancestors: [],
     };
@@ -303,7 +307,7 @@ describe("recursive variable locations", () => {
     const map = new Map<unknown, unknown>();
     map.set(map, map);
     const root: VariableNode = {
-      id: "map",
+      id: 0,
       location: { kind: "property", owner: { map }, key: "map" },
       ancestors: [],
     };
@@ -314,12 +318,53 @@ describe("recursive variable locations", () => {
     expect(getVariableChildren(sides[1]!)).toEqual([]);
   });
 
-  it("retains stable property IDs across object additions", () => {
+  it("retains stable numeric node IDs across object additions", () => {
     const obj: Record<string, unknown> = { first: 1 };
-    const original = getLocationId(listChildren(obj)[0]!);
+    const root: VariableNode = {
+      id: 0, location: { kind: "property", owner: { obj }, key: "obj" }, ancestors: [],
+    };
+    const original = getVariableChildren(root)[0]!.id;
     obj.second = 2;
-    expect(getLocationId(listChildren(obj)[0]!)).toBe(original);
+    const children = getVariableChildren(root);
+    expect(typeof original).toBe("number");
+    expect(children[0]!.id).toBe(original);
+    expect(children[1]!.id).not.toBe(original);
   });
+
+  it("keeps repeated references distinct and changes IDs when an owner is replaced", () => {
+    const shared = { score: 1 };
+    const store = { player: shared, leader: shared };
+    const root: VariableNode = {
+      id: 0, location: { kind: "property", owner: { store }, key: "store" }, ancestors: [],
+    };
+    const [player, leader] = getVariableChildren(root);
+    expect(player!.id).not.toBe(leader!.id);
+    const playerScore = getVariableChildren(player!)[0]!;
+    const leaderScore = getVariableChildren(leader!)[0]!;
+    expect(playerScore.id).not.toBe(leaderScore.id);
+    expect(getVariableChildren(player!)[0]!.id).toBe(playerScore.id);
+
+    store.player = { score: 2 };
+    const replacement = getVariableChildren(player!)[0]!;
+    expect(replacement.id).not.toBe(playerScore.id);
+    expect(readVariable(replacement.location)).toMatchObject({ kind: "value", value: 2 });
+    expect(getVariableChildren(leader!)[0]!.id).toBe(leaderScore.id);
+  });
+
+  it("does not collide across Map entry, Map property, key and value nodes", () => {
+    const map = new Map<unknown, unknown>([["tag", { score: 4 }]]);
+    Object.defineProperty(map, "tag", { value: 7, configurable: true });
+    const root: VariableNode = {
+      id: 0, location: { kind: "property", owner: { map }, key: "map" }, ancestors: [],
+    };
+    const [entry, property] = getVariableChildren(root);
+    expect(entry!.id).not.toBe(property!.id);
+    const [key, value] = getVariableChildren(entry!);
+    expect(key!.id).not.toBe(value!.id);
+    expect(new Set([entry!.id, property!.id, key!.id, value!.id]).size).toBe(4);
+    expect(getVariableChildren(entry!).map((node) => node.id)).toEqual([key!.id, value!.id]);
+  });
+
 });
 
 describe("shared variable watcher", () => {
@@ -420,7 +465,7 @@ describe("Rich Tree View location adapter", () => {
   it("discovers properties on live function references", () => {
     const fn = Object.assign(() => 1, { answer: 42 });
     const parent: VariableNode = {
-      id: "fn",
+      id: 0,
         location: { kind: "property", owner: { fn }, key: "fn" },
       ancestors: [],
     };
@@ -434,7 +479,7 @@ describe("Rich Tree View location adapter", () => {
     player.self = player;
     const root = { player, leader: player };
     const parent: VariableNode = {
-      id: "variables",
+      id: 0,
         location: { kind: "property", owner: { root }, key: "root" },
       ancestors: [],
     };
