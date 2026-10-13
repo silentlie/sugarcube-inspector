@@ -1,14 +1,6 @@
 name: Numeric Tree ID A/B Benchmark
 
 on:
-  push:
-    branches: [feat/direct-main-world-inspector]
-    paths:
-      - "src/inspection/**"
-      - "src/inspector/**"
-      - "scripts/benchmark-inspection-lifecycle.mjs"
-      - "scripts/compare-tree-id-benchmarks.mjs"
-      - ".github/workflows/tree-id-benchmark.yml"
   workflow_dispatch:
 
 permissions:
@@ -16,7 +8,7 @@ permissions:
 
 concurrency:
   group: tree-id-benchmark-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   compare:
