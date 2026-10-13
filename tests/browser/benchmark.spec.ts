@@ -9,8 +9,14 @@ type BenchReport = {
     stats: Record<string, {calls:number;totalMs:number;maxMs:number}>;
   }[];
 };
+type SuiteReport = {
+  mode: "suite";
+  summary: {variant:string; switches:number; coldSwitches:number}[];
+  results: (BenchReport & {variant:string})[];
+};
 type API = {
   run(options?: {cycles?:number; sampleMs?:number; settleMs?:number; variant?:string}):Promise<BenchReport>;
+  runAll(options?: {cycles?:number; sampleMs?:number; settleMs?:number}):Promise<SuiteReport>;
   record(options?: {seconds?:number}):Promise<BenchReport>;
   export():string;
   last:BenchReport | null;
@@ -72,4 +78,34 @@ test("destroyOnHidden measures a fresh tree mount on every Variables visit", asy
       cycles:2, sampleMs:160, settleMs:80,
     }));
   expect(retained.periods.map(period => period.cold)).toEqual([true, false]);
+});
+
+
+test("runAll measures every variant with a fresh tree and downloads one JSON report", async ({page}) => {
+  test.setTimeout(90_000);
+  await page.goto(storyUrl);
+  const inspector = page.locator("sugarcube-inspector");
+  const handle = inspector.getByRole("button", {name:"Resize SugarCube Inspector"});
+  await handle.press("Enter");
+  await handle.hover();
+  await page.waitForFunction(() => typeof (window as typeof window & {scInspectorBench?:API}).scInspectorBench !== "undefined");
+
+  const downloadPromise = page.waitForEvent("download", {timeout:80_000});
+  const suite = await page.evaluate(async () =>
+    await (window as typeof window & {scInspectorBench?:API}).scInspectorBench!.runAll({
+      cycles:2, sampleMs:160, settleMs:80,
+    }));
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^sugarcube-inspector-benchmark-.*\.json$/);
+  expect(suite.mode).toBe("suite");
+  expect(suite.results.map(result => result.variant)).toEqual([
+    "normal", "destroyOnHidden", "noTree", "noAnt", "plainRows", "noRootWatch", "noRowWatch",
+  ]);
+  expect(suite.summary.every(summary => summary.switches === 2)).toBe(true);
+  expect(suite.results[0]!.periods.map(period => period.cold)).toEqual([true, false]);
+  expect(suite.results[1]!.periods.map(period => period.cold)).toEqual([true, true]);
+  expect(suite.results[4]!.periods[0]!.stats["tree.initial"]?.calls).toBeGreaterThan(0);
+  expect(JSON.parse(await page.evaluate(() =>
+    (window as typeof window & {scInspectorBench?:API}).scInspectorBench!.export())).mode).toBe("suite");
+  await expect(inspector.getByRole("tab", {name:"Overview"})).toHaveAttribute("aria-selected", "true");
 });

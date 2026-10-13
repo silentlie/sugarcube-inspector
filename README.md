@@ -97,7 +97,21 @@ Switch manually between Overview, Variables, and Scripts while recording.
 The manual report gives per-click frame gaps. `aggregateStats` in the JSON
 contains watcher and tree metrics for the full recording period.
 
-To investigate causes, **reload the page between variants** and run one at a time:
+To run **all seven variants and export a combined JSON report in one command**:
+
+```js
+await scInspectorBench.runAll({ cycles: 10, sampleMs: 750, settleMs: 400 })
+```
+
+This runs each variant sequentially, resets the inspector Tabs/tree before each one
+(without reloading the game or losing its current variable state), prints a comparison
+table, and downloads a single `sugarcube-inspector-benchmark-*.json` containing every
+measurement. `scInspectorBench.export()` returns the combined report after completion.
+Each variant tests the same live game, but other activity on the page may affect timing.
+The reset isolates React/Ant tree state, **not** all page/extension initialization state.
+
+To investigate causes individually, you can still **reload the page between variants**
+and run one at a time:
 
 ```js
 await scInspectorBench.run({ variant: "destroyOnHidden" }) // Unmount the entire Variables tab on exit

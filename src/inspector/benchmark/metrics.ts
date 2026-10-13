@@ -13,6 +13,7 @@ export type ReactCommit = {
 export type Capture = { stats: Stats; commits: ReactCommit[] };
 let current: Capture | undefined;
 let variant: BenchVariant = "normal";
+let resetId = 0;
 const variantListeners = new Set<() => void>();
 
 /** Notify the inspector so Tabs props update before a benchmark switch. */
@@ -28,6 +29,14 @@ export function benchmarkVariant(): BenchVariant {
 export function setBenchmarkVariant(next: BenchVariant): void {
   if (!BENCHMARK_BUILD || variant === next) return;
   variant = next;
+  for (const notify of variantListeners) notify();
+}
+
+/** Remount the inspector tabs so every variant starts without an existing tree. */
+export function benchmarkResetId(): number { return resetId; }
+export function resetBenchmarkTree(): void {
+  if (!BENCHMARK_BUILD) return;
+  resetId++;
   for (const notify of variantListeners) notify();
 }
 export function startCapture(): Capture {

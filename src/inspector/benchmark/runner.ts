@@ -1,5 +1,5 @@
 import {
-  BENCHMARK_BUILD, benchmarkVariant, setBenchmarkVariant,
+  BENCHMARK_BUILD, benchmarkVariant, resetBenchmarkTree, setBenchmarkVariant,
   startCapture, stopCapture, type BenchVariant, type Capture, type Stats,
   type ReactCommit,
 } from "./metrics";
@@ -36,11 +36,31 @@ type Options = {
   settleMs?: number;
 };
 type ManualOptions = { seconds?: number };
+type SuiteOptions = Omit<Options, "variant">;
+type SuiteSummary = {
+  variant: BenchVariant;
+  switches: number;
+  coldSwitches: number;
+  maxFrameGapMs: number;
+  medianWorstFrameMs: number;
+  p95WorstFrameMs: number;
+  estimatedMissedFrames: number;
+  longestTaskMs: number;
+};
+export type BenchmarkSuiteResult = {
+  mode: "suite";
+  createdAt: string;
+  options: Required<SuiteOptions>;
+  summary: SuiteSummary[];
+  results: BenchmarkResult[];
+  hints: string[];
+};
 export type BenchmarkAPI = {
   run(options?: Options): Promise<BenchmarkResult>;
+  runAll(options?: SuiteOptions): Promise<BenchmarkSuiteResult>;
   record(options?: ManualOptions): Promise<BenchmarkResult>;
   export(): string;
-  last: BenchmarkResult | null;
+  last: BenchmarkResult | BenchmarkSuiteResult | null;
 };
 const variants: BenchVariant[] = [
   "normal", "destroyOnHidden", "noTree", "noAnt", "plainRows", "noRootWatch", "noRowWatch",
@@ -167,6 +187,36 @@ function summarisePeriod(
   };
 }
 const format = (value: number) => Math.round(value * 10) / 10;
+function suiteSummary(results: BenchmarkResult[]): SuiteSummary[] {
+  return results.map((result) => {
+    const gaps = result.periods.map((period) => period.maxFrameGapMs);
+    return {
+      variant: result.variant,
+      switches: result.periods.length,
+      coldSwitches: result.periods.filter((period) => period.cold).length,
+      maxFrameGapMs: Math.max(0, ...gaps),
+      medianWorstFrameMs: median(gaps),
+      p95WorstFrameMs: percentile(gaps, 0.95),
+      estimatedMissedFrames: result.periods.reduce(
+        (sum, period) => sum + period.estimatedMissedFrames, 0),
+      longestTaskMs: Math.max(0, ...result.periods.map((period) => period.longestTaskMs)),
+    };
+  });
+}
+function downloadReport(result: BenchmarkSuiteResult): void {
+  const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "sugarcube-inspector-benchmark-" +
+    result.createdAt.replace(/[:.]/g, "-") + ".json";
+  document.body.append(anchor);
+  try { anchor.click(); }
+  finally {
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+}
 function display(result: BenchmarkResult) {
   console.table(result.periods.map((period, i) => ({
     "#": i + 1,
@@ -204,10 +254,8 @@ function display(result: BenchmarkResult) {
 export function installBenchmark(): BenchmarkAPI {
   if (!BENCHMARK_BUILD) throw new Error("Use a development or benchmark build.");
   let busy = false;
-  const api: BenchmarkAPI = {
-    last: null,
-    export: () => JSON.stringify(api.last, null, 2),
-    async run(options = {}) {
+  let suiteBusy = false;
+  const runSingle = async (options: Options = {}): Promise<BenchmarkResult> => {
       if (busy) throw new Error("A benchmark is already running.");
       busy = true;
       const shadow = shadowRoot();
@@ -257,7 +305,7 @@ export function installBenchmark(): BenchmarkAPI {
               : wasMounted ? "Tree was already mounted before the run; no initial cold mount." :
                 "Normal Tabs retain their tree after the first mount; cold flags reflect DOM absence before each click.",
             "noTree/noAnt variants do not render Ant Tree, so cold is reported as false.",
-            "For comparable ablations, reload the game before each variant.",
+            "For comparable standalone ablations, reload the game before each variant; runAll resets the inspector tree between variants.",
             "No game values or variable names are included in the exported report.",
           ],
         };
@@ -270,8 +318,78 @@ export function installBenchmark(): BenchmarkAPI {
         try { await clickTab(shadow, original); } catch { /* Page may be closing. */ }
         busy = false;
       }
+    };
+  const api: BenchmarkAPI = {
+    last: null,
+    export: () => JSON.stringify(api.last, null, 2),
+    run(options = {}) {
+      if (suiteBusy) throw new Error("A benchmark suite is already running.");
+      return runSingle(options);
+    },
+    async runAll(options = {}) {
+      if (busy || suiteBusy) throw new Error("A benchmark is already running.");
+      const config: Required<SuiteOptions> = {
+        cycles: numberOption(options.cycles, 5, 1, 30),
+        sampleMs: numberOption(options.sampleMs, 450, 150, 3000),
+        settleMs: numberOption(options.settleMs, 240, 60, 2000),
+        from: options.from ?? "Overview",
+      };
+      if (config.from !== "Overview" && config.from !== "Scripts") {
+        throw new Error("from must be Overview or Scripts.");
+      }
+      const shadow = shadowRoot();
+      const originalTab = activeTab(shadow);
+      const originalVariant = benchmarkVariant();
+      const results: BenchmarkResult[] = [];
+      suiteBusy = true;
+      try {
+        for (const variant of variants) {
+          await clickTab(shadow, config.from);
+          // A fresh Tabs instance discards Ant/React tree state without reloading
+          // the actual SugarCube game or losing its current story variables.
+          setBenchmarkVariant(variant);
+          resetBenchmarkTree();
+          await delay(config.settleMs);
+          console.info("Benchmark suite:", variant, "(" + (results.length + 1) + "/" + variants.length + ")");
+          results.push(await runSingle({ ...config, variant }));
+        }
+        const report: BenchmarkSuiteResult = {
+          mode: "suite",
+          createdAt: new Date().toISOString(),
+          options: config,
+          summary: suiteSummary(results),
+          results,
+          hints: [
+            "Each variant starts with a remounted inspector Tabs tree, not a full page reload.",
+            "The game remains on the same page with the same variables; external game activity can still affect timing.",
+            "The first switch is cold for rendered tree variants; destroyOnHidden also remounts on later switches.",
+            "No game values or variable names are included.",
+          ],
+        };
+        api.last = report;
+        console.info("Benchmark suite comparison (milliseconds):");
+        console.table(report.summary.map((item) => ({
+          variant: item.variant,
+          switches: item.switches,
+          cold: item.coldSwitches,
+          worstMs: format(item.maxFrameGapMs),
+          medianWorstMs: format(item.medianWorstFrameMs),
+          missedFrames: item.estimatedMissedFrames,
+          longestTaskMs: format(item.longestTaskMs),
+        })));
+        try { downloadReport(report); }
+        catch (error) {
+          console.warn("Automatic JSON download failed. Use copy(scInspectorBench.export()).", error);
+        }
+        return report;
+      } finally {
+        setBenchmarkVariant(originalVariant);
+        try { await clickTab(shadow, originalTab); } catch { /* Page may be closing. */ }
+        suiteBusy = false;
+      }
     },
     async record(options = {}) {
+      if (suiteBusy) throw new Error("A benchmark suite is already running.");
       if (busy) throw new Error("A benchmark is already running.");
       busy = true;
       const seconds = numberOption(options.seconds, 12, 2, 60);
@@ -328,7 +446,7 @@ export function installBenchmark(): BenchmarkAPI {
   Object.defineProperty(window, "scInspectorBench", {
     value: api, configurable: true, writable: false,
   });
-  console.info("SugarCube Inspector benchmark ready: await scInspectorBench.run() " +
-    "or await scInspectorBench.record({ seconds: 12 })");
+  console.info("SugarCube Inspector benchmark ready: await scInspectorBench.runAll() " +
+    "(all variants + JSON download), run(), or record({ seconds: 12 }).");
   return api;
 }

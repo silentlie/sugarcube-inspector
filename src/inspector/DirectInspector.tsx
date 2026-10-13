@@ -4,7 +4,9 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { hasState, type VariableStoreKey } from "../inspection/direct";
 import { variableWatcher } from "../inspection/variableWatcher";
 import VariableTree from "./VariableTree";
-import { benchmarkVariant, subscribeBenchmarkVariant } from "./benchmark/metrics";
+import {
+  benchmarkResetId, benchmarkVariant, subscribeBenchmarkVariant,
+} from "./benchmark/metrics";
 
 type Section = "overview" | "variables" | "scripts";
 type VariableScope = VariableStoreKey | "favorites";
@@ -37,6 +39,7 @@ function ReadyInspector() {
   const [section, setSection] = useState<Section>("overview");
   const [scope, setScope] = useState<VariableScope>("variables");
   const variant = useSyncExternalStore(subscribeBenchmarkVariant, benchmarkVariant);
+  const resetId = useSyncExternalStore(subscribeBenchmarkVariant, benchmarkResetId);
 
   useEffect(() => {
     const passages = document.getElementById("passages");
@@ -85,6 +88,7 @@ function ReadyInspector() {
       </Flex>
       <Divider style={{ margin: "12px 0 0" }} />
       <Tabs
+        key={resetId}
         activeKey={section}
         aria-label="Inspector sections"
         className="inspector-tabs"
