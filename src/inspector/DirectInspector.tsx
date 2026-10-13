@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { hasState, type VariableStoreKey } from "../inspection/direct";
 import { variableWatcher } from "../inspection/variableWatcher";
 import VariableTree from "./VariableTree";
+import { benchmarkVariant } from "./benchmark/metrics";
 
 type Section = "overview" | "variables" | "scripts";
 type VariableScope = VariableStoreKey | "favorites";
@@ -53,7 +54,10 @@ function ReadyInspector() {
       animated={false}
       onChange={(key) => setScope(key as VariableScope)}
       items={[
-        { key: "variables", label: "Story Variables", children: <VariableTree storeKey="variables" /> },
+        { key: "variables", label: "Story Variables", children:
+          benchmarkVariant() === "noTree"
+            ? <div data-benchmark-no-tree="true" style={{ flex: 1 }} />
+            : <VariableTree storeKey="variables" /> },
         { key: "temporary", label: "Temporary Variables", children: <VariableTree storeKey="temporary" /> },
         { key: "favorites", label: "Favorites" },
       ]}

@@ -7,6 +7,7 @@ import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "../inspection/variableTree";
 import { useStructure, useVariable } from "./useVariableWatch";
 import { TypeSyntax, ValueSyntax } from "./valueSyntax";
+import { benchmarkVariant, count } from "./benchmark/metrics";
 
 function ValueTokens({ current, showType = true }: { current: VariableSnapshot; showType?: boolean }) {
   const type = current.kind === "value" ? current.type :
@@ -55,8 +56,10 @@ function ExpandedStructureWatcher({ value, onChange }: {
 export function LiveVariableLabel({ node, expanded, refresh }: {
   node: VariableNode; expanded: boolean; refresh: (id: string) => void;
 }) {
+  count("row.render");
   const { ref, inView } = useInView();
-  const current = useVariable(node.location, inView);
+  const rowVisible = inView && benchmarkVariant() !== "noRowWatch";
+  const current = useVariable(node.location, rowVisible);
   const value = current.kind === "value" ? current.value : undefined;
   const previousValueRef = useRef(value);
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
@@ -67,16 +70,16 @@ export function LiveVariableLabel({ node, expanded, refresh }: {
   useEffect(() => {
     const previous = previousValueRef.current;
     previousValueRef.current = value;
-    if (inView && !Object.is(previous, value) &&
+    if (rowVisible && !Object.is(previous, value) &&
         (isObject(previous) || isObject(value))) refresh(node.id);
-  }, [value, inView, node.id, refresh]);
+  }, [value, rowVisible, node.id, refresh]);
 
   return <span ref={ref} style={{
     display: "flex", alignItems: "center", gap: 8, minWidth: 0, width: "100%",
   }}>
     {isMapEntry ? <>
       <span style={{ display: "flex", flex: 1, minWidth: 0 }}>
-        <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} visible={inView} />
+        <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} visible={rowVisible} />
       </span>
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>→</Typography.Text>
       <ValueTokens current={current} />
@@ -95,7 +98,7 @@ export function LiveVariableLabel({ node, expanded, refresh }: {
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         same reference
       </Typography.Text>}
-    {expanded && inView && !isMapEntry && current.kind === "value" &&
+    {expanded && rowVisible && !isMapEntry && current.kind === "value" &&
       current.expandable && !circular &&
       <ExpandedStructureWatcher value={current.value as object} onChange={() => refresh(node.id)} />}
   </span>;

@@ -1,6 +1,6 @@
 import { isObject } from "@sindresorhus/is";
 import { Tree, Typography, type TreeDataNode } from "antd";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Profiler, useCallback, useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
 import { isExpandableNode } from "../inspection/isExpandableNode";
@@ -9,6 +9,7 @@ import { getVariableChildren, type VariableNode } from "../inspection/variableTr
 import { getLocationName } from "../inspection/variableStructure";
 import { LiveVariableLabel } from "./LiveVariableLabel";
 import { useStructure, useVariable } from "./useVariableWatch";
+import { BENCHMARK_BUILD, benchmarkVariant, count, reactCommit, timed } from "./benchmark/metrics";
 
 type Item = TreeDataNode & {
   key: string;
@@ -56,13 +57,14 @@ function replaceChildren(items: Item[], target: string, children: Item[]): Item[
 function RichVariableTree({ storeKey, rootValue, visible }: {
   storeKey: VariableStoreKey; rootValue: object; visible: boolean;
 }) {
-  const structure = useStructure(rootValue, visible);
+  const structure = useStructure(rootValue, visible && benchmarkVariant() !== "noRootWatch");
   const rootNode = useMemo<VariableNode>(() => ({
     id: storeKey,
     location: { kind: "state", key: storeKey },
     ancestors: [],
   }), [storeKey]);
-  const [items, setItems] = useState<Item[]>(() => reconcile(getVariableChildren(rootNode)));
+  const [items, setItems] = useState<Item[]>(() =>
+    timed("tree.initial", () => reconcile(getVariableChildren(rootNode))));
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
@@ -83,7 +85,8 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
-      if (active) setItems((old) => reconcile(getVariableChildren(rootNode), old));
+      if (active) setItems((old) =>
+        timed("tree.rootReconcile", () => reconcile(getVariableChildren(rootNode), old)));
     });
     return () => { active = false; };
   }, [rootNode, rootValue, structure]);
@@ -102,7 +105,8 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
     setItems((old) => {
       const item = find(old);
       if (!item) return old;
-      const children = reconcile(getVariableChildren(item.variable), item.children);
+      const children = timed("tree.branchReconcile", () =>
+        reconcile(getVariableChildren(item.variable), item.children));
       return replaceChildren(old, id, children);
     });
   }, []);
@@ -113,7 +117,9 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
   }, [refresh]);
 
   return <div ref={setViewport} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-    {height > 0 && <Tree
+    {height > 0 && (benchmarkVariant() === "noAnt"
+      ? <div data-benchmark-no-ant="true" style={{ height: "100%" }} />
+      : (BENCHMARK_BUILD ? <Profiler id="antTree" onRender={reactCommit}>
     aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
     className="sugarcube-variable-tree"
     blockNode
@@ -133,11 +139,29 @@ function RichVariableTree({ storeKey, rootValue, visible }: {
       }
     }}
     titleRender={(data) => {
+      count("tree.titleRender");
       const item = data as Item;
+      if (benchmarkVariant() === "plainRows") return item.title as string;
       return <LiveVariableLabel
         node={item.variable} expanded={expanded.has(item.key)} refresh={refresh} />;
     }}
-  />}
+  /> </Profiler> : <Tree
+    aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
+    className="sugarcube-variable-tree"
+    blockNode selectable={false}
+    switcherIcon={(props) => <span aria-hidden="true">{props.expanded ? "▾" : "▸"}</span>}
+    virtual height={height} treeData={items} expandedKeys={expandedKeys}
+    autoExpandParent={false} loadData={loadData}
+    onExpand={(keys, info) => {
+      setExpandedKeys(keys.map(String));
+      if (info.expanded && (info.node as Item).children) refresh(String(info.node.key));
+    }}
+    titleRender={(data) => {
+      const item = data as Item;
+      return <LiveVariableLabel node={item.variable}
+        expanded={expanded.has(item.key)} refresh={refresh} />;
+    }}
+  />))}
   </div>;
 }
 

@@ -70,3 +70,58 @@ can affect the inspector, and vice versa. Do not run on untrusted pages.
    Variables → Story Variables or Temporary Variables.
 4. Expand objects and change game values. Visible entries update automatically.
 5. Run `npm run lint && npm run compile && npm test && npm run test:browser`.
+
+## Benchmark tab-switch jank on your own PC
+
+A benchmark build exposes `scInspectorBench` to the game page's **MAIN-world DevTools console**.
+It makes no changes to game variables and exports only numeric measurements.
+
+1. Run `npm ci && npm run build:benchmark` from PowerShell or your terminal.
+2. In `chrome://extensions`, load or reload `.output/chrome-mv3` and permit **Allow access to file URLs**.
+3. Reload your actual SugarCube game. Open its drawer and select Overview.
+4. In the game page's DevTools console, run:
+
+```js
+await scInspectorBench.run({ cycles: 8, from: "Overview" })
+```
+
+The first opening is reported separately from subsequent visits. Results include frame budget
+(calibrated for your display), worst and p95 frame gaps, approximate missed frames,
+50 ms+ long tasks, Ant React commit duration (if available in this build),
+root reconciliation cost, row renders, and watcher creation/subscribe/read counts.
+
+For jank caused by actual mouse interaction rather than scripted clicks:
+
+```js
+await scInspectorBench.record({ seconds: 15 })
+```
+
+Switch manually between Overview, Variables, and Scripts while recording.
+The manual report gives per-click frame gaps, while watcher statistics are totals for
+the recording period.
+
+To investigate causes, **reload the page between variants** and run one at a time:
+
+```js
+await scInspectorBench.run({ variant: "noTree" })      // Tabs only
+await scInspectorBench.run({ variant: "noAnt" })       // Tree data, no Ant component
+await scInspectorBench.run({ variant: "plainRows" })   // Ant, no live row renderer
+await scInspectorBench.run({ variant: "noRootWatch" }) // Disable root polling
+await scInspectorBench.run({ variant: "noRowWatch" })  // Disable visible row polling
+```
+
+Ablations are diagnostic, not intended as user-facing optimizations. The command restores
+the original tab and variant when done; a reload resets the tree to its first-mount state.
+If the tree was already mounted, the tool warns that there is no cold sample.
+
+Copy the numeric report without sharing game data:
+
+```js
+copy(scInspectorBench.export())
+```
+
+**Important:** Use the page console, not the isolated extension service-worker console.
+The benchmark is enabled for WXT development builds or `build:benchmark`, but omitted
+from ordinary `npm run build` output. Headless CI and an open DevTools window can produce
+different frame pacing from your normal browser. A 50 ms long task may be enough to miss
+multiple frames, especially at 120/144 Hz.

@@ -2,12 +2,14 @@ import { useMemo, useSyncExternalStore } from "react";
 import { readVariable, sameVariable, type VariableLocation } from "../inspection/variableLocation";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { variableWatcher } from "../inspection/variableWatcher";
+import { timed } from "./benchmark/metrics";
 
 const noSubscription = () => () => {};
 
 export function useVariable(location: VariableLocation, visible: boolean) {
   const subscription = useMemo(
-    () => variableWatcher.watch(() => readVariable(location), sameVariable),
+    () => variableWatcher.watch(() =>
+      timed("variable.read", () => readVariable(location)), sameVariable),
     [location, visible],
   );
   return useSyncExternalStore(
@@ -18,7 +20,8 @@ export function useVariable(location: VariableLocation, visible: boolean) {
 
 export function useStructure(value: object, visible: boolean) {
   const subscription = useMemo(
-    () => variableWatcher.watch(() => readStructure(value), sameStructure),
+    () => variableWatcher.watch(() =>
+      timed("structure.read", () => readStructure(value)), sameStructure),
     [value, visible],
   );
   return useSyncExternalStore(

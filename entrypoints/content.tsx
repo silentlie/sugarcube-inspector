@@ -3,6 +3,7 @@ import { ConfigProvider, theme } from "antd";
 import Drawer from "@/src/inspector/Drawer";
 import DirectInspector from "@/src/inspector/DirectInspector";
 import ReactDOM from "react-dom/client";
+import { BENCHMARK_BUILD } from "@/src/inspector/benchmark/metrics";
 
 /** The inspector runs in SugarCube's MAIN world, isolated by its ShadowRoot. */
 export default defineContentScript({
@@ -49,6 +50,12 @@ export default defineContentScript({
     const container = document.createElement("div");
     shadow.append(baseline, container);
     document.documentElement.append(host);
+
+    if (BENCHMARK_BUILD) {
+      void import("@/src/inspector/benchmark/runner").then(({ installBenchmark }) => {
+        installBenchmark();
+      });
+    }
 
     ReactDOM.createRoot(container).render(
       <StyleProvider container={shadow}>
