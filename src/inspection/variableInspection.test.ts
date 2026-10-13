@@ -502,7 +502,7 @@ describe("Rich Tree View location adapter", () => {
     const getter = vi.fn(() => 99);
     Object.defineProperty(object, "computed", { get: getter, enumerable: true });
     const root: VariableNode = {
-      id: "root",
+      id: 0,
         location: { kind: "property", owner: { object }, key: "object" },
       ancestors: [],
     };
