@@ -73,7 +73,7 @@ test("temporary benchmark animation-frame gaps on tab switches", async ({page}) 
             });
             observer.observe({entryTypes:["longtask"]});
           }
-          const times=[baseline[baseline.length-1]];
+          const times: number[]=[baseline[baseline.length-1]!];
           let start=0;
           const raf=async()=>{
             await new Promise<void>(resolve=>{
