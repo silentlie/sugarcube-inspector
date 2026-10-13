@@ -15,7 +15,10 @@ const samples = [];
 const scenarios = ["cold-open", "expand", "idle-poll", "root-add", "nested-add", "replace-object", "tab-return", "scope-switch"];
 
 function run(bin, args, cwd = root) {
-  execFileSync(bin, args, { cwd, stdio: "inherit", env: { ...process.env, CI: "true" } });
+  execFileSync(process.platform === "win32" && bin === "npm" ? "npm.cmd" : bin, args, {
+    cwd, stdio: "inherit", shell: process.platform === "win32",
+    env: { ...process.env, CI: "true" },
+  });
 }
 function replace(text, anchor, replacement, filename) {
   if (!text.includes(anchor)) throw new Error("Missing instrumentation anchor in " + filename + ": " + anchor);
