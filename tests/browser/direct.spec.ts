@@ -382,9 +382,9 @@ test("offscreen expanded object replacement refreshes its children on return", a
   await page.evaluate(() => {
     const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
     vars.replaceWhileOffscreen = { before: 1 };
-    vars.scrollPadding = Object.fromEntries(
-      Array.from({ length: 100 }, (_, i) => [`row${String(i).padStart(3, "0")}`, i]),
-    );
+    for (let i = 0; i < 100; i++) {
+      vars[`row${String(i).padStart(3, "0")}`] = i;
+    }
   });
   await expandVariable(drawer, "replaceWhileOffscreen");
   await expect(drawer.getByText("before", { exact: true })).toBeVisible();
