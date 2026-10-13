@@ -25,7 +25,11 @@ const hook = 'const __costEnter = (name: string) => (globalThis as typeof global
 function instrumentFunction(text, name, filename) {
   const match = new RegExp("\\bfunction\\s+" + name + "\\s*\\(").exec(text);
   if (!match) throw new Error("Cannot locate " + name + " in " + filename);
-  const open = text.indexOf(" {\n", match.index);
+  // Multiline TypeScript parameter types also contain ': {\\n'. Skip those.
+  let open = text.indexOf(" {\n", match.index);
+  while (open > 0 && text[open - 1] === ":") {
+    open = text.indexOf(" {\n", open + 3);
+  }
   const close = text.indexOf("\n}", open + 3);
   if (open < 0 || close < 0) throw new Error("Function block invalid: " + name);
   return text.slice(0, open + 3) +
