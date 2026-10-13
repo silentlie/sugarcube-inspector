@@ -9,6 +9,8 @@ export type BenchmarkResult = {
   variant: BenchVariant;
   frameBudgetMs: number;
   periods: Period[];
+  /** Manual recording: all watcher and tree metrics during the capture window. */
+  aggregateStats?: Stats;
   hints: string[];
 };
 
@@ -124,7 +126,15 @@ function longTasks() {
     });
     observer.observe({ entryTypes: ["longtask"] });
   }
-  return { entries, stop: () => observer?.disconnect() };
+  return {
+    entries,
+    stop: () => {
+      for (const entry of observer?.takeRecords() ?? []) {
+        entries.push({ start: entry.startTime, ms: entry.duration });
+      }
+      observer?.disconnect();
+    },
+  };
 }
 function summarisePeriod(
   label: string, cold: boolean, budget: number,
@@ -292,7 +302,7 @@ export function installBenchmark(): BenchmarkAPI {
         ));
         const result: BenchmarkResult = {
           mode: "manual", variant: benchmarkVariant(),
-          frameBudgetMs: budget, periods,
+          frameBudgetMs: budget, periods, aggregateStats: capture.stats,
           hints: ["Manual capture stats below are aggregated across the entire recording.",
             "Manual mode includes game work and DevTools overhead."],
         };

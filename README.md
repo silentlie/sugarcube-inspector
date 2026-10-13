@@ -5,19 +5,18 @@ It does not attach a debugger or use a cross-world messaging bridge.
 
 ## User interface
 
-- **MUI Community** provides Tabs, Typography, Buttons, and **MUI X RichTreeView**
-  with accessible keyboard navigation. There are no Tailwind, shadcn, or Pro dependencies.
+- **Ant Design** provides the tabs, labels, buttons, dark/compact theme and virtualized Tree.
+  No MUI, Tailwind, shadcn, or commercial UI dependencies are needed.
 - Overview, Variables, and Scripts are top-level tabs. Under Variables are
   Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
   Favorites are placeholders.
-- The variable tree uses **MUI X Community RichTreeView + custom TreeItem**.
-  `getItemChildren` eagerly discovers the entire tree hierarchy, without
-  copying game values or implementing custom pagination.
+- The variable tree uses Ant Design's built-in virtualization and discovers children
+  lazily on expansion. All logical children remain accessible through scrolling.
 - Variable rows syntax-highlight values with `prism-react-renderer` and its
   built-in VS Dark theme. Type labels reuse that palette instead of custom color
-  definitions; the existing MUI tree and live-data behavior are unchanged.
+  definitions; the existing live-data behavior is unchanged.
 - The remaining layout settings handle drawer geometry, its resize handle,
-  and value truncation. Most styling comes from MUI's default dark theme.
+  and value truncation. Ant's dark/compact theme supplies the default styling.
 
 ## Behavior
 
@@ -47,17 +46,15 @@ It does not attach a debugger or use a cross-world messaging bridge.
 - Unexpected inspection exceptions propagate unchanged instead of producing
   placeholder error snapshots or silently empty child lists. Such failures may
   interrupt the inspector; node-level error isolation is not part of this POC.
-- This Community Tree View is not virtualized. Large object graphs can be
-  expensive to index; performance will be benchmarked separately. The inspector
-  is read-only.
+- The virtualized Tree limits mounted rows to the viewport, but Ant still indexes
+  discovered logical children. The inspector is read-only.
 
 ## Shadow DOM integration
 
 `entrypoints/content.tsx` mounts React in a manually created ShadowRoot in
-Chrome's MAIN world. An Emotion cache inserts MUI-generated styles inside
-the ShadowRoot. A dark `ThemeProvider` routes modal and popup portals to
-the inspector's container. `ScopedCssBaseline` keeps MUI's baseline styles
-within the inspector instead of modifying the game's page.
+Chrome's MAIN world. Ant's `StyleProvider` inserts styles in the ShadowRoot.
+A dark and compact `ConfigProvider` directs popups to the inspector container.
+A small scoped baseline avoids modifying the game's page.
 
 Shadow DOM isolates appearance but not JavaScript. A hostile or broken game
 can affect the inspector, and vice versa. Do not run on untrusted pages.
@@ -97,8 +94,8 @@ await scInspectorBench.record({ seconds: 15 })
 ```
 
 Switch manually between Overview, Variables, and Scripts while recording.
-The manual report gives per-click frame gaps, while watcher statistics are totals for
-the recording period.
+The manual report gives per-click frame gaps. `aggregateStats` in the JSON
+contains watcher and tree metrics for the full recording period.
 
 To investigate causes, **reload the page between variants** and run one at a time:
 
