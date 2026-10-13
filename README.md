@@ -1,7 +1,7 @@
-# SugarCube Inspector: direct MAIN-world proof of concept
+# SugarCube Inspector
 
-This experiment runs its React tree in Chrome's MAIN world, alongside SugarCube.
-It does not attach a debugger or use a cross-world messaging bridge.
+SugarCube Inspector runs its React variable tree in Chrome's MAIN world, alongside SugarCube.
+It reads live story and temporary variables directly without attaching a debugger or using a cross-world messaging bridge.
 
 ## User interface
 
@@ -52,7 +52,7 @@ It does not attach a debugger or use a cross-world messaging bridge.
   invoking them; type classification uses the library defaults.
 - Unexpected inspection exceptions propagate unchanged instead of producing
   placeholder error snapshots or silently empty child lists. Such failures may
-  interrupt the inspector; node-level error isolation is not part of this POC.
+  interrupt the inspector; node-level error isolation is not currently implemented.
 - The virtualized Tree limits mounted rows to the viewport, but Ant still indexes
   discovered logical children. The inspector is read-only.
 
