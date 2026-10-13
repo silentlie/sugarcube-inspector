@@ -5,7 +5,7 @@ import { hasState, type VariableStoreKey } from "../inspection/direct";
 import { variableWatcher } from "../inspection/variableWatcher";
 import VariableTree from "./VariableTree";
 import {
-  benchmarkResetId, benchmarkVariant, subscribeBenchmarkVariant,
+  benchmarkResetId, benchmarkVariant, subscribeBenchmarkVariant, type BenchVariant,
 } from "./benchmark/metrics";
 
 type Section = "overview" | "variables" | "scripts";
@@ -36,15 +36,15 @@ export default function DirectInspector() {
 
 /** Entire tree and all subscriptions run in SugarCube's MAIN JS world. */
 function ReadyInspector() {
-  const [section, setSection] = useState<Section>("overview");
-  const [scope, setScope] = useState<VariableScope>("variables");
   const variant = useSyncExternalStore(subscribeBenchmarkVariant, benchmarkVariant);
   const resetId = useSyncExternalStore(subscribeBenchmarkVariant, benchmarkResetId);
+  return <InspectorSections key={resetId} variant={variant} />;
+}
 
-  // Each benchmark variant starts in Story Variables, regardless of previous scope.
-  useEffect(() => {
-    setScope("variables");
-  }, [resetId]);
+/** Keyed remount resets both the selected tab and the Story Variables scope. */
+function InspectorSections({ variant }: { variant: BenchVariant }) {
+  const [section, setSection] = useState<Section>("overview");
+  const [scope, setScope] = useState<VariableScope>("variables");
 
   useEffect(() => {
     const passages = document.getElementById("passages");
@@ -93,7 +93,6 @@ function ReadyInspector() {
       </Flex>
       <Divider style={{ margin: "12px 0 0" }} />
       <Tabs
-        key={resetId}
         activeKey={section}
         aria-label="Inspector sections"
         className="inspector-tabs"
