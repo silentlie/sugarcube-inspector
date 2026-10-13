@@ -5,7 +5,7 @@ import { getVariableChildren, type VariableNode } from "../inspection/variableTr
 
 /** Rendering labels come from live locations, not cached tree titles. */
 export type Item = TreeDataNode & {
-  key: string;
+  key: number;
   variable: VariableNode;
   children?: Item[];
   /** Value whose direct children were last loaded (identity, not a snapshot). */
@@ -53,7 +53,7 @@ export function reconcileChildren(nodes: VariableNode[], previous: Item[] = []):
 
 /** Update only the path to the requested item; retain all unaffected sibling arrays. */
 export function updateTreeItem(
-  items: Item[], target: string, update: (item: Item) => Item,
+  items: Item[], target: number, update: (item: Item) => Item,
 ): Item[] {
   let changed = false;
   const next = items.map((item) => {
