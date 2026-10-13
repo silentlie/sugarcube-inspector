@@ -13,7 +13,8 @@ const gitignore = fileURLToPath(new URL(".gitignore", import.meta.url));
 
 export default defineConfig([
   includeIgnoreFile(gitignore, { gitignoreResolution: true }),
-  globalIgnores(["package-lock.json"]),
+  // Tailwind v4 uses build-time CSS directives that the generic CSS parser cannot parse.
+  globalIgnores(["package-lock.json", "src/styles/tailwind.css"]),
   {
     files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     plugins: { js },
