@@ -8,7 +8,7 @@ import { variableWatcher } from "../inspection/variableWatcher";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { VariableNodeContent } from "./VariableNodeContent";
 import { VariableScopeContext, useStructure, useVariable } from "./useVariableWatch";
-import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
+import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
 
 /** Snapshot both the current owner identity and its direct child structure. */
 function readExpanded(node: VariableNode) {
@@ -37,7 +37,7 @@ function RichVariableTree({ storeKey, rootValue }: {
     location: { kind: "state", key: storeKey },
     ancestors: [],
   }), [storeKey]);
-  const [items, setItems] = useState<VariableNode[]>(() => reconcileChildren(getVariableChildren(rootNode)));
+  const [items, setItems] = useState<VariableNode[]>(() => reconcileChildren(rootNode));
   const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
   const expandedWatches = useRef(new Map<number, ExpandedWatch>());
@@ -59,7 +59,7 @@ function RichVariableTree({ storeKey, rootValue }: {
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
-      if (active) setItems((old) => reconcileChildren(getVariableChildren(rootNode), old));
+      if (active) setItems((old) => reconcileChildren(rootNode, old));
     });
     return () => { active = false; };
   }, [rootNode, rootValue, structure]);
@@ -133,8 +133,7 @@ function RichVariableTree({ storeKey, rootValue }: {
     }}
     titleRender={(data) => {
       const item = data as VariableNode;
-      return <VariableNodeContent
-        node={item} refresh={refresh} isLeaf={Boolean(item.isLeaf)} />;
+      return <VariableNodeContent node={item} refresh={refresh} />;
     }}
   />}
   </div>;
