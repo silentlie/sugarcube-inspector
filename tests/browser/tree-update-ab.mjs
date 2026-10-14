@@ -98,6 +98,10 @@ async function measureOne(page, { depth, nextName, useForcedTick }) {
       previousFrame = now;
       raf = requestAnimationFrame(onFrame);
     }
+    // Prime a real frame timestamp before the update. Without this the
+    // first delayed frame is ignored and the maximum can misleadingly be zero.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    previousFrame = performance.now();
     raf = requestAnimationFrame(onFrame);
     const longTasks = [];
     const perfObserver = typeof PerformanceObserver !== "undefined"
@@ -215,7 +219,8 @@ await mkdir(resultsDirectory, { recursive: true });
 const results = [];
 const startTime = performance.now();
 run(process.execPath, ["tests/browser/prepare-story.mjs"]);
-for (const variant of ["immutable", "mutable"]) {
+const reverse = process.env.TREE_AB_REVERSE === "1";
+for (const variant of (reverse ? ["mutable", "immutable"] : ["immutable", "mutable"])) {
   console.log(`Building real extension for ${variant} strategy...`);
   run("npm", ["run", "build"], {
     VITE_TREE_UPDATE_STRATEGY: variant,
@@ -230,8 +235,10 @@ const all = {
   measurement: "SugarCube write -> watcher -> React -> Ant tree -> DOM -> next animation frame",
   trials, results,
 };
-await writeFile(join(resultsDirectory, "tree-update-ab.json"), JSON.stringify(all, null, 2));
-console.log(`TREE_E2E_RESULTS ${join(resultsDirectory, "tree-update-ab.json")}`);
+const resultFile = join(resultsDirectory,
+  reverse ? "tree-update-ab-reversed.json" : "tree-update-ab.json");
+await writeFile(resultFile, JSON.stringify(all, null, 2));
+console.log(`TREE_E2E_RESULTS ${resultFile}`);
 for (const scenario of cases) {
   const a = results.find((x) => x.variant === "immutable" &&
     x.width === scenario.width && x.depth === scenario.depth);
