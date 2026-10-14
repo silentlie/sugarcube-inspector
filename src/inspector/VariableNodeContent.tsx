@@ -1,6 +1,5 @@
 import { Typography } from "antd";
 import { useEffect } from "react";
-import { isExpandableNode } from "../inspection/isExpandableNode";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "./variableNodes";
@@ -8,20 +7,22 @@ import { useVariable } from "./useVariableWatch";
 import { MapKeyPreview, VariableValuePreview } from "./VariableValuePreview";
 
 /** Virtualized rows own only visible-value subscriptions. */
-export function VariableNodeContent({ node, refresh, isLeaf }: {
+export function VariableNodeContent({ node, refresh }: {
   node: VariableNode; refresh: (id: number, load?: boolean) => void;
-  isLeaf: boolean;
 }) {
   const current = useVariable(node.location);
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
   const circular = !isMapEntry && current.kind === "value" && current.expandable &&
     node.ancestors.includes(current.value as object);
+  const expandable = isMapEntry
+    ? current.kind === "value"
+    : current.kind === "value" && current.expandable && !circular;
 
   // A collapsed row can become expandable (or a leaf) while visible.
   useEffect(() => {
-    if (isLeaf !== !isExpandableNode(node)) refresh(node.key);
-  }, [current, isLeaf, node, refresh]);
+    if (node.isLeaf !== !expandable) refresh(node.key);
+  }, [expandable, node.isLeaf, node.key, refresh]);
 
   return <span className="flex w-full min-w-0 items-center gap-[8px]">
     {isMapEntry ? <>
