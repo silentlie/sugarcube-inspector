@@ -90,3 +90,5 @@ update throughput only; they deliberately **exclude** React, Ant's full tree
 indexing/rendering, watcher polling, and frame rates. The mutable strategy is an
 isolated experiment, not enabled in the extension. Compare results on the same
 machine and repeat runs because short microbenchmarks are noisy.
+
+Measurement details: [immutable vs. mutable tree updates](docs/mutable-tree-update-benchmark.md).

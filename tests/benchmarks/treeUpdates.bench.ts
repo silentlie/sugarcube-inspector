@@ -1,4 +1,4 @@
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { performance } from "node:perf_hooks";
 import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "../../src/inspector/variableNodes";
 
@@ -44,7 +44,7 @@ function makeFixture(width: number, depth: number, strategy: Strategy) {
   }
 
   let flipped = false;
-  return function update() {
+  const update = function update() {
     // Change exactly one property's name every time, forcing reconciliation.
     if (flipped) {
       delete leaf.right;
@@ -76,6 +76,14 @@ function makeFixture(width: number, depth: number, strategy: Strategy) {
     // Keep the root live and catch regressions where the target detaches.
     if (items[items.length - 1]!.key !== targetKey) throw new Error("Target detached");
   };
+  const verify = () => {
+    let current = items[items.length - 1]!;
+    for (let i = 0; i < depth; i++) current = current.children![0]!;
+    const location = current.children?.[0]?.location;
+    return current === target && current.children?.length === 1 &&
+      location?.kind === "property" && location.key === (flipped ? "right" : "left");
+  };
+  return { update, verify };
 }
 
 
@@ -98,8 +106,10 @@ for (const [width, depth] of [
 ] as const) {
   describe(`tree update: ${width} siblings, depth ${depth}`, () => {
     it("reports per-update timings for immutable and mutable implementations", () => {
-      const immutable = makeFixture(width, depth, "immutable");
-      const mutable = makeFixture(width, depth, "mutable");
+      const immutableFixture = makeFixture(width, depth, "immutable");
+      const mutableFixture = makeFixture(width, depth, "mutable");
+      const immutable = immutableFixture.update;
+      const mutable = mutableFixture.update;
 
       // Warm up JIT code and the stable-ID registries before measuring.
       for (let i = 0; i < 150; i++) {
@@ -119,6 +129,8 @@ for (const [width, depth] of [
           immutableSamples.push(sample(immutable, 8));
         }
       }
+      expect(immutableFixture.verify()).toBe(true);
+      expect(mutableFixture.verify()).toBe(true);
       const im = median(immutableSamples);
       const mu = median(mutableSamples);
       // Results in milliseconds per update, including a new root array for
