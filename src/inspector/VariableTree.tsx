@@ -1,5 +1,6 @@
 import { isObject } from "@sindresorhus/is";
 import { Tree, Typography, type TreeDataNode } from "antd";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
@@ -118,7 +119,9 @@ function RichVariableTree({ storeKey, rootValue }: {
     className="sugarcube-variable-tree"
     blockNode
     selectable={false}
-    switcherIcon={(props) => <span aria-hidden="true">{props.expanded ? "▾" : "▸"}</span>}
+    switcherIcon={({ expanded }) => expanded
+      ? <ChevronDown size={16} aria-hidden="true" />
+      : <ChevronRight size={16} aria-hidden="true" />}
     virtual
     height={height}
     treeData={items}
