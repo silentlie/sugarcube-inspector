@@ -4,7 +4,7 @@ export interface VariableSubscription<T> {
 }
 
 type ActiveWatch = () => void;
-type WatchScope = { visible: boolean; subscribed: Set<ActiveWatch> };
+type WatchScope = { active: boolean; subscribed: Set<ActiveWatch> };
 
 /** Shared scheduler: one interval for all mounted variable and structure subscriptions. */
 export class VariableWatcher {
@@ -14,13 +14,13 @@ export class VariableWatcher {
 
   constructor(private readonly intervalMs = 250) {}
 
-  /** Visibility is owned by the tree scope, not by individual rows. */
-  setScopeVisible(scope: string, visible: boolean): void {
+  /** Activation is owned by the selected tree scope, not by individual rows. */
+  setScopeActive(scope: string, active: boolean): void {
     const state = this.getScope(scope);
-    if (state.visible === visible) return;
-    state.visible = visible;
+    if (state.active === active) return;
+    state.active = active;
     for (const observer of state.subscribed) {
-      if (visible) {
+      if (active) {
         this.start(observer);
         observer(); // Catch changes made while the tab was hidden.
       } else {
@@ -32,7 +32,7 @@ export class VariableWatcher {
   private getScope(scope: string): WatchScope {
     let state = this.scopes.get(scope);
     if (!state) {
-      state = { visible: false, subscribed: new Set() };
+      state = { active: false, subscribed: new Set() };
       this.scopes.set(scope, state);
     }
     return state;
@@ -55,9 +55,9 @@ export class VariableWatcher {
         if (listeners.size === 1) {
           const state = this.getScope(scope);
           state.subscribed.add(observer);
-          if (state.visible) this.start(observer);
+          if (state.active) this.start(observer);
         }
-        if (this.getScope(scope).visible) {
+        if (this.getScope(scope).active) {
           observer(); // Catch mutations between render and subscription.
         }
         return () => {
