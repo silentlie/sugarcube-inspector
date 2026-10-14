@@ -190,6 +190,8 @@ test("offscreen expanded nodes follow object replacement", async ({ page }) => {
   await holder.evaluate((element) => { element.scrollTop = 0; });
   await expect(drawer.getByRole("treeitem", { name: /^offscreen/ }))
     .toHaveAttribute("aria-expanded", "true");
+  // Wait for offscreen identity reconciliation before inspecting the new child.
+  await expect(drawer.getByText("old", { exact: true })).toHaveCount(0);
   const child = drawer.getByRole("treeitem", { name: /^child/ });
   // Reconciliation may preserve its expanded state; do not toggle it closed.
   if (await child.getAttribute("aria-expanded") !== "true") {
