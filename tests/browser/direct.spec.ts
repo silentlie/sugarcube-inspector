@@ -310,6 +310,41 @@ test("automatically reacts to game writes without manual refresh", async ({ page
   await expect(drawer.getByTitle('"appeared"', { exact: true })).toBeVisible();
 });
 
+test("root structure watcher updates selected scopes and catches up after hidden tabs", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+
+  await page.evaluate(() => {
+    const story = SugarCube.State.variables as unknown as Record<string, unknown>;
+    story.activeRootEntry = 1;
+  });
+  await expect(drawer.getByRole("treeitem", { name: /^activeRootEntry/ })).toBeVisible();
+
+  await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
+  await page.evaluate(() => {
+    const story = SugarCube.State.variables as unknown as Record<string, unknown>;
+    delete story.activeRootEntry;
+    story.hiddenRootEntry = { health: 7 };
+    const temporary = SugarCube.State.temporary as unknown as Record<string, unknown>;
+    temporary.temporaryRootEntry = 2;
+  });
+  await expect(drawer.getByRole("treeitem", { name: /^temporaryRootEntry/ })).toBeVisible();
+
+  await drawer.getByRole("tab", { name: "Overview" }).click();
+  await page.evaluate(() => {
+    const temporary = SugarCube.State.temporary as unknown as Record<string, unknown>;
+    delete temporary.temporaryRootEntry;
+  });
+  await drawer.getByRole("tab", { name: "Variables", exact: true }).click();
+  await expect(drawer.getByRole("treeitem", { name: /^temporaryRootEntry/ })).toHaveCount(0);
+
+  await drawer.getByRole("tab", { name: "Story Variables" }).click();
+  await expect(drawer.getByRole("treeitem", { name: /^activeRootEntry/ })).toHaveCount(0);
+  await expect(drawer.getByRole("treeitem", { name: /^hiddenRootEntry/ })).toBeVisible();
+  await expandVariable(drawer, "hiddenRootEntry");
+  await expect(drawer.getByText("health", { exact: true })).toBeVisible();
+});
+
 test("expanded tiles follow object replacement and nested in-place mutations", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
