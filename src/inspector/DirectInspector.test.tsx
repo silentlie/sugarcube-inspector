@@ -1,7 +1,12 @@
 // @vitest-environment happy-dom
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import DirectInspector from "./DirectInspector";
+
+vi.mock("./VariableTree", () => ({
+  default: ({ storeKey, active }: { storeKey: string; active: boolean }) =>
+    <div data-testid={`tree-${storeKey}`} data-active={String(active)} />,
+}));
 
 afterEach(() => {
   vi.useRealTimers();
@@ -24,6 +29,33 @@ describe("SugarCube startup gating", () => {
 
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.getByText("SugarCube Inspector")).toBeTruthy();
+    view.unmount();
+  });
+
+  it("activates only the selected scope while the Variables tab is active", () => {
+    vi.stubGlobal("SugarCube", {
+      State: { variables: { day: 1 }, temporary: { choice: "north" } },
+    });
+    const view = render(<DirectInspector />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Variables", exact: true }));
+    expect(screen.getByTestId("tree-variables").dataset.active).toBe("true");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Temporary Variables" }));
+    expect(screen.getByTestId("tree-variables").dataset.active).toBe("false");
+    expect(screen.getByTestId("tree-temporary").dataset.active).toBe("true");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    expect(screen.getByTestId("tree-variables").dataset.active).toBe("false");
+    expect(screen.getByTestId("tree-temporary").dataset.active).toBe("false");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Variables", exact: true }));
+    expect(screen.getByTestId("tree-temporary").dataset.active).toBe("true");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Favorites" }));
+    expect(screen.getByTestId("tree-variables").dataset.active).toBe("false");
+    expect(screen.getByTestId("tree-temporary").dataset.active).toBe("false");
+
     view.unmount();
   });
 });
