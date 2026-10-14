@@ -378,7 +378,7 @@ describe("shared variable watcher", () => {
     let second = 2;
     const a = watcher.watch(() => first, Object.is, "variables");
     const b = watcher.watch(() => second, Object.is, "variables");
-    watcher.setScopeVisible("variables", true);
+    watcher.setScopeActive("variables", true);
     const onA = vi.fn();
     const onB = vi.fn();
     const unsubscribeA = a.subscribe(onA);
@@ -415,7 +415,7 @@ describe("shared variable watcher", () => {
     const stopTemporary = b.subscribe(notifyTemporary);
 
     expect(vi.getTimerCount()).toBe(0);
-    watcher.setScopeVisible("variables", true);
+    watcher.setScopeActive("variables", true);
     expect(vi.getTimerCount()).toBe(1);
     story = 5;
     temporary = 6;
@@ -425,19 +425,19 @@ describe("shared variable watcher", () => {
     expect(notifyStory).toHaveBeenCalledTimes(1);
     expect(notifyTemporary).not.toHaveBeenCalled();
 
-    watcher.setScopeVisible("variables", false);
+    watcher.setScopeActive("variables", false);
     expect(vi.getTimerCount()).toBe(0);
     story = 7;
-    watcher.setScopeVisible("temporary", true);
+    watcher.setScopeActive("temporary", true);
     expect(b.getSnapshot()).toBe(6);
     expect(notifyTemporary).toHaveBeenCalledTimes(1);
     expect(a.getSnapshot()).toBe(5);
 
-    watcher.setScopeVisible("variables", true);
+    watcher.setScopeActive("variables", true);
     expect(a.getSnapshot()).toBe(7);
     expect(notifyStory).toHaveBeenCalledTimes(2);
     stopStory();
-    watcher.setScopeVisible("variables", false);
+    watcher.setScopeActive("variables", false);
     stopTemporary();
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -448,7 +448,7 @@ describe("shared variable watcher", () => {
     const subscription = watcher.watch(() => 1, Object.is, "variables");
     const unsubscribe = subscription.subscribe(vi.fn());
     unsubscribe();
-    watcher.setScopeVisible("variables", true);
+    watcher.setScopeActive("variables", true);
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -456,7 +456,7 @@ describe("shared variable watcher", () => {
     const watcher = new VariableWatcher();
     let value = "old";
     const subscription = watcher.watch(() => value, Object.is, "variables");
-    watcher.setScopeVisible("variables", true);
+    watcher.setScopeActive("variables", true);
     value = "new";
     const notify = vi.fn();
     const unsubscribe = subscription.subscribe(notify);
