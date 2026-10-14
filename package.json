@@ -19,8 +19,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "compile": "tsc --noEmit",
-    "postinstall": "wxt prepare",
-    "bench:tree": "vitest run --config vitest.bench.config.ts"
+    "postinstall": "wxt prepare"
   },
   "dependencies": {
     "@sindresorhus/is": "^8.1.0",

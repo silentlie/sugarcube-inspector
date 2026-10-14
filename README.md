@@ -78,19 +78,3 @@ can affect the inspector, and vice versa. Do not run on untrusted pages.
    Variables → Story Variables or Temporary Variables.
 4. Expand objects and change game values. Visible entries update automatically.
 5. Run `npm run lint && npm run compile && npm test && npm run test:browser`.
-
-## Compare tree update strategies
-
-Run `npm run bench:tree` to compare the current immutable `updateTreeItem()`
-search and ancestor copying against updating the known `VariableNode` directly,
-then copying the root array (`setItems([...items])`). Fixtures contain 200, 2,000,
-and 10,000 root siblings and one six-level-deep branch. Both strategies perform
-identical live child discovery and reconciliation. Results report JavaScript domain
-update throughput only; they deliberately **exclude** React, Ant's full tree
-indexing/rendering, watcher polling, and frame rates. The mutable strategy is an
-isolated experiment, not enabled in the extension. Compare results on the same
-machine and repeat runs because short microbenchmarks are noisy.
-
-Measurement details: [immutable vs. mutable tree updates](docs/mutable-tree-update-benchmark.md).
-
-End-to-end Chromium A/B result: [immutable vs. direct mutable tree updates](docs/mutable-tree-e2e-benchmark.md). The mutable approach offered no reproducible end-to-end improvement, so the inspector keeps immutable updates.
