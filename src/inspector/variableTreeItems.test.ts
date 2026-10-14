@@ -11,7 +11,7 @@ function child(items: ReturnType<typeof reconcileChildren>, name: string) {
 }
 
 describe("ID-based tree reconciliation", () => {
-  it("reuses the original array and Items when there are no structural changes", () => {
+  it("reuses the original array and TreeItems when there are no structural changes", () => {
     const value = { first: 1, second: { count: 2 } };
     const root = parent(value);
     const first = reconcileChildren(getVariableChildren(root));

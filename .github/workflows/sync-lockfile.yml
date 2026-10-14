@@ -1,0 +1,25 @@
+name: Temporary npm lockfile sync
+
+on:
+  push:
+    branches: [feat/direct-main-world-inspector]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Regenerate package lock
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Commit lockfile to the current feature branch
+        run: |
+          git add package-lock.json
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "chore: update lockfile for Tailwind ESLint plugin"
+          git push origin HEAD:feat/direct-main-world-inspector

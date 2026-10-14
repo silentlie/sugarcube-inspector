@@ -1,37 +1,14 @@
-import { isExpandableNode } from "../inspection/isExpandableNode";
 import { Typography } from "antd";
-import { useEffect, useMemo } from "react";
-import type { VariableLocation, VariableSnapshot } from "../inspection/variableLocation";
+import { useEffect } from "react";
+import { isExpandableNode } from "../inspection/isExpandableNode";
+import type { VariableLocation } from "../inspection/variableLocation";
 import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "../inspection/variableTree";
 import { useVariable } from "./useVariableWatch";
-import { TypeSyntax, ValueSyntax } from "./valueSyntax";
-
-function ValueTokens({ current, showType = true }: { current: VariableSnapshot; showType?: boolean }) {
-  const type = current.kind === "value" ? current.type :
-    current.kind === "accessor" ? current.accessor : current.kind;
-  const preview = current.kind === "value" ? current.preview :
-    current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
-  return <>
-    {showType && <span className="shrink-0 whitespace-nowrap font-mono text-[12px]">
-      <TypeSyntax type={type} />
-    </span>}
-    <span title={preview} className={`overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px] ${showType ? "max-w-[45%]" : "max-w-full"}`}>
-      <ValueSyntax type={type} preview={preview} />
-    </span>
-  </>;
-}
-
-function MapKeyPreview({ location }: {
-  location: Extract<VariableLocation, {kind:"map"}>;
-}) {
-  const keyLocation = useMemo(() => ({ ...location, part: "key" as const }), [location]);
-  const key = useVariable(keyLocation);
-  return <ValueTokens current={key} showType={false} />;
-}
+import { MapKeyPreview, VariableValuePreview } from "./VariableValuePreview";
 
 /** Virtualized rows own only visible-value subscriptions. */
-export function LiveVariableLabel({ node, refresh, isLeaf }: {
+export function VariableNodeContent({ node, refresh, isLeaf }: {
   node: VariableNode; refresh: (id: number, load?: boolean) => void;
   isLeaf: boolean;
 }) {
@@ -52,14 +29,14 @@ export function LiveVariableLabel({ node, refresh, isLeaf }: {
         <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} />
       </span>
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>→</Typography.Text>
-      <ValueTokens current={current} />
+      <VariableValuePreview current={current} />
     </> : <>
       {!isSetMember &&
         <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[14px]">
           {getLocationName(node.location)}
         </span>}
       {isSetMember && <span className="min-w-0 flex-1" />}
-      <ValueTokens current={current} />
+      <VariableValuePreview current={current} />
     </>}
     {circular &&
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>

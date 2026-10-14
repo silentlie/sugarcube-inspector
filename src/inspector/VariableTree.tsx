@@ -7,9 +7,9 @@ import { readVariable, type VariableLocation } from "../inspection/variableLocat
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
 import { variableWatcher } from "../inspection/variableWatcher";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
-import { LiveVariableLabel } from "./LiveVariableLabel";
+import { VariableNodeContent } from "./VariableNodeContent";
 import { VariableScopeContext, useStructure, useVariable } from "./useVariableWatch";
-import { reconcileChildren, refreshItem, updateTreeItem, type Item } from "./variableTreeItems";
+import { reconcileChildren, refreshItem, updateTreeItem, type TreeItem } from "./variableTreeItems";
 
 /** Snapshot both the current owner identity and its direct child structure. */
 function readExpanded(node: VariableNode) {
@@ -38,7 +38,7 @@ function RichVariableTree({ storeKey, rootValue }: {
     location: { kind: "state", key: storeKey },
     ancestors: [],
   }), [storeKey]);
-  const [items, setItems] = useState<Item[]>(() => reconcileChildren(getVariableChildren(rootNode)));
+  const [items, setItems] = useState<TreeItem[]>(() => reconcileChildren(getVariableChildren(rootNode)));
   const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
   const expandedWatches = useRef(new Map<number, ExpandedWatch>());
@@ -73,7 +73,7 @@ function RichVariableTree({ storeKey, rootValue }: {
   // Collapsing a parent also pauses descendants retained in expandedKeys.
   useEffect(() => {
     const live = new Map<number, VariableNode>();
-    const collect = (siblings: readonly Item[]) => {
+    const collect = (siblings: readonly TreeItem[]) => {
       for (const item of siblings) {
         if (!expanded.has(item.key)) continue;
         live.set(item.key, item.variable);
@@ -128,13 +128,13 @@ function RichVariableTree({ storeKey, rootValue }: {
     loadData={loadData}
     onExpand={(keys, info) => {
       setExpandedKeys(keys.filter((key): key is number => typeof key === "number"));
-      if (info.expanded && (info.node as Item).children) {
+      if (info.expanded && (info.node as TreeItem).children) {
         refresh(info.node.key as number, true);
       }
     }}
     titleRender={(data) => {
-      const item = data as Item;
-      return <LiveVariableLabel
+      const item = data as TreeItem;
+      return <VariableNodeContent
         node={item.variable} refresh={refresh} isLeaf={Boolean(item.isLeaf)} />;
     }}
   />}

@@ -4,6 +4,7 @@ import js from "@eslint/js";
 import json from "@eslint/json";
 import markdown from "@eslint/markdown";
 import reactHooks from "eslint-plugin-react-hooks";
+import tailwindcss from "eslint-plugin-tailwindcss";
 import { defineConfig, globalIgnores, includeIgnoreFile } from "eslint/config";
 import globals from "globals";
 import { fileURLToPath } from "node:url";
@@ -42,6 +43,13 @@ export default defineConfig([
   {
     files: ["**/*.{jsx,tsx}"],
     extends: [reactHooks.configs.flat.recommended],
+  },
+  {
+    files: ["**/*.{jsx,tsx}"],
+    extends: [tailwindcss.configs["flat/recommended"]],
+    settings: {
+      tailwindcss: { cssConfigPath: "./src/styles/tailwind.css" },
+    },
   },
   {
     files: ["**/*.json"],

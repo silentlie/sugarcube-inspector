@@ -4,10 +4,10 @@ import { readVariable } from "../inspection/variableLocation";
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
 
 /** Rendering labels come from live locations, not cached tree titles. */
-export type Item = TreeDataNode & {
+export type TreeItem = TreeDataNode & {
   key: number;
   variable: VariableNode;
-  children?: Item[];
+  children?: TreeItem[];
   /** Value whose direct children were last loaded (identity, not a snapshot). */
   loadedValue?: unknown;
 };
@@ -18,11 +18,11 @@ function valueAt(node: VariableNode): unknown {
 }
 
 /**
- * Reconcile only the supplied sibling list. An unchanged ID keeps its Item and
+ * Reconcile only the supplied sibling list. An unchanged ID keeps its TreeItem and
  * location reference; a newly discovered ID never loads descendants.
  * Previously loaded descendants are revisited only if their owner value changed.
  */
-export function reconcileChildren(nodes: VariableNode[], previous: Item[] = []): Item[] {
+export function reconcileChildren(nodes: VariableNode[], previous: TreeItem[] = []): TreeItem[] {
   const byId = new Map(previous.map((item) => [item.key, item]));
   let changed = nodes.length !== previous.length;
   const next = nodes.map((node, index) => {
@@ -53,8 +53,8 @@ export function reconcileChildren(nodes: VariableNode[], previous: Item[] = []):
 
 /** Update only the path to the requested item; retain all unaffected sibling arrays. */
 export function updateTreeItem(
-  items: Item[], target: number, update: (item: Item) => Item,
-): Item[] {
+  items: TreeItem[], target: number, update: (item: TreeItem) => TreeItem,
+): TreeItem[] {
   let changed = false;
   const next = items.map((item) => {
     if (item.key === target) {
@@ -72,7 +72,7 @@ export function updateTreeItem(
 }
 
 /** Refresh a node's direct child list only when it was already loaded or is expanding. */
-export function refreshItem(item: Item, load = false): Item {
+export function refreshItem(item: TreeItem, load = false): TreeItem {
   const isLeaf = !isExpandableNode(item.variable);
   const children = isLeaf || (!load && item.children === undefined)
     ? undefined
