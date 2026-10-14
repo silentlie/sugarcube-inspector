@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
+import { getVariableChildren, reconcileChildren, reconcileLiveChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
 
 function parent(value: object): VariableNode {
   return { key: 0, location: { kind: "property", owner: { value }, key: "value" }, ancestors: [] };
@@ -10,6 +10,56 @@ function child(items: ReturnType<typeof reconcileChildren>, name: string) {
 }
 
 describe("ID-based tree reconciliation", () => {
+  it("reuses matching child nodes before reconciliation without allocating candidates", () => {
+    const value: Record<string, unknown> = { keep: 1, removed: 2 };
+    const root = parent(value);
+    const before = reconcileChildren(getVariableChildren(root));
+    delete value.removed;
+    value.added = 3;
+
+    const candidates = getVariableChildren(root, new Map(before.map((node) => [node.key, node])));
+    expect(candidates).toHaveLength(2);
+    expect(candidates[0]).toBe(before[0]);
+    expect(candidates[1]).not.toBe(before[1]);
+    expect(candidates[1]?.location).toMatchObject({ kind: "property", key: "added" });
+
+    const next = reconcileLiveChildren(root, before);
+    expect(next[0]).toBe(before[0]);
+    expect(next.map((node) => (node.location as { key: string }).key))
+      .toEqual(["keep", "added"]);
+  });
+
+  it("detects expandability changes even when reusing old node identity", () => {
+    const value: Record<string, unknown> = { child: 1 };
+    const root = parent(value);
+    const initial = reconcileChildren(getVariableChildren(root));
+    expect(initial[0]?.isLeaf).toBe(true);
+    value.child = { nested: true };
+
+    const candidates = getVariableChildren(root, new Map(initial.map((node) => [node.key, node])));
+    expect(candidates[0]).not.toBe(initial[0]);
+    expect(candidates[0]?.key).toBe(initial[0]?.key);
+    expect(candidates[0]?.location).toBe(initial[0]?.location);
+    expect(candidates[0]?.isLeaf).toBe(false);
+
+    const expanded = reconcileChildren(candidates, initial);
+    expect(expanded[0]?.isLeaf).toBe(false);
+    value.child = 0;
+    const closed = reconcileChildren(getVariableChildren(root, new Map(expanded.map((node) => [node.key, node]))), expanded);
+    expect(closed[0]?.isLeaf).toBe(true);
+  });
+
+  it("retains live Map entry locations across ID-based candidate reuse", () => {
+    const key = { id: 1 };
+    const value = new Map<unknown, unknown>([[key, { score: 1 }]]);
+    const root = parent(value);
+    const before = reconcileChildren(getVariableChildren(root));
+    value.set(key, { score: 2 });
+    const again = getVariableChildren(root, new Map(before.map((node) => [node.key, node])));
+    expect(again[0]).toBe(before[0]);
+    expect(again[0]?.location).toBe(before[0]?.location);
+  });
+
   it("reuses the original array and VariableNodes when there are no structural changes", () => {
     const value = { first: 1, second: { count: 2 } };
     const root = parent(value);
