@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readVariable, sameVariable } from "./variableLocation";
 import { getLocationName, listChildren, readStructure, sameStructure } from "./variableStructure";
-import { getVariableChildren, type VariableNode } from "./variableTree";
+import { getVariableChildren, type TreeItem } from "../inspector/variableTreeItems";
 import { VariableWatcher } from "./variableWatcher";
 
 afterEach(() => {
@@ -87,7 +87,7 @@ describe("recursive variable locations", () => {
         kind: "value", type, preview: text, expandable: true,
       });
       expect(() => getVariableChildren({
-        id: 0, location, ancestors: [],
+        key: 0, location, ancestors: [],
       })).not.toThrow();
     }
   });
@@ -132,8 +132,8 @@ describe("recursive variable locations", () => {
     expect(() => readStructure(proxy)).toThrow(failure);
     expect(() => listChildren(proxy)).toThrow(failure);
 
-    const node: VariableNode = {
-      id: 0,
+    const node: TreeItem = {
+      key: 0,
         location: { kind: "property", owner: { proxy }, key: "proxy" },
       ancestors: [],
     };
@@ -238,20 +238,20 @@ describe("recursive variable locations", () => {
 
   it("keeps numeric Map and Set node IDs when earlier members disappear", () => {
     const map = new Map([["first", 1], ["second", 2]]);
-    const mapRoot: VariableNode = {
-      id: 0, location: { kind: "property", owner: { map }, key: "map" }, ancestors: [],
+    const mapRoot: TreeItem = {
+      key: 0, location: { kind: "property", owner: { map }, key: "map" }, ancestors: [],
     };
-    const second = getVariableChildren(mapRoot)[1]!.id;
+    const second = getVariableChildren(mapRoot)[1]!.key;
     map.delete("first");
-    expect(getVariableChildren(mapRoot)[0]!.id).toBe(second);
+    expect(getVariableChildren(mapRoot)[0]!.key).toBe(second);
 
     const set = new Set(["first", "second"]);
-    const setRoot: VariableNode = {
-      id: 1, location: { kind: "property", owner: { set }, key: "set" }, ancestors: [],
+    const setRoot: TreeItem = {
+      key: 1, location: { kind: "property", owner: { set }, key: "set" }, ancestors: [],
     };
-    const secondSet = getVariableChildren(setRoot)[1]!.id;
+    const secondSet = getVariableChildren(setRoot)[1]!.key;
     set.delete("first");
-    expect(getVariableChildren(setRoot)[0]!.id).toBe(secondSet);
+    expect(getVariableChildren(setRoot)[0]!.key).toBe(secondSet);
   });
 
   it("represents each Map entry once, with independently expandable key and value", () => {
@@ -259,8 +259,8 @@ describe("recursive variable locations", () => {
     const value = { health: 100 };
     const map = new Map<unknown, unknown>([[key, value]]);
     const holder = { map };
-    const root: VariableNode = {
-      id: 0,
+    const root: TreeItem = {
+      key: 0,
       location: { kind: "property", owner: holder, key: "map" },
       ancestors: [],
     };
@@ -274,7 +274,7 @@ describe("recursive variable locations", () => {
 
     const sides = getVariableChildren(entry);
     expect(sides.map((side) => getLocationName(side.location))).toEqual(["key", "value"]);
-    expect(new Set(sides.map((side) => side.id)).size).toBe(2);
+    expect(new Set(sides.map((side) => side.key)).size).toBe(2);
     expect(readVariable(sides[0]!.location)).toMatchObject({ kind: "value", value: key });
     expect(readVariable(sides[1]!.location)).toMatchObject({ kind: "value", value });
     expect(getVariableChildren(sides[0]!).map((child) => getLocationName(child.location)))
@@ -306,8 +306,8 @@ describe("recursive variable locations", () => {
   it("does not traverse circular Map keys or Map values indefinitely", () => {
     const map = new Map<unknown, unknown>();
     map.set(map, map);
-    const root: VariableNode = {
-      id: 0,
+    const root: TreeItem = {
+      key: 0,
       location: { kind: "property", owner: { map }, key: "map" },
       ancestors: [],
     };
@@ -320,49 +320,49 @@ describe("recursive variable locations", () => {
 
   it("retains stable numeric node IDs across object additions", () => {
     const obj: Record<string, unknown> = { first: 1 };
-    const root: VariableNode = {
-      id: 0, location: { kind: "property", owner: { obj }, key: "obj" }, ancestors: [],
+    const root: TreeItem = {
+      key: 0, location: { kind: "property", owner: { obj }, key: "obj" }, ancestors: [],
     };
-    const original = getVariableChildren(root)[0]!.id;
+    const original = getVariableChildren(root)[0]!.key;
     obj.second = 2;
     const children = getVariableChildren(root);
     expect(typeof original).toBe("number");
-    expect(children[0]!.id).toBe(original);
-    expect(children[1]!.id).not.toBe(original);
+    expect(children[0]!.key).toBe(original);
+    expect(children[1]!.key).not.toBe(original);
   });
 
   it("keeps repeated references distinct and changes IDs when an owner is replaced", () => {
     const shared = { score: 1 };
     const store = { player: shared, leader: shared };
-    const root: VariableNode = {
-      id: 0, location: { kind: "property", owner: { store }, key: "store" }, ancestors: [],
+    const root: TreeItem = {
+      key: 0, location: { kind: "property", owner: { store }, key: "store" }, ancestors: [],
     };
     const [player, leader] = getVariableChildren(root);
-    expect(player!.id).not.toBe(leader!.id);
+    expect(player!.key).not.toBe(leader!.key);
     const playerScore = getVariableChildren(player!)[0]!;
     const leaderScore = getVariableChildren(leader!)[0]!;
-    expect(playerScore.id).not.toBe(leaderScore.id);
-    expect(getVariableChildren(player!)[0]!.id).toBe(playerScore.id);
+    expect(playerScore.key).not.toBe(leaderScore.key);
+    expect(getVariableChildren(player!)[0]!.key).toBe(playerScore.key);
 
     store.player = { score: 2 };
     const replacement = getVariableChildren(player!)[0]!;
-    expect(replacement.id).not.toBe(playerScore.id);
+    expect(replacement.key).not.toBe(playerScore.key);
     expect(readVariable(replacement.location)).toMatchObject({ kind: "value", value: 2 });
-    expect(getVariableChildren(leader!)[0]!.id).toBe(leaderScore.id);
+    expect(getVariableChildren(leader!)[0]!.key).toBe(leaderScore.key);
   });
 
   it("does not collide across Map entry, Map property, key and value nodes", () => {
     const map = new Map<unknown, unknown>([["tag", { score: 4 }]]);
     Object.defineProperty(map, "tag", { value: 7, configurable: true });
-    const root: VariableNode = {
-      id: 0, location: { kind: "property", owner: { map }, key: "map" }, ancestors: [],
+    const root: TreeItem = {
+      key: 0, location: { kind: "property", owner: { map }, key: "map" }, ancestors: [],
     };
     const [entry, property] = getVariableChildren(root);
-    expect(entry!.id).not.toBe(property!.id);
+    expect(entry!.key).not.toBe(property!.key);
     const [key, value] = getVariableChildren(entry!);
-    expect(key!.id).not.toBe(value!.id);
-    expect(new Set([entry!.id, property!.id, key!.id, value!.id]).size).toBe(4);
-    expect(getVariableChildren(entry!).map((node) => node.id)).toEqual([key!.id, value!.id]);
+    expect(key!.key).not.toBe(value!.key);
+    expect(new Set([entry!.key, property!.key, key!.key, value!.key]).size).toBe(4);
+    expect(getVariableChildren(entry!).map((node) => node.key)).toEqual([key!.key, value!.key]);
   });
 
 });
@@ -466,8 +466,8 @@ describe("shared variable watcher", () => {
 describe("Rich Tree View location adapter", () => {
   it("discovers properties on live function references", () => {
     const fn = Object.assign(() => 1, { answer: 42 });
-    const parent: VariableNode = {
-      id: 0,
+    const parent: TreeItem = {
+      key: 0,
         location: { kind: "property", owner: { fn }, key: "fn" },
       ancestors: [],
     };
@@ -480,15 +480,15 @@ describe("Rich Tree View location adapter", () => {
     const player: Record<string, unknown> = { health: 50 };
     player.self = player;
     const root = { player, leader: player };
-    const parent: VariableNode = {
-      id: 0,
+    const parent: TreeItem = {
+      key: 0,
         location: { kind: "property", owner: { root }, key: "root" },
       ancestors: [],
     };
     const firstLevel = getVariableChildren(parent);
     const players = firstLevel;
-    expect(players.map((node) => node.id)).toHaveLength(2);
-    expect(players[0]!.id).not.toBe(players[1]!.id);
+    expect(players.map((node) => node.key)).toHaveLength(2);
+    expect(players[0]!.key).not.toBe(players[1]!.key);
     expect(readVariable(players[0]!.location)).toMatchObject({ kind: "value", value: player });
     expect(readVariable(players[1]!.location)).toMatchObject({ kind: "value", value: player });
 
@@ -503,8 +503,8 @@ describe("Rich Tree View location adapter", () => {
     );
     const getter = vi.fn(() => 99);
     Object.defineProperty(object, "computed", { get: getter, enumerable: true });
-    const root: VariableNode = {
-      id: 0,
+    const root: TreeItem = {
+      key: 0,
         location: { kind: "property", owner: { object }, key: "object" },
       ancestors: [],
     };

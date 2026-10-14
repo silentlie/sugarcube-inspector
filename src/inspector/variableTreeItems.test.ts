@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
-import { reconcileChildren, refreshItem, updateTreeItem } from "./variableTreeItems";
+import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type TreeItem } from "./variableTreeItems";
 
-function parent(value: object): VariableNode {
-  return { id: 0, location: { kind: "property", owner: { value }, key: "value" }, ancestors: [] };
+function parent(value: object): TreeItem {
+  return { key: 0, location: { kind: "property", owner: { value }, key: "value" }, ancestors: [] };
 }
 function child(items: ReturnType<typeof reconcileChildren>, name: string) {
-  return items.find((item) => item.variable.location.kind === "property" &&
-    item.variable.location.key === name)!;
+  return items.find((item) => item.location.kind === "property" &&
+    item.location.key === name)!;
 }
 
 describe("ID-based tree reconciliation", () => {
@@ -18,7 +17,7 @@ describe("ID-based tree reconciliation", () => {
     const again = reconcileChildren(getVariableChildren(root), first);
     expect(again).toBe(first);
     expect(again[0]).toBe(first[0]);
-    expect(again[1]?.variable.location).toBe(first[1]?.variable.location);
+    expect(again[1]?.location).toBe(first[1]?.location);
   });
 
   it("adds and removes IDs without rebuilding unchanged nodes or eager descendants", () => {
@@ -29,7 +28,7 @@ describe("ID-based tree reconciliation", () => {
     delete value.remove;
     value.added = { nested: { deep: 3 } };
     const next = reconcileChildren(getVariableChildren(root), before);
-    expect(next.map((item) => (item.variable.location as {key: string}).key))
+    expect(next.map((item) => (item.location as {key: string}).key))
       .toEqual(["keep", "added"]);
     expect(child(next, "keep")).toBe(keep);
     expect(child(next, "added").children).toBeUndefined();
@@ -49,6 +48,25 @@ describe("ID-based tree reconciliation", () => {
     expect(child(next, "player").children?.[0]).not.toBe(oldPlayer.children?.[0]);
     expect(child(next, "inventory")).toBe(oldInventory);
     expect(child(next, "inventory").children).toBe(oldInventory.children);
+  });
+
+
+  it("keeps descendant IDs stable when ancestor TreeItems are immutably copied", () => {
+    const value = { stats: { health: 100 } };
+    const root = parent(value);
+    let items = reconcileChildren(getVariableChildren(root));
+    const stats = child(items, "stats");
+    items = updateTreeItem(items, stats.key, (item) => refreshItem(item, true));
+    const first = child(items, "stats");
+    const health = first.children![0]!;
+    const copied = { ...first };
+
+    // Immutable tree updates replace TreeItem objects, not their live locations.
+    expect(getVariableChildren(copied)[0]!.key).toBe(health.key);
+    value.stats.health = 80;
+    const next = reconcileChildren(getVariableChildren(root), items);
+    expect(child(next, "stats")).toBe(first);
+    expect(child(next, "stats").children![0]).toBe(health);
   });
 
   it("updates expandability and reuses unchanged paths for targeted refresh", () => {

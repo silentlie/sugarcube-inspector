@@ -1,9 +1,9 @@
 import { isObject } from "@sindresorhus/is";
 import { getStore } from "./direct";
-import type { VariableNode } from "./variableTree";
+import type { VariableLocation } from "./variableLocation";
 
 /** Check only this location, without type detection or enumerating descendants. */
-export function isExpandableNode(node: VariableNode): boolean {
+export function isExpandableNode(node: { location: VariableLocation; ancestors: readonly object[] }): boolean {
   const location = node.location;
   if (location.kind === "map" && location.part === undefined) {
     return Map.prototype.has.call(location.owner, location.key);

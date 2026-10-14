@@ -4,15 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
 import { readVariable, type VariableLocation } from "../inspection/variableLocation";
-import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
 import { variableWatcher } from "../inspection/variableWatcher";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { VariableNodeContent } from "./VariableNodeContent";
 import { VariableScopeContext, useStructure, useVariable } from "./useVariableWatch";
-import { reconcileChildren, refreshItem, updateTreeItem, type TreeItem } from "./variableTreeItems";
+import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type TreeItem } from "./variableTreeItems";
 
 /** Snapshot both the current owner identity and its direct child structure. */
-function readExpanded(node: VariableNode) {
+function readExpanded(node: TreeItem) {
   const current = readVariable(node.location);
   const value = current.kind === "value" ? current.value : undefined;
   return {
@@ -27,14 +26,14 @@ function sameExpanded(a: ReturnType<typeof readExpanded>, b: ReturnType<typeof r
   return Object.is(a.value, b.value) && sameStructure(a.structure, b.structure);
 }
 
-type ExpandedWatch = { node: VariableNode; unsubscribe: () => void };
+type ExpandedWatch = { location: VariableLocation; unsubscribe: () => void };
 
 function RichVariableTree({ storeKey, rootValue }: {
   storeKey: VariableStoreKey; rootValue: object;
 }) {
   const structure = useStructure(rootValue);
-  const rootNode = useMemo<VariableNode>(() => ({
-    id: storeKey === "variables" ? 0 : 1,
+  const rootNode = useMemo<TreeItem>(() => ({
+    key: storeKey === "variables" ? 0 : 1,
     location: { kind: "state", key: storeKey },
     ancestors: [],
   }), [storeKey]);
@@ -72,11 +71,11 @@ function RichVariableTree({ storeKey, rootValue }: {
   // Expanded logical nodes keep polling even when Ant virtualizes their rows.
   // Collapsing a parent also pauses descendants retained in expandedKeys.
   useEffect(() => {
-    const live = new Map<number, VariableNode>();
+    const live = new Map<number, TreeItem>();
     const collect = (siblings: readonly TreeItem[]) => {
       for (const item of siblings) {
         if (!expanded.has(item.key)) continue;
-        live.set(item.key, item.variable);
+        live.set(item.key, item);
         if (item.children) collect(item.children);
       }
     };
@@ -84,7 +83,7 @@ function RichVariableTree({ storeKey, rootValue }: {
 
     const watches = expandedWatches.current;
     for (const [id, watch] of watches) {
-      if (live.get(id) === watch.node) continue;
+      if (live.get(id)?.location === watch.location) continue;
       watch.unsubscribe();
       watches.delete(id);
     }
@@ -94,7 +93,7 @@ function RichVariableTree({ storeKey, rootValue }: {
         () => readExpanded(node), sameExpanded, storeKey,
       );
       watches.set(id, {
-        node,
+        location: node.location,
         unsubscribe: subscription.subscribe(() => refresh(id, true)),
       });
     }
@@ -135,7 +134,7 @@ function RichVariableTree({ storeKey, rootValue }: {
     titleRender={(data) => {
       const item = data as TreeItem;
       return <VariableNodeContent
-        node={item.variable} refresh={refresh} isLeaf={Boolean(item.isLeaf)} />;
+        node={item} refresh={refresh} isLeaf={Boolean(item.isLeaf)} />;
     }}
   />}
   </div>;

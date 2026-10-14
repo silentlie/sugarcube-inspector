@@ -3,13 +3,13 @@ import { useEffect } from "react";
 import { isExpandableNode } from "../inspection/isExpandableNode";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getLocationName } from "../inspection/variableStructure";
-import type { VariableNode } from "../inspection/variableTree";
+import type { TreeItem } from "./variableTreeItems";
 import { useVariable } from "./useVariableWatch";
 import { MapKeyPreview, VariableValuePreview } from "./VariableValuePreview";
 
 /** Virtualized rows own only visible-value subscriptions. */
 export function VariableNodeContent({ node, refresh, isLeaf }: {
-  node: VariableNode; refresh: (id: number, load?: boolean) => void;
+  node: TreeItem; refresh: (id: number, load?: boolean) => void;
   isLeaf: boolean;
 }) {
   const current = useVariable(node.location);
@@ -20,7 +20,7 @@ export function VariableNodeContent({ node, refresh, isLeaf }: {
 
   // A collapsed row can become expandable (or a leaf) while visible.
   useEffect(() => {
-    if (isLeaf !== !isExpandableNode(node)) refresh(node.id);
+    if (isLeaf !== !isExpandableNode(node)) refresh(node.key);
   }, [current, isLeaf, node, refresh]);
 
   return <span className="flex w-full min-w-0 items-center gap-[8px]">
