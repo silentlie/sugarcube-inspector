@@ -1,4 +1,4 @@
-import detect, { isObject } from "@sindresorhus/is";
+import detect from "@sindresorhus/is";
 import { getStore, type VariableStoreKey } from "./direct";
 import { boxedPrimitive, preview } from "./valuePreview";
 
@@ -14,7 +14,7 @@ type AccessorKind = "getter" | "setter" | "getter/setter";
 
 /** Previews are captured at read time so in-place mutations remain observable. */
 export type VariableSnapshot =
-  | { kind: "value"; value: unknown; preview: string; type: string; expandable: boolean }
+  | { kind: "value"; value: unknown; preview: string; type: string }
   | { kind: "accessor"; accessor: AccessorKind }
   | { kind: "missing" };
 
@@ -24,7 +24,6 @@ function snapshot(value: unknown): VariableSnapshot {
     value,
     preview: preview(value),
     type: boxedPrimitive(value)?.type ?? detect(value),
-    expandable: isObject(value),
   };
 }
 
@@ -61,8 +60,7 @@ export function sameVariable(a: VariableSnapshot, b: VariableSnapshot): boolean 
   switch (a.kind) {
     case "value":
       return b.kind === "value" && Object.is(a.value, b.value) &&
-        a.preview === b.preview && a.type === b.type &&
-        a.expandable === b.expandable;
+        a.preview === b.preview && a.type === b.type;
     case "accessor":
       return b.kind === "accessor" && a.accessor === b.accessor;
     case "missing":
