@@ -81,8 +81,8 @@ export function reconcileChildren(parent: VariableNode, previous: VariableNode[]
   const next = locations.map((location, index) => {
     const { kind, key } = childIdentity(location);
     const candidate = byKind.get(kind)?.get(key);
-    const old = candidate?.location.kind !== "state" &&
-      candidate?.location.owner === location.owner ? candidate : undefined;
+    const old = candidate && candidate.location.kind !== "state" &&
+      candidate.location.owner === location.owner ? candidate : undefined;
 
     if (!old) {
       changed = true;
