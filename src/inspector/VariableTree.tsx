@@ -3,7 +3,7 @@ import { Tree, Typography, type TreeDataNode } from "antd";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type VariableStoreKey } from "../inspection/direct";
-import { readVariable, type VariableLocation } from "../inspection/variableLocation";
+import { readLocation, type VariableLocation } from "../inspection/variableLocation";
 import { variableWatcher } from "../inspection/variableWatcher";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { VariableNodeContent } from "./VariableNodeContent";
@@ -12,7 +12,7 @@ import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } fro
 
 /** Snapshot both the current owner identity and its direct child structure. */
 function readExpanded(node: VariableNode) {
-  const current = readVariable(node.location);
+  const current = readLocation(node.location);
   const value = current.kind === "value" ? current.value : undefined;
   return {
     value,

@@ -1,6 +1,6 @@
 import type { TreeDataNode } from "antd";
 import { isExpandableNode } from "../inspection/isExpandableNode";
-import { readVariable, type VariableLocation } from "../inspection/variableLocation";
+import { readLocation, type VariableLocation } from "../inspection/variableLocation";
 import { listChildren } from "../inspection/variableStructure";
 
 /** One node model for both live inspection and Ant's treeData. */
@@ -32,16 +32,15 @@ function childLocations(item: VariableNode): {
   ancestors: readonly object[];
 } {
   const location = item.location;
+  const current = readLocation(location);
   if (location.kind === "map" && location.part === undefined) {
     return {
-      locations: Map.prototype.has.call(location.owner, location.key)
+      locations: current.kind === "value"
         ? [{ ...location, part: "key" }, { ...location, part: "value" }]
         : [],
       ancestors: item.ancestors,
     };
   }
-
-  const current = readVariable(location);
   if (current.kind !== "value" || !isExpandableNode(item, current)) {
     return { locations: [], ancestors: item.ancestors };
   }
@@ -53,7 +52,7 @@ function childLocations(item: VariableNode): {
 }
 
 function valueAt(item: VariableNode): unknown {
-  const current = readVariable(item.location);
+  const current = readLocation(item.location);
   return current.kind === "value" ? current.value : undefined;
 }
 

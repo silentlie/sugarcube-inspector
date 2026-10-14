@@ -12,27 +12,22 @@ export type VariableLocation =
 
 type AccessorKind = "getter" | "setter" | "getter/setter";
 
-/** Previews are captured at read time so in-place mutations remain observable. */
-export type VariableSnapshot =
-  | { kind: "value"; value: unknown; preview: string; type: string }
+export type VariableRead =
+  | { kind: "value"; value: unknown }
   | { kind: "accessor"; accessor: AccessorKind }
   | { kind: "missing" };
 
-function snapshot(value: unknown): VariableSnapshot {
-  return {
-    kind: "value",
-    value,
-    preview: preview(value),
-    type: boxedPrimitive(value)?.type ?? detect(value),
-  };
-}
+/** Previews are captured at read time so in-place mutations remain observable. */
+export type VariableSnapshot =
+  | (Extract<VariableRead, { kind: "value" }> & { preview: string; type: string })
+  | Exclude<VariableRead, { kind: "value" }>;
 
 /** Only SugarCube's two trusted State getters may be read as accessors. */
-export function readVariable(location: VariableLocation): VariableSnapshot {
+export function readLocation(location: VariableLocation): VariableRead {
   switch (location.kind) {
     case "state": {
       const value = getStore(location.key);
-      return value === undefined ? { kind: "missing" } : snapshot(value);
+      return value === undefined ? { kind: "missing" } : { kind: "value", value };
     }
     case "property": {
       const descriptor = Object.getOwnPropertyDescriptor(location.owner, location.key);
@@ -42,17 +37,31 @@ export function readVariable(location: VariableLocation): VariableSnapshot {
           : descriptor.get ? "getter" : "setter";
         return { kind: "accessor", accessor };
       }
-      return snapshot(descriptor.value);
+      return { kind: "value", value: descriptor.value };
     }
     case "map":
       if (!Map.prototype.has.call(location.owner, location.key)) return { kind: "missing" };
-      return snapshot(location.part === "key"
-        ? location.key
-        : Map.prototype.get.call(location.owner, location.key));
+      return {
+        kind: "value",
+        value: location.part === "key"
+          ? location.key
+          : Map.prototype.get.call(location.owner, location.key),
+      };
     case "set":
       return Set.prototype.has.call(location.owner, location.member)
-        ? snapshot(location.member) : { kind: "missing" };
+        ? { kind: "value", value: location.member } : { kind: "missing" };
   }
+}
+
+/** Format only subscriptions that render values; structure checks use readLocation. */
+export function readVariable(location: VariableLocation): VariableSnapshot {
+  const current = readLocation(location);
+  if (current.kind !== "value") return current;
+  return {
+    ...current,
+    preview: preview(current.value),
+    type: boxedPrimitive(current.value)?.type ?? detect(current.value),
+  };
 }
 
 export function sameVariable(a: VariableSnapshot, b: VariableSnapshot): boolean {

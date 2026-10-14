@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readVariable, sameVariable } from "./variableLocation";
+import { readLocation, readVariable, sameVariable } from "./variableLocation";
 import { isExpandableNode } from "./isExpandableNode";
 import { getLocationName, listChildren, readStructure, sameStructure } from "./variableStructure";
 import { reconcileChildren, type VariableNode } from "../inspector/variableNodes";
@@ -28,6 +28,41 @@ describe("recursive variable locations", () => {
     expect(readVariable({ kind: "property", owner: subject, key: "computed" }))
       .toEqual({ kind: "accessor", accessor: "getter" });
     expect(getter).not.toHaveBeenCalled();
+  });
+
+  it("reads raw locations without formatting values or invoking property getters", () => {
+    const owner: Record<string, unknown> = { present: undefined };
+    expect(readLocation({ kind: "property", owner, key: "present" }))
+      .toEqual({ kind: "value", value: undefined });
+    expect(readLocation({ kind: "property", owner, key: "absent" }))
+      .toEqual({ kind: "missing" });
+
+    const getter = vi.fn(() => 1);
+    Object.defineProperty(owner, "computed", { get: getter });
+    expect(readLocation({ kind: "property", owner, key: "computed" }))
+      .toEqual({ kind: "accessor", accessor: "getter" });
+    expect(getter).not.toHaveBeenCalled();
+
+    const value = { level: 1 };
+    owner.child = value;
+    expect(readLocation({ kind: "property", owner, key: "child" }))
+      .toEqual({ kind: "value", value });
+    expect(readLocation({ kind: "property", owner, key: "child" }))
+      .not.toHaveProperty("preview");
+
+    const map = new Map<unknown, unknown>([["key", undefined]]);
+    expect(readLocation({ kind: "map", owner: map, key: "key" }))
+      .toEqual({ kind: "value", value: undefined });
+    expect(readLocation({ kind: "map", owner: map, key: "key", part: "key" }))
+      .toEqual({ kind: "value", value: "key" });
+    expect(readLocation({ kind: "map", owner: map, key: "absent" }))
+      .toEqual({ kind: "missing" });
+
+    const set = new Set<unknown>([undefined]);
+    expect(readLocation({ kind: "set", owner: set, member: undefined }))
+      .toEqual({ kind: "value", value: undefined });
+    expect(readLocation({ kind: "set", owner: set, member: "absent" }))
+      .toEqual({ kind: "missing" });
   });
 
   it("reads the current owner property, including replacements and missing locations", () => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getState, getStore, hasState } from "./direct";
-import { readVariable } from "./variableLocation";
+import { readLocation, readVariable } from "./variableLocation";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -29,9 +29,11 @@ describe("direct MAIN-world access", () => {
     vi.stubGlobal("SugarCube", {
       State: { get variables() { return getter(); }, temporary: {} },
     });
+    expect(readLocation({ kind: "state", key: "variables" }))
+      .toEqual({ kind: "value", value: story });
     expect(readVariable({ kind: "state", key: "variables" }))
       .toMatchObject({ kind: "value", value: story });
-    expect(getter).toHaveBeenCalledTimes(1);
+    expect(getter).toHaveBeenCalledTimes(2);
     const other = { get secret() { throw new Error("Should never run"); } };
     expect(readVariable({ kind: "property", owner: other, key: "secret" }))
       .toEqual({ kind: "accessor", accessor: "getter" });
