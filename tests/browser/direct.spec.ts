@@ -185,7 +185,6 @@ test("inspects shared live references and cycles without writes or serialization
     vars.leader = player;
     vars.uncloneable = () => 42;
   });
-  await drawer.getByRole("button", { name: "Refresh variables" }).click();
   await expect(drawer.getByText("uncloneable", { exact: true })).toBeVisible();
   await expect(drawer.getByRole("tree", { name: "Story variables tree" })).toBeVisible();
   await expect(drawer.getByRole("treeitem").first()).toBeVisible();
@@ -200,13 +199,12 @@ test("inspects shared live references and cycles without writes or serialization
   })).toBe(true);
 });
 
-test("refresh and passage navigation read the current game values", async ({ page }) => {
+test("polling detects updated values after passage navigation without manual refresh", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
+  await expect(drawer.getByRole("button", { name: "Refresh variables" })).toHaveCount(0);
   await page.locator("#passages").getByRole("link", { name: "Continue" }).click();
   await expect(page.locator("#passages")).toContainText("Passage changed.");
-  await expect(drawer.getByTitle("12", { exact: true })).toBeVisible();
-  await drawer.getByRole("button", { name: "Refresh variables" }).click();
   await expect(drawer.getByTitle("12", { exact: true })).toBeVisible();
 });
 

@@ -1,8 +1,6 @@
-import { Button, Divider, Flex, Tabs, Typography } from "antd";
-import { RefreshCw } from "lucide-react";
+import { Divider, Tabs, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { hasState, type VariableStoreKey } from "../inspection/direct";
-import { variableWatcher } from "../inspection/variableWatcher";
 import VariableTree from "./VariableTree";
 
 type Section = "overview" | "variables" | "scripts";
@@ -39,7 +37,9 @@ function InspectorSections() {
   useEffect(() => {
     const passages = document.getElementById("passages");
     if (!passages) return;
-    const observer = new MutationObserver(() => variableWatcher.refresh());
+    const observer = new MutationObserver(() => {
+      // TODO: Decide whether passage navigation needs special handling beyond polling.
+    });
     observer.observe(passages, { childList: true });
     return () => observer.disconnect();
   }, []);
@@ -62,19 +62,14 @@ function InspectorSections() {
 
   return (
     <section data-tailwind-layout className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <Flex align="center" justify="space-between">
-        <div className="min-w-0">
-          <Typography.Title level={5} style={{ margin: 0 }}>
-            SugarCube Inspector
-          </Typography.Title>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            MAIN world · direct references
-          </Typography.Text>
-        </div>
-        <Button type="text" aria-label="Refresh variables" title="Refresh variables"
-          icon={<RefreshCw size={18} />}
-          onClick={() => variableWatcher.refresh()} />
-      </Flex>
+      <div className="min-w-0">
+        <Typography.Title level={5} style={{ margin: 0 }}>
+          SugarCube Inspector
+        </Typography.Title>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          MAIN world · direct references
+        </Typography.Text>
+      </div>
       <Divider style={{ margin: "12px 0 0" }} />
       <Tabs
         activeKey={section}

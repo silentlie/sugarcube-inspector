@@ -3,7 +3,7 @@ export interface VariableSubscription<T> {
   subscribe: (callback: () => void) => () => void;
 }
 
-type ActiveWatch = { check: () => void };
+type ActiveWatch = () => void;
 type WatchScope = { visible: boolean; subscribed: Set<ActiveWatch> };
 
 /** Shared scheduler: one interval for all mounted variable and structure subscriptions. */
@@ -22,7 +22,7 @@ export class VariableWatcher {
     for (const observer of state.subscribed) {
       if (visible) {
         this.start(observer);
-        observer.check(); // Catch changes made while the tab was hidden.
+        observer(); // Catch changes made while the tab was hidden.
       } else {
         this.stop(observer);
       }
@@ -38,16 +38,14 @@ export class VariableWatcher {
     return state;
   }
 
-  watch<T>(read: () => T, equal: (a: T, b: T) => boolean, scope?: string): VariableSubscription<T> {
+  watch<T>(read: () => T, equal: (a: T, b: T) => boolean, scope: string): VariableSubscription<T> {
     let current = read();
     const listeners = new Set<() => void>();
-    const observer: ActiveWatch = {
-      check: () => {
-        const next = read();
-        if (equal(current, next)) return;
-        current = next;
-        for (const listener of [...listeners]) listener();
-      },
+    const observer: ActiveWatch = () => {
+      const next = read();
+      if (equal(current, next)) return;
+      current = next;
+      for (const listener of [...listeners]) listener();
     };
 
     return {
@@ -55,21 +53,17 @@ export class VariableWatcher {
       subscribe: (callback) => {
         listeners.add(callback);
         if (listeners.size === 1) {
-          if (scope === undefined) {
-            this.start(observer);
-          } else {
-            const state = this.getScope(scope);
-            state.subscribed.add(observer);
-            if (state.visible) this.start(observer);
-          }
+          const state = this.getScope(scope);
+          state.subscribed.add(observer);
+          if (state.visible) this.start(observer);
         }
-        if (scope === undefined || this.getScope(scope).visible) {
-          observer.check(); // Catch mutations between render and subscription.
+        if (this.getScope(scope).visible) {
+          observer(); // Catch mutations between render and subscription.
         }
         return () => {
           listeners.delete(callback);
           if (listeners.size !== 0) return;
-          if (scope !== undefined) this.getScope(scope).subscribed.delete(observer);
+          this.getScope(scope).subscribed.delete(observer);
           this.stop(observer);
         };
       },
@@ -77,7 +71,7 @@ export class VariableWatcher {
   }
 
   refresh(): void {
-    for (const watcher of [...this.active]) watcher.check();
+    for (const watcher of [...this.active]) watcher();
   }
 
   private start(observer: ActiveWatch): void {

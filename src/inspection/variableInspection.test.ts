@@ -373,8 +373,9 @@ describe("shared variable watcher", () => {
     const watcher = new VariableWatcher(50);
     let first = 1;
     let second = 2;
-    const a = watcher.watch(() => first, Object.is);
-    const b = watcher.watch(() => second, Object.is);
+    const a = watcher.watch(() => first, Object.is, "variables");
+    const b = watcher.watch(() => second, Object.is, "variables");
+    watcher.setScopeVisible("variables", true);
     const onA = vi.fn();
     const onB = vi.fn();
     const unsubscribeA = a.subscribe(onA);
@@ -451,7 +452,8 @@ describe("shared variable watcher", () => {
   it("catches a mutation that happens before a component subscribes", () => {
     const watcher = new VariableWatcher();
     let value = "old";
-    const subscription = watcher.watch(() => value, Object.is);
+    const subscription = watcher.watch(() => value, Object.is, "variables");
+    watcher.setScopeVisible("variables", true);
     value = "new";
     const notify = vi.fn();
     const unsubscribe = subscription.subscribe(notify);
