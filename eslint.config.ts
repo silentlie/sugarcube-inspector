@@ -46,7 +46,7 @@ export default defineConfig([
   },
   {
     files: ["**/*.{jsx,tsx}"],
-    extends: [tailwindcss.configs["flat/recommended"]],
+    extends: [tailwindcss.configs.recommended],
     settings: {
       tailwindcss: { cssConfigPath: "./src/styles/tailwind.css" },
     },
