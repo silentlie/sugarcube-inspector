@@ -8,7 +8,7 @@ import { variableWatcher } from "../inspection/variableWatcher";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { VariableNodeContent } from "./VariableNodeContent";
 import { VariableScopeContext, useStructure, useVariable } from "./useVariableWatch";
-import { getVariableChildren, reconcileChildren, reconcileLiveChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
+import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
 
 /** Snapshot both the current owner identity and its direct child structure. */
 function readExpanded(node: VariableNode) {
@@ -59,7 +59,7 @@ function RichVariableTree({ storeKey, rootValue }: {
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
-      if (active) setItems((old) => reconcileLiveChildren(rootNode, old));
+      if (active) setItems((old) => reconcileChildren(getVariableChildren(rootNode), old));
     });
     return () => { active = false; };
   }, [rootNode, rootValue, structure]);
