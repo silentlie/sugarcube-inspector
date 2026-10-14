@@ -3,6 +3,7 @@ import css from "@eslint/css";
 import js from "@eslint/js";
 import json from "@eslint/json";
 import markdown from "@eslint/markdown";
+import prettier from "eslint-config-prettier";
 import reactHooks from "eslint-plugin-react-hooks";
 import type { Linter } from "eslint";
 import tailwindcss from "eslint-plugin-tailwindcss";
@@ -92,4 +93,6 @@ export default defineConfig([
     language: "css/css",
     extends: ["css/recommended"],
   },
+  // Disable ESLint formatting rules that conflict with Prettier.
+  prettier,
 ]);
