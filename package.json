@@ -18,7 +18,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "compile": "node ./node_modules/@typescript/native/bin/tsc --noEmit",
+    "compile": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
