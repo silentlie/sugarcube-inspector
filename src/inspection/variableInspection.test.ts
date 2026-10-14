@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readVariable, sameVariable } from "./variableLocation";
+import { isExpandableNode } from "./isExpandableNode";
 import { getLocationName, listChildren, readStructure, sameStructure } from "./variableStructure";
 import { reconcileChildren, type VariableNode } from "../inspector/variableNodes";
 import { VariableWatcher } from "./variableWatcher";
@@ -53,7 +54,7 @@ describe("recursive variable locations", () => {
     const present = { kind: "property" as const, owner: obj, key: "present" };
     expect(readVariable(present)).toEqual({
       kind: "value", value: undefined, type: "undefined",
-      preview: "undefined", expandable: false,
+      preview: "undefined",
     });
     Object.defineProperty(obj, "hidden", { value: 10, enumerable: false });
     expect(readVariable({ kind: "property", owner: obj, key: "hidden" }))
@@ -84,12 +85,80 @@ describe("recursive variable locations", () => {
     ] as const) {
       const location = { kind: "property" as const, owner: values, key };
       expect(readVariable(location)).toMatchObject({
-        kind: "value", type, preview: text, expandable: true,
+        kind: "value", type, preview: text,
       });
       expect(() => reconcileChildren({
         key: 0, location, ancestors: [],
       })).not.toThrow();
     }
+  });
+
+  it("derives one expandability rule for live nodes and subscribed snapshots", () => {
+    const values: Record<string, unknown> = {
+      primitive: 3,
+      object: { health: 50 },
+      function: () => 1,
+      boxed: new Number(4),
+    };
+    const getter = vi.fn(() => ({ secret: true }));
+    Object.defineProperty(values, "accessor", { get: getter });
+
+    for (const [name, expected] of [
+      ["primitive", false],
+      ["object", true],
+      ["function", true],
+      ["boxed", true],
+      ["accessor", false],
+      ["missing", false],
+    ] as const) {
+      const node: VariableNode = {
+        key: 0, location: { kind: "property", owner: values, key: name },
+        ancestors: [],
+      };
+      expect(isExpandableNode(node)).toBe(expected);
+      expect(isExpandableNode(node, readVariable(node.location))).toBe(expected);
+    }
+    expect(getter).not.toHaveBeenCalled();
+
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    const cycleNode: VariableNode = {
+      key: 1, location: { kind: "property", owner: circular, key: "self" },
+      ancestors: [circular],
+    };
+    expect(isExpandableNode(cycleNode)).toBe(false);
+    expect(isExpandableNode(cycleNode, readVariable(cycleNode.location))).toBe(false);
+
+    const map = new Map<unknown, unknown>([["primitive", 1]]);
+    const entry: VariableNode = {
+      key: 2, location: { kind: "map", owner: map, key: "primitive" },
+      ancestors: [],
+    };
+    expect(isExpandableNode(entry)).toBe(true);
+    expect(isExpandableNode(entry, readVariable(entry.location))).toBe(true);
+    const valueNode: VariableNode = {
+      ...entry, location: { ...entry.location, part: "value" },
+    };
+    expect(isExpandableNode(valueNode, readVariable(valueNode.location))).toBe(false);
+    map.delete("primitive");
+    expect(isExpandableNode(entry, readVariable(entry.location))).toBe(false);
+  });
+
+  it("reuses subscribed snapshots without reading the location again", () => {
+    let descriptorReads = 0;
+    const owner = new Proxy({ child: { health: 50 } }, {
+      getOwnPropertyDescriptor(target, key) {
+        descriptorReads++;
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      },
+    });
+    const node: VariableNode = {
+      key: 0, location: { kind: "property", owner, key: "child" }, ancestors: [],
+    };
+    const current = readVariable(node.location);
+    const initialReads = descriptorReads;
+    expect(isExpandableNode(node, current)).toBe(true);
+    expect(descriptorReads).toBe(initialReads);
   });
 
   it("captures mutable previews when values retain their identity", () => {
@@ -99,8 +168,8 @@ describe("recursive variable locations", () => {
     inventory.push("torch");
     const after = readVariable(location);
 
-    expect(before).toMatchObject({ kind: "value", preview: "Array(1)", expandable: true });
-    expect(after).toMatchObject({ kind: "value", preview: "Array(2)", expandable: true });
+    expect(before).toMatchObject({ kind: "value", preview: "Array(1)" });
+    expect(after).toMatchObject({ kind: "value", preview: "Array(2)" });
     expect(sameVariable(before, after)).toBe(false);
   });
 
