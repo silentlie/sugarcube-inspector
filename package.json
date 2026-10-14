@@ -27,7 +27,6 @@
     "prism-react-renderer": "^2.4.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-intersection-observer": "^11.0.1",
     "antd": "^6.6.3",
     "@ant-design/cssinjs": "^2.1.2"
   },
