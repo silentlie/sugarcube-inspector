@@ -50,7 +50,7 @@ async function prepareScenario(page, { width, depth }) {
     vars.target = leaf;
   }, { width, depth });
   const drawer = page.locator("sugarcube-inspector");
-  await drawer.waitFor();
+  await drawer.waitFor({ state: "attached" });
   const handle = drawer.getByRole("button", { name: "Resize SugarCube Inspector" });
   await handle.press("Enter");
   await handle.hover();
