@@ -38,7 +38,7 @@ describe("SugarCube startup gating", () => {
     });
     const view = render(<DirectInspector />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Variables", exact: true }));
+    fireEvent.click(screen.getByRole("tab", { name: "Variables" }));
     expect(screen.getByTestId("tree-variables").dataset.active).toBe("true");
 
     fireEvent.click(screen.getByRole("tab", { name: "Temporary Variables" }));
@@ -49,7 +49,7 @@ describe("SugarCube startup gating", () => {
     expect(screen.getByTestId("tree-variables").dataset.active).toBe("false");
     expect(screen.getByTestId("tree-temporary").dataset.active).toBe("false");
 
-    fireEvent.click(screen.getByRole("tab", { name: "Variables", exact: true }));
+    fireEvent.click(screen.getByRole("tab", { name: "Variables" }));
     expect(screen.getByTestId("tree-temporary").dataset.active).toBe("true");
 
     fireEvent.click(screen.getByRole("tab", { name: "Favorites" }));
