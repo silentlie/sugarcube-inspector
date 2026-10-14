@@ -1,4 +1,3 @@
-import { isObject } from "@sindresorhus/is";
 import type { TreeDataNode } from "antd";
 import { isExpandableNode } from "../inspection/isExpandableNode";
 import { readVariable, type VariableLocation } from "../inspection/variableLocation";
@@ -43,8 +42,7 @@ function childLocations(item: VariableNode): {
   }
 
   const current = readVariable(location);
-  if (current.kind !== "value" || !isObject(current.value) ||
-      item.ancestors.includes(current.value)) {
+  if (current.kind !== "value" || !isExpandableNode(item, current)) {
     return { locations: [], ancestors: item.ancestors };
   }
 
