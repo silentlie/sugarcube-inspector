@@ -20,7 +20,7 @@
     "format:check": "prettier --check .",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare",
-    "bench:tree": "vitest bench tests/benchmarks/treeUpdates.bench.ts --run"
+    "bench:tree": "vitest run --config vitest.bench.config.ts"
   },
   "dependencies": {
     "@sindresorhus/is": "^8.1.0",

@@ -1,9 +1,10 @@
-import { bench, describe } from "vitest";
+import { describe, it } from "vitest";
+import { performance } from "node:perf_hooks";
 import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "../../src/inspector/variableNodes";
 
 /**
- * Domain-only benchmark: identical child discovery / reconciliation on both
- * sides. Excludes React rendering, Ant indexing, 250ms watcher and scheduling.
+ * Domain-only benchmark. Excludes React, Ant indexing, watcher polling,
+ * and frames; both strategies run the same child discovery / reconciliation.
  *
  * Run: npm run bench:tree
  */
@@ -77,6 +78,18 @@ function makeFixture(width: number, depth: number, strategy: Strategy) {
   };
 }
 
+
+function sample(update: () => void, count: number): number {
+  const start = performance.now();
+  for (let i = 0; i < count; i++) update();
+  return (performance.now() - start) / count;
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return (sorted[(sorted.length - 1) >>> 1]! + sorted[sorted.length >>> 1]!) / 2;
+}
+
 for (const [width, depth] of [
   [200, 0],
   [2_000, 0],
@@ -84,10 +97,37 @@ for (const [width, depth] of [
   [2_000, 6],
 ] as const) {
   describe(`tree update: ${width} siblings, depth ${depth}`, () => {
-    // Each benchmark has its own mutable fixture and toggles the same change.
-    for (const strategy of ["immutable", "mutable"] as const) {
-      const update = makeFixture(width, depth, strategy);
-      bench(strategy, update, { time: 600, warmupTime: 150 });
-    }
+    it("reports per-update timings for immutable and mutable implementations", () => {
+      const immutable = makeFixture(width, depth, "immutable");
+      const mutable = makeFixture(width, depth, "mutable");
+
+      // Warm up JIT code and the stable-ID registries before measuring.
+      for (let i = 0; i < 150; i++) {
+        immutable();
+        mutable();
+      }
+
+      const immutableSamples: number[] = [];
+      const mutableSamples: number[] = [];
+      // Alternate order to reduce systematic CPU/frequency drift.
+      for (let i = 0; i < 60; i++) {
+        if (i % 2 === 0) {
+          immutableSamples.push(sample(immutable, 8));
+          mutableSamples.push(sample(mutable, 8));
+        } else {
+          mutableSamples.push(sample(mutable, 8));
+          immutableSamples.push(sample(immutable, 8));
+        }
+      }
+      const im = median(immutableSamples);
+      const mu = median(mutableSamples);
+      // Results in milliseconds per update, including a new root array for
+      // the mutable variant. No assertion on noisy benchmark ratios.
+      console.log(
+        `TREE_BENCH width=${width} depth=${depth} ` +
+        `immutable_ms=${im.toFixed(4)} mutable_ms=${mu.toFixed(4)} ` +
+        `speedup=${(im / mu).toFixed(2)}x`,
+      );
+    }, 60_000);
   });
 }
