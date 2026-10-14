@@ -190,7 +190,12 @@ test("offscreen expanded nodes follow object replacement", async ({ page }) => {
   await holder.evaluate((element) => { element.scrollTop = 0; });
   await expect(drawer.getByRole("treeitem", { name: /^offscreen/ }))
     .toHaveAttribute("aria-expanded", "true");
-  await expandVariable(drawer, "child");
+  const child = drawer.getByRole("treeitem", { name: /^child/ });
+  // Reconciliation may preserve its expanded state; do not toggle it closed.
+  if (await child.getAttribute("aria-expanded") !== "true") {
+    await child.locator(".ant-tree-switcher").click();
+  }
+  await expect(child).toHaveAttribute("aria-expanded", "true");
   await expect(drawer.getByText("replacement", { exact: true })).toBeVisible();
   await expect(drawer.getByText("old", { exact: true })).toHaveCount(0);
 });
