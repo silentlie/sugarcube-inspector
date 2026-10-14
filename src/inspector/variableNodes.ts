@@ -15,73 +15,43 @@ export type VariableNode = TreeDataNode & {
   loadedValue?: unknown;
 };
 
-// Numeric IDs are unique across scopes; 0 and 1 are reserved for roots.
+type ChildLocation = Exclude<VariableLocation, { kind: "state" }>;
+
+// 0 and 1 are reserved for root stores. IDs are assigned only to new children.
 let nextNodeId = 2;
 
-// Key by the retained location, not the VariableNode, since immutable tree updates
-// replace item objects. A new live owner still gets distinct descendant IDs.
-// Weak keys allow removed locations and their registries to be collected.
-const childIds = new WeakMap<
-  VariableLocation,
-  WeakMap<object, Map<string, Map<unknown, number>>>
->();
-
-function getChildId(parent: VariableNode, location: VariableLocation): number {
-  if (location.kind === "state") throw new Error("State stores cannot be child nodes");
-
-  let byOwner = childIds.get(parent.location);
-  if (!byOwner) {
-    byOwner = new WeakMap();
-    childIds.set(parent.location, byOwner);
-  }
-
-  let byKind = byOwner.get(location.owner);
-  if (!byKind) {
-    byKind = new Map();
-    byOwner.set(location.owner, byKind);
-  }
-
-  const kind = location.kind === "map" ? location.part ?? "map" : location.kind;
-  let ids = byKind.get(kind);
-  if (!ids) {
-    ids = new Map();
-    byKind.set(kind, ids);
-  }
-
-  const key = location.kind === "set" ? location.member : location.key;
-  let id = ids.get(key);
-  if (id === undefined) {
-    id = nextNodeId++;
-    ids.set(key, id);
-  }
-  return id;
-}
-
-function childItem(parent: VariableNode, location: VariableLocation, ancestors: readonly object[]): VariableNode {
-  const item: VariableNode = {
-    key: getChildId(parent, location),
-    location,
-    ancestors,
+function childIdentity(location: ChildLocation): { kind: string; key: unknown } {
+  return {
+    kind: location.kind === "map" ? location.part ?? "map" : location.kind,
+    key: location.kind === "set" ? location.member : location.key,
   };
-  item.isLeaf = !isExpandableNode(item);
-  return item;
 }
 
-/** Discover direct live children without eagerly enumerating descendants. */
-export function getVariableChildren(item: VariableNode): VariableNode[] {
+/** Discover direct live locations without eagerly traversing descendants. */
+function childLocations(item: VariableNode): {
+  locations: ChildLocation[];
+  ancestors: readonly object[];
+} {
   const location = item.location;
   if (location.kind === "map" && location.part === undefined) {
-    if (!Map.prototype.has.call(location.owner, location.key)) return [];
-    return (["key", "value"] as const).map((part) =>
-      childItem(item, { ...location, part }, item.ancestors));
+    return {
+      locations: Map.prototype.has.call(location.owner, location.key)
+        ? [{ ...location, part: "key" }, { ...location, part: "value" }]
+        : [],
+      ancestors: item.ancestors,
+    };
   }
 
   const current = readVariable(location);
   if (current.kind !== "value" || !isObject(current.value) ||
-      item.ancestors.includes(current.value)) return [];
+      item.ancestors.includes(current.value)) {
+    return { locations: [], ancestors: item.ancestors };
+  }
 
-  const nextAncestors = [...item.ancestors, current.value];
-  return listChildren(current.value).map((child) => childItem(item, child, nextAncestors));
+  return {
+    locations: listChildren(current.value),
+    ancestors: [...item.ancestors, current.value],
+  };
 }
 
 function valueAt(item: VariableNode): unknown {
@@ -90,22 +60,40 @@ function valueAt(item: VariableNode): unknown {
 }
 
 /**
- * Reconcile only supplied siblings. Stable IDs keep existing VariableNodes;
- * previously loaded descendants are revisited only on owner replacement.
+ * Reconcile direct children against their previous siblings.
+ * IDs belong to retained nodes; removed children leave no registry behind.
  */
-export function reconcileChildren(nodes: VariableNode[], previous: VariableNode[] = []): VariableNode[] {
-  const byId = new Map(previous.map((item) => [item.key, item]));
-  let changed = nodes.length !== previous.length;
-  const next = nodes.map((node, index) => {
-    const old = byId.get(node.key);
+export function reconcileChildren(parent: VariableNode, previous: VariableNode[] = []): VariableNode[] {
+  const { locations, ancestors } = childLocations(parent);
+  const byKind = new Map<string, Map<unknown, VariableNode>>();
+  for (const old of previous) {
+    if (old.location.kind === "state") continue;
+    const { kind, key } = childIdentity(old.location);
+    let byKey = byKind.get(kind);
+    if (!byKey) {
+      byKey = new Map();
+      byKind.set(kind, byKey);
+    }
+    byKey.set(key, old);
+  }
+
+  let changed = locations.length !== previous.length;
+  const next = locations.map((location, index) => {
+    const { kind, key } = childIdentity(location);
+    const candidate = byKind.get(kind)?.get(key);
+    const old = candidate?.location.kind !== "state" &&
+      candidate?.location.owner === location.owner ? candidate : undefined;
+
     if (!old) {
       changed = true;
+      const node: VariableNode = { key: nextNodeId++, location, ancestors };
+      node.isLeaf = !isExpandableNode(node);
       return node;
     }
 
-    const isLeaf = node.isLeaf;
+    const isLeaf = !isExpandableNode(old);
     if (old.isLeaf === isLeaf &&
-        (old.children === undefined || (!isLeaf && Object.is(old.loadedValue, valueAt(node))))) {
+        (old.children === undefined || (!isLeaf && Object.is(old.loadedValue, valueAt(old))))) {
       if (old !== previous[index]) changed = true;
       return old;
     }
@@ -114,8 +102,7 @@ export function reconcileChildren(nodes: VariableNode[], previous: VariableNode[
     if (isLeaf) return { ...old, isLeaf: true, children: undefined, loadedValue: undefined };
     if (old.children === undefined) return { ...old, isLeaf: false };
 
-    // Retain the previous location reference so nested IDs remain stable.
-    const children = reconcileChildren(getVariableChildren(old), old.children);
+    const children = reconcileChildren(old, old.children);
     return { ...old, isLeaf: false, children, loadedValue: valueAt(old) };
   });
   return changed ? next : previous;
@@ -146,7 +133,7 @@ export function refreshItem(item: VariableNode, load = false): VariableNode {
   const isLeaf = !isExpandableNode(item);
   const children = isLeaf || (!load && item.children === undefined)
     ? undefined
-    : reconcileChildren(getVariableChildren(item), item.children);
+    : reconcileChildren(item, item.children);
   const loadedValue = children === undefined ? undefined : valueAt(item);
 
   if (item.isLeaf === isLeaf && item.children === children &&
