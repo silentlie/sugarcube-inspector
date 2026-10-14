@@ -28,6 +28,27 @@ function sameExpanded(a: ReturnType<typeof readExpanded>, b: ReturnType<typeof r
 
 type ExpandedWatch = { location: VariableLocation; unsubscribe: () => void };
 
+// Build-time experimental branch. Normal extension builds remain immutable.
+// The A/B runner builds both variants against the same SugarCube fixture.
+const mutableTreeUpdates = import.meta.env.VITE_TREE_UPDATE_STRATEGY === "mutable";
+
+/** Only Ant's copied expansion event nodes need a lookup; watcher callbacks
+ *  already retain the real VariableNode object. */
+function findNode(items: readonly VariableNode[], key: number): VariableNode | undefined {
+  for (const item of items) {
+    if (item.key === key) return item;
+    const found = item.children && findNode(item.children, key);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+// The A/B runner bypasses the 250ms polling phase to measure the actual
+// watcher -> React -> Ant -> DOM pipeline; not included in normal builds.
+if (import.meta.env.VITE_TREE_UPDATE_BENCHMARK === "true") {
+  Object.assign(globalThis, { __sugarcubeInspectorBenchmarkTick: () => variableWatcher.refresh() });
+}
+
 function RichVariableTree({ storeKey, rootValue }: {
   storeKey: VariableStoreKey; rootValue: object;
 }) {
@@ -64,8 +85,24 @@ function RichVariableTree({ storeKey, rootValue }: {
     return () => { active = false; };
   }, [rootNode, rootValue, structure]);
 
-  const refresh = useCallback((id: number, load = false) => {
-    setItems((old) => updateTreeItem(old, id, (item) => refreshItem(item, load)));
+  const refresh = useCallback((nodeOrKey: VariableNode | number, load = false) => {
+    setItems((old) => {
+      const key = typeof nodeOrKey === "number" ? nodeOrKey : nodeOrKey.key;
+      if (!mutableTreeUpdates) {
+        return updateTreeItem(old, key, (item) => refreshItem(item, load));
+      }
+      // Ant provides copied event data to loadData/onExpand; resolve it only
+      // on those occasional interactions. Watchers pass the real node.
+      const node = typeof nodeOrKey === "number"
+        ? findNode(old, key) : nodeOrKey;
+      if (!node) return old;
+      const updated = refreshItem(node, load);
+      if (updated === node) return old;
+      node.isLeaf = updated.isLeaf;
+      node.children = updated.children;
+      node.loadedValue = updated.loadedValue;
+      return [...old];
+    });
   }, []);
 
   // Expanded logical nodes keep polling even when Ant virtualizes their rows.
@@ -94,7 +131,7 @@ function RichVariableTree({ storeKey, rootValue }: {
       );
       watches.set(id, {
         location: node.location,
-        unsubscribe: subscription.subscribe(() => refresh(id, true)),
+        unsubscribe: subscription.subscribe(() => refresh(node, true)),
       });
     }
   }, [items, expanded, refresh, storeKey]);
