@@ -1,14 +1,33 @@
 import { isObject } from "@sindresorhus/is";
 import { Tree, Typography, type TreeDataNode } from "antd";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
-import type { VariableLocation } from "../inspection/variableLocation";
+import { readVariable, type VariableLocation } from "../inspection/variableLocation";
 import { getVariableChildren, type VariableNode } from "../inspection/variableTree";
 import { variableWatcher } from "../inspection/variableWatcher";
+import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { LiveVariableLabel } from "./LiveVariableLabel";
 import { VariableScopeContext, useStructure, useVariable } from "./useVariableWatch";
 import { reconcileChildren, refreshItem, updateTreeItem, type Item } from "./variableTreeItems";
+
+/** Snapshot both the current owner identity and its direct child structure. */
+function readExpanded(node: VariableNode) {
+  const current = readVariable(node.location);
+  const value = current.kind === "value" ? current.value : undefined;
+  return {
+    value,
+    // Map entry children are synthetic key/value slots, not properties of its value.
+    structure: node.location.kind === "map" && node.location.part === undefined
+      ? [] : readStructure(value),
+  };
+}
+
+function sameExpanded(a: ReturnType<typeof readExpanded>, b: ReturnType<typeof readExpanded>): boolean {
+  return Object.is(a.value, b.value) && sameStructure(a.structure, b.structure);
+}
+
+type ExpandedWatch = { node: VariableNode; unsubscribe: () => void };
 
 function RichVariableTree({ storeKey, rootValue }: {
   storeKey: VariableStoreKey; rootValue: object;
@@ -22,6 +41,7 @@ function RichVariableTree({ storeKey, rootValue }: {
   const [items, setItems] = useState<Item[]>(() => reconcileChildren(getVariableChildren(rootNode)));
   const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
+  const expandedWatches = useRef(new Map<number, ExpandedWatch>());
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const [height, setHeight] = useState(0);
 
@@ -47,6 +67,45 @@ function RichVariableTree({ storeKey, rootValue }: {
 
   const refresh = useCallback((id: number, load = false) => {
     setItems((old) => updateTreeItem(old, id, (item) => refreshItem(item, load)));
+  }, []);
+
+  // Expanded logical nodes keep polling even when Ant virtualizes their rows.
+  // Collapsing a parent also pauses descendants retained in expandedKeys.
+  useEffect(() => {
+    const live = new Map<number, VariableNode>();
+    const collect = (siblings: readonly Item[]) => {
+      for (const item of siblings) {
+        if (!expanded.has(item.key)) continue;
+        live.set(item.key, item.variable);
+        if (item.children) collect(item.children);
+      }
+    };
+    collect(items);
+
+    const watches = expandedWatches.current;
+    for (const [id, watch] of watches) {
+      if (live.get(id) === watch.node) continue;
+      watch.unsubscribe();
+      watches.delete(id);
+    }
+    for (const [id, node] of live) {
+      if (watches.has(id)) continue;
+      const subscription = variableWatcher.watch(
+        () => readExpanded(node), sameExpanded, storeKey,
+      );
+      watches.set(id, {
+        node,
+        unsubscribe: subscription.subscribe(() => refresh(id, true)),
+      });
+    }
+  }, [items, expanded, refresh, storeKey]);
+
+  useEffect(() => {
+    const watches = expandedWatches.current;
+    return () => {
+      for (const watch of watches.values()) watch.unsubscribe();
+      watches.clear();
+    };
   }, []);
 
   const loadData = useCallback((item: TreeDataNode): Promise<void> => {
@@ -76,9 +135,7 @@ function RichVariableTree({ storeKey, rootValue }: {
     titleRender={(data) => {
       const item = data as Item;
       return <LiveVariableLabel
-        node={item.variable} expanded={expanded.has(item.key)} refresh={refresh}
-        isLeaf={Boolean(item.isLeaf)} loadedValue={item.loadedValue}
-        childrenLoaded={item.children !== undefined} />;
+        node={item.variable} refresh={refresh} isLeaf={Boolean(item.isLeaf)} />;
     }}
   />}
   </div>;

@@ -12,10 +12,10 @@ It reads live story and temporary variables directly without attaching a debugge
   Favorites are placeholders.
 - The variable tree uses Ant Design's built-in virtualization and discovers children
   lazily on expansion. ID-based, one-level reconciliation reuses unchanged nodes and
-  child arrays; replaced objects refresh only loaded branches. Expanded rows
-  revalidate their loaded children when remounted after virtualization, including
-  in-place changes made while offscreen. All logical children remain accessible
-  through scrolling.
+  child arrays; replaced objects refresh only loaded branches. Expanded logical
+  nodes retain structural subscriptions even when their rows are virtualized,
+  so offscreen changes update Ant tree data without waiting for a row remount.
+  All logical children remain accessible through scrolling.
 - Variable rows syntax-highlight values with `prism-react-renderer` and its
   built-in VS Dark theme. Type labels reuse that palette instead of custom color
   definitions; the existing live-data behavior is unchanged.
@@ -37,15 +37,17 @@ It reads live story and temporary variables directly without attaching a debugge
   as expandable references. Boxed primitives are handled explicitly because the
   library's general-purpose type detector rejects them; their values remain inspectable.
 - Mounted virtualized rows update values while the Variables tab is visible.
-  Expanded, mounted containers additionally watch structure, array length, and Map/Set membership.
+  All expanded logical containers watch object identity, structure, array length,
+  and Map/Set membership, including while their rows are offscreen.
   Structure snapshots use typed data, accessor, Map, and Set entries; enumerable
   and writable descriptor flags do not trigger tree rebuilds. Structural changes
   rebuild the tree model; ordinary value changes do not.
 - A single `react-intersection-observer` tracks each Variables panel's visibility.
   `VariableWatcher` pauses the corresponding scope when its tab is hidden and
   refreshes subscribed snapshots when it becomes visible again. Ant Tree unmounts
-  offscreen virtualized rows, which React automatically unsubscribes. A shared
-  250ms scheduler checks only active subscriptions.
+  offscreen row-value subscriptions; expanded-container subscriptions instead
+  remain until their branches collapse or disappear. A shared 250ms scheduler
+  checks only active subscriptions.
 - References retain object identity; ancestor cycles are marked and stop
   recursive discovery. Ordinary property accessors are displayed without
   invoking them; type classification uses the library defaults.

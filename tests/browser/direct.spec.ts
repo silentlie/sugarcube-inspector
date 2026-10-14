@@ -134,6 +134,67 @@ test("tab switching preserves expansion and tree fills remaining drawer height",
   await expect.poll(remainingGap).toBeLessThan(12);
 });
 
+test("offscreen expanded nodes update Ant virtual list without remounting", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 600 });
+  await page.goto(storyUrl);
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    vars.offscreen = { first: 1 };
+    for (let i = 0; i < 250; i++) vars[`spacer_${i}`] = i;
+  });
+  const drawer = await openVariables(page);
+  const tree = drawer.getByRole("tree", { name: "Story variables tree" });
+  const holder = tree.locator(".ant-tree-list-holder");
+  const row = drawer.getByRole("treeitem", { name: /^offscreen/ });
+  await expandVariable(drawer, "offscreen");
+  await expect(drawer.getByText("first", { exact: true })).toBeVisible();
+
+  await holder.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await expect(row).toHaveCount(0);
+  const before = await holder.evaluate((element) => element.scrollHeight);
+
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as Record<string, { first: number; added?: number }>;
+    vars.offscreen!.added = 2;
+  });
+  // Logical list height increases while the expanded parent row is still absent.
+  await expect.poll(() => holder.evaluate((element) => element.scrollHeight))
+    .toBeGreaterThan(before);
+  await expect(row).toHaveCount(0);
+
+  await holder.evaluate((element) => { element.scrollTop = 0; });
+  await expect(drawer.getByText("added", { exact: true })).toBeVisible();
+});
+
+test("offscreen expanded nodes follow object replacement", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 600 });
+  await page.goto(storyUrl);
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    vars.offscreen = { child: { old: 1 } };
+    for (let i = 0; i < 250; i++) vars[`spacer_${i}`] = i;
+  });
+  const drawer = await openVariables(page);
+  const holder = drawer.getByRole("tree", { name: "Story variables tree" })
+    .locator(".ant-tree-list-holder");
+  await expandVariable(drawer, "offscreen");
+  await expandVariable(drawer, "child");
+  await expect(drawer.getByText("old", { exact: true })).toBeVisible();
+
+  await holder.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await expect(drawer.getByRole("treeitem", { name: /^offscreen/ })).toHaveCount(0);
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    vars.offscreen = { child: { replacement: 2 } };
+  });
+  await holder.evaluate((element) => { element.scrollTop = 0; });
+  await expect(drawer.getByRole("treeitem", { name: /^offscreen/ }))
+    .toHaveAttribute("aria-expanded", "true");
+  await expandVariable(drawer, "child");
+  await expect(drawer.getByText("replacement", { exact: true })).toBeVisible();
+  await expect(drawer.getByText("old", { exact: true })).toHaveCount(0);
+});
+
 test("custom drawer retains keyboard resizing and toggle behaviour", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = page.locator("sugarcube-inspector");

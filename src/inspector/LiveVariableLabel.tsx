@@ -1,11 +1,10 @@
-import { isObject } from "@sindresorhus/is";
 import { isExpandableNode } from "../inspection/isExpandableNode";
 import { Typography } from "antd";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import type { VariableLocation, VariableSnapshot } from "../inspection/variableLocation";
 import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "../inspection/variableTree";
-import { useStructure, useVariable } from "./useVariableWatch";
+import { useVariable } from "./useVariableWatch";
 import { TypeSyntax, ValueSyntax } from "./valueSyntax";
 
 function ValueTokens({ current, showType = true }: { current: VariableSnapshot; showType?: boolean }) {
@@ -31,49 +30,21 @@ function MapKeyPreview({ location }: {
   return <ValueTokens current={key} showType={false} />;
 }
 
-function ExpandedStructureWatcher({ value, onChange }: {
-  value: object; onChange: () => void;
-}) {
-  const structure = useStructure(value);
-  const previousRef = useRef(structure);
-  useEffect(() => {
-    if (structure !== previousRef.current) {
-      previousRef.current = structure;
-      onChange();
-    }
-  }, [structure, onChange]);
-  return null;
-}
-
-/** Only virtualized rows mount these hooks and live value subscriptions. */
-export function LiveVariableLabel({ node, expanded, refresh, isLeaf, loadedValue, childrenLoaded }: {
-  node: VariableNode; expanded: boolean; refresh: (id: number, load?: boolean) => void;
-  isLeaf: boolean; loadedValue: unknown; childrenLoaded: boolean;
+/** Virtualized rows own only visible-value subscriptions. */
+export function LiveVariableLabel({ node, refresh, isLeaf }: {
+  node: VariableNode; refresh: (id: number, load?: boolean) => void;
+  isLeaf: boolean;
 }) {
   const current = useVariable(node.location);
-  const value = current.kind === "value" ? current.value : undefined;
-  const previousValueRef = useRef(value);
-  const mountedRef = useRef(false);
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
   const circular = !isMapEntry && current.kind === "value" && current.expandable &&
     node.ancestors.includes(current.value as object);
 
+  // A collapsed row can become expandable (or a leaf) while visible.
   useEffect(() => {
-    const previous = previousValueRef.current;
-    previousValueRef.current = value;
-    const firstRender = !mountedRef.current;
-    mountedRef.current = true;
-    // An expanded virtual row can remount after in-place structural mutations
-    // that weren't polled while it was offscreen.
-    const changedObject = !Object.is(previous, value) &&
-      (isObject(previous) || isObject(value));
-    const staleChildren = expanded && (!childrenLoaded || !Object.is(loadedValue, value));
-    if ((firstRender && expanded) || changedObject || staleChildren ||
-        isLeaf !== !isExpandableNode(node)) {
-      refresh(node.id, expanded);
-    }
-  }, [value, expanded, loadedValue, childrenLoaded, isLeaf, node, refresh]);
+    if (isLeaf !== !isExpandableNode(node)) refresh(node.id);
+  }, [current, isLeaf, node, refresh]);
 
   return <span className="flex w-full min-w-0 items-center gap-[8px]">
     {isMapEntry ? <>
@@ -94,8 +65,5 @@ export function LiveVariableLabel({ node, expanded, refresh, isLeaf, loadedValue
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         same reference
       </Typography.Text>}
-    {expanded && !isMapEntry && current.kind === "value" &&
-      current.expandable && !circular &&
-      <ExpandedStructureWatcher value={current.value as object} onChange={() => refresh(node.id)} />}
   </span>;
 }
