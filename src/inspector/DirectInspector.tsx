@@ -33,6 +33,7 @@ export default function DirectInspector() {
 function InspectorSections() {
   const [section, setSection] = useState<Section>("overview");
   const [scope, setScope] = useState<VariableScope>("variables");
+  const activeScope = section === "variables" ? scope : null;
 
   useEffect(() => {
     const passages = document.getElementById("passages");
@@ -53,8 +54,8 @@ function InspectorSections() {
       animated={false}
       onChange={(key) => setScope(key as VariableScope)}
       items={[
-        { key: "variables", label: "Story Variables", children: <VariableTree storeKey="variables" /> },
-        { key: "temporary", label: "Temporary Variables", children: <VariableTree storeKey="temporary" /> },
+        { key: "variables", label: "Story Variables", children: <VariableTree storeKey="variables" active={activeScope === "variables"} /> },
+        { key: "temporary", label: "Temporary Variables", children: <VariableTree storeKey="temporary" active={activeScope === "temporary"} /> },
         { key: "favorites", label: "Favorites" },
       ]}
     />
