@@ -2,7 +2,6 @@ import { isObject } from "@sindresorhus/is";
 import { Tree, Typography, type TreeDataNode } from "antd";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useInView } from "react-intersection-observer";
 import { type VariableStoreKey } from "../inspection/direct";
 import { readVariable, type VariableLocation } from "../inspection/variableLocation";
 import { variableWatcher } from "../inspection/variableWatcher";
@@ -152,14 +151,15 @@ function VariableTreeContent({ storeKey }: { storeKey: VariableStoreKey }) {
       : <Typography.Text type="secondary">{root.preview}</Typography.Text>;
 }
 
-export default function VariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
-  const { ref, inView } = useInView();
+export default function VariableTree({ storeKey, active }: {
+  storeKey: VariableStoreKey; active: boolean;
+}) {
   useEffect(() => {
-    variableWatcher.setScopeVisible(storeKey, inView);
-    return () => variableWatcher.setScopeVisible(storeKey, false);
-  }, [storeKey, inView]);
+    variableWatcher.setScopeActive(storeKey, active);
+    return () => variableWatcher.setScopeActive(storeKey, false);
+  }, [storeKey, active]);
 
-  return <div ref={ref} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+  return <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <VariableScopeContext.Provider value={storeKey}>
       <VariableTreeContent storeKey={storeKey} />
     </VariableScopeContext.Provider>
