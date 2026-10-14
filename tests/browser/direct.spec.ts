@@ -34,6 +34,12 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
   await expect(drawer.getByRole("treeitem").first()).toBeVisible();
   await expect(drawer.getByRole("tree", { name: "Story variables tree" })).toHaveClass(/ant-tree/);
   await expect(drawer.getByTitle("7", { exact: true })).toBeVisible();
+
+  const inventory = drawer.getByRole("treeitem", { name: /^inventory/ });
+  await expect(inventory.locator(".ant-tree-switcher svg.lucide-chevron-right")).toBeVisible();
+  await inventory.locator(".ant-tree-switcher").click();
+  await expect(inventory.locator(".ant-tree-switcher svg.lucide-chevron-down")).toBeVisible();
+
   await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
   await expect(drawer.getByText("choice", { exact: true })).toBeVisible();
   await expect(drawer.getByTitle('"north"', { exact: true }).last()).toBeVisible();
