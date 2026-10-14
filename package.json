@@ -18,7 +18,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "compile": "tsc --noEmit",
+    "compile": "node ./node_modules/@typescript/native/bin/tsc --noEmit",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -55,6 +55,7 @@
     "wxt": "^0.21.4",
     "eslint-plugin-tailwindcss": "^4.4.0",
     "globals": "^14.0.0",
-    "eslint-config-prettier": "^10.1.8"
+    "eslint-config-prettier": "^10.1.8",
+    "@typescript/native": "npm:typescript@^7.0.2"
   }
 }
