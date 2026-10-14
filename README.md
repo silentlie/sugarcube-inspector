@@ -37,18 +37,19 @@ It reads live story and temporary variables directly without attaching a debugge
   Runtime checks use named `@sindresorhus/is` type guards, including functions
   as expandable references. Boxed primitives are handled explicitly because the
   library's general-purpose type detector rejects them; their values remain inspectable.
-- Mounted virtualized rows update values while the Variables tab is visible.
+- Mounted virtualized rows update values while their variable scope is selected.
   All expanded logical containers watch object identity, structure, array length,
   and Map/Set membership, including while their rows are offscreen.
   Structure snapshots use typed data, accessor, Map, and Set entries; enumerable
   and writable descriptor flags do not trigger tree rebuilds. Structural changes
   rebuild the tree model; ordinary value changes do not.
-- A single `react-intersection-observer` tracks each Variables panel's visibility.
-  `VariableWatcher` pauses the corresponding scope when its tab is hidden and
-  refreshes subscribed snapshots when it becomes visible again. Ant Tree unmounts
-  offscreen row-value subscriptions; expanded-container subscriptions instead
-  remain until their branches collapse or disappear. A shared 250ms scheduler
-  checks only active subscriptions.
+- The outer Variables tab enables polling, and its selected Story or
+  Temporary tab determines the single active scope. Other tabs pause polling;
+  returning to a scope immediately refreshes its subscribed snapshots.
+  Closing the drawer does not pause polling while a variable scope is selected.
+  Ant Tree unmounts offscreen row-value subscriptions; expanded-container
+  subscriptions remain until their branches collapse or disappear. A shared
+  250ms scheduler checks only active subscriptions.
 - References retain object identity; ancestor cycles are marked and stop
   recursive discovery. Ordinary property accessors are displayed without
   invoking them; type classification uses the library defaults.
