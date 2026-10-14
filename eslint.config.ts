@@ -4,6 +4,7 @@ import js from "@eslint/js";
 import json from "@eslint/json";
 import markdown from "@eslint/markdown";
 import reactHooks from "eslint-plugin-react-hooks";
+import type { Linter } from "eslint";
 import tailwindcss from "eslint-plugin-tailwindcss";
 import { defineConfig, globalIgnores, includeIgnoreFile } from "eslint/config";
 import globals from "globals";
@@ -46,9 +47,11 @@ export default defineConfig([
   },
   {
     files: ["**/*.{jsx,tsx}"],
-    // ESLint 10 and the plugin's preset use incompatible config types.
-    // Register only runtime rules and metadata; presets are configured explicitly below.
-    plugins: { tailwindcss: { meta: tailwindcss.meta, rules: tailwindcss.rules } },
+    // This plugin's TypeScript types still target the pre-ESLint-10 rule context.
+    // Its runtime rules work with ESLint 10, so adapt the plugin type at this boundary.
+    plugins: {
+      tailwindcss: tailwindcss as unknown as NonNullable<Linter.Config["plugins"]>[string],
+    },
     settings: {
       tailwindcss: { cssConfigPath: "./src/styles/tailwind.css" },
     },
