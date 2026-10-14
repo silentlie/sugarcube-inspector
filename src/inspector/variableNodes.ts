@@ -48,7 +48,7 @@ function childLocations(item: VariableNode): {
 
   return {
     locations: listChildren(current.value),
-    ancestors: [...item.ancestors, current.value],
+    ancestors: [...item.ancestors, current.value as object],
   };
 }
 
