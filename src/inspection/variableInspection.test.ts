@@ -137,7 +137,7 @@ describe("recursive variable locations", () => {
     expect(isExpandableNode(entry)).toBe(true);
     expect(isExpandableNode(entry, readVariable(entry.location))).toBe(true);
     const valueNode: VariableNode = {
-      ...entry, location: { ...entry.location, part: "value" },
+      ...entry, location: { kind: "map", owner: map, key: "primitive", part: "value" },
     };
     expect(isExpandableNode(valueNode, readVariable(valueNode.location))).toBe(false);
     map.delete("primitive");
