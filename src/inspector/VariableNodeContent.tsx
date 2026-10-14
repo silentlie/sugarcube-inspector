@@ -3,13 +3,13 @@ import { useEffect } from "react";
 import { isExpandableNode } from "../inspection/isExpandableNode";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getLocationName } from "../inspection/variableStructure";
-import type { TreeItem } from "./variableTreeItems";
+import type { VariableNode } from "./variableNodes";
 import { useVariable } from "./useVariableWatch";
 import { MapKeyPreview, VariableValuePreview } from "./VariableValuePreview";
 
 /** Virtualized rows own only visible-value subscriptions. */
 export function VariableNodeContent({ node, refresh, isLeaf }: {
-  node: TreeItem; refresh: (id: number, load?: boolean) => void;
+  node: VariableNode; refresh: (id: number, load?: boolean) => void;
   isLeaf: boolean;
 }) {
   const current = useVariable(node.location);

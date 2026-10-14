@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readVariable, sameVariable } from "./variableLocation";
 import { getLocationName, listChildren, readStructure, sameStructure } from "./variableStructure";
-import { getVariableChildren, type TreeItem } from "../inspector/variableTreeItems";
+import { getVariableChildren, type VariableNode } from "../inspector/variableNodes";
 import { VariableWatcher } from "./variableWatcher";
 
 afterEach(() => {
@@ -132,7 +132,7 @@ describe("recursive variable locations", () => {
     expect(() => readStructure(proxy)).toThrow(failure);
     expect(() => listChildren(proxy)).toThrow(failure);
 
-    const node: TreeItem = {
+    const node: VariableNode = {
       key: 0,
         location: { kind: "property", owner: { proxy }, key: "proxy" },
       ancestors: [],
@@ -238,7 +238,7 @@ describe("recursive variable locations", () => {
 
   it("keeps numeric Map and Set node IDs when earlier members disappear", () => {
     const map = new Map([["first", 1], ["second", 2]]);
-    const mapRoot: TreeItem = {
+    const mapRoot: VariableNode = {
       key: 0, location: { kind: "property", owner: { map }, key: "map" }, ancestors: [],
     };
     const second = getVariableChildren(mapRoot)[1]!.key;
@@ -246,7 +246,7 @@ describe("recursive variable locations", () => {
     expect(getVariableChildren(mapRoot)[0]!.key).toBe(second);
 
     const set = new Set(["first", "second"]);
-    const setRoot: TreeItem = {
+    const setRoot: VariableNode = {
       key: 1, location: { kind: "property", owner: { set }, key: "set" }, ancestors: [],
     };
     const secondSet = getVariableChildren(setRoot)[1]!.key;
@@ -259,7 +259,7 @@ describe("recursive variable locations", () => {
     const value = { health: 100 };
     const map = new Map<unknown, unknown>([[key, value]]);
     const holder = { map };
-    const root: TreeItem = {
+    const root: VariableNode = {
       key: 0,
       location: { kind: "property", owner: holder, key: "map" },
       ancestors: [],
@@ -306,7 +306,7 @@ describe("recursive variable locations", () => {
   it("does not traverse circular Map keys or Map values indefinitely", () => {
     const map = new Map<unknown, unknown>();
     map.set(map, map);
-    const root: TreeItem = {
+    const root: VariableNode = {
       key: 0,
       location: { kind: "property", owner: { map }, key: "map" },
       ancestors: [],
@@ -320,7 +320,7 @@ describe("recursive variable locations", () => {
 
   it("retains stable numeric node IDs across object additions", () => {
     const obj: Record<string, unknown> = { first: 1 };
-    const root: TreeItem = {
+    const root: VariableNode = {
       key: 0, location: { kind: "property", owner: { obj }, key: "obj" }, ancestors: [],
     };
     const original = getVariableChildren(root)[0]!.key;
@@ -334,7 +334,7 @@ describe("recursive variable locations", () => {
   it("keeps repeated references distinct and changes IDs when an owner is replaced", () => {
     const shared = { score: 1 };
     const store = { player: shared, leader: shared };
-    const root: TreeItem = {
+    const root: VariableNode = {
       key: 0, location: { kind: "property", owner: { store }, key: "store" }, ancestors: [],
     };
     const [player, leader] = getVariableChildren(root);
@@ -354,7 +354,7 @@ describe("recursive variable locations", () => {
   it("does not collide across Map entry, Map property, key and value nodes", () => {
     const map = new Map<unknown, unknown>([["tag", { score: 4 }]]);
     Object.defineProperty(map, "tag", { value: 7, configurable: true });
-    const root: TreeItem = {
+    const root: VariableNode = {
       key: 0, location: { kind: "property", owner: { map }, key: "map" }, ancestors: [],
     };
     const [entry, property] = getVariableChildren(root);
@@ -466,7 +466,7 @@ describe("shared variable watcher", () => {
 describe("Rich Tree View location adapter", () => {
   it("discovers properties on live function references", () => {
     const fn = Object.assign(() => 1, { answer: 42 });
-    const parent: TreeItem = {
+    const parent: VariableNode = {
       key: 0,
         location: { kind: "property", owner: { fn }, key: "fn" },
       ancestors: [],
@@ -480,7 +480,7 @@ describe("Rich Tree View location adapter", () => {
     const player: Record<string, unknown> = { health: 50 };
     player.self = player;
     const root = { player, leader: player };
-    const parent: TreeItem = {
+    const parent: VariableNode = {
       key: 0,
         location: { kind: "property", owner: { root }, key: "root" },
       ancestors: [],
@@ -503,7 +503,7 @@ describe("Rich Tree View location adapter", () => {
     );
     const getter = vi.fn(() => 99);
     Object.defineProperty(object, "computed", { get: getter, enumerable: true });
-    const root: TreeItem = {
+    const root: VariableNode = {
       key: 0,
         location: { kind: "property", owner: { object }, key: "object" },
       ancestors: [],

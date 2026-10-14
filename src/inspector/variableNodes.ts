@@ -5,12 +5,12 @@ import { readVariable, type VariableLocation } from "../inspection/variableLocat
 import { listChildren } from "../inspection/variableStructure";
 
 /** One node model for both live inspection and Ant's treeData. */
-export type TreeItem = TreeDataNode & {
+export type VariableNode = TreeDataNode & {
   key: number;
   location: VariableLocation;
   /** Ancestors prevent circular traversal when discovering a branch. */
   ancestors: readonly object[];
-  children?: TreeItem[];
+  children?: VariableNode[];
   /** Value whose direct children were last loaded (identity, not a snapshot). */
   loadedValue?: unknown;
 };
@@ -18,7 +18,7 @@ export type TreeItem = TreeDataNode & {
 // Numeric IDs are unique across scopes; 0 and 1 are reserved for roots.
 let nextNodeId = 2;
 
-// Key by the retained location, not the TreeItem, since immutable tree updates
+// Key by the retained location, not the VariableNode, since immutable tree updates
 // replace item objects. A new live owner still gets distinct descendant IDs.
 // Weak keys allow removed locations and their registries to be collected.
 const childIds = new WeakMap<
@@ -26,7 +26,7 @@ const childIds = new WeakMap<
   WeakMap<object, Map<string, Map<unknown, number>>>
 >();
 
-function getChildId(parent: TreeItem, location: VariableLocation): number {
+function getChildId(parent: VariableNode, location: VariableLocation): number {
   if (location.kind === "state") throw new Error("State stores cannot be child nodes");
 
   let byOwner = childIds.get(parent.location);
@@ -57,8 +57,8 @@ function getChildId(parent: TreeItem, location: VariableLocation): number {
   return id;
 }
 
-function childItem(parent: TreeItem, location: VariableLocation, ancestors: readonly object[]): TreeItem {
-  const item: TreeItem = {
+function childItem(parent: VariableNode, location: VariableLocation, ancestors: readonly object[]): VariableNode {
+  const item: VariableNode = {
     key: getChildId(parent, location),
     location,
     ancestors,
@@ -68,7 +68,7 @@ function childItem(parent: TreeItem, location: VariableLocation, ancestors: read
 }
 
 /** Discover direct live children without eagerly enumerating descendants. */
-export function getVariableChildren(item: TreeItem): TreeItem[] {
+export function getVariableChildren(item: VariableNode): VariableNode[] {
   const location = item.location;
   if (location.kind === "map" && location.part === undefined) {
     if (!Map.prototype.has.call(location.owner, location.key)) return [];
@@ -84,16 +84,16 @@ export function getVariableChildren(item: TreeItem): TreeItem[] {
   return listChildren(current.value).map((child) => childItem(item, child, nextAncestors));
 }
 
-function valueAt(item: TreeItem): unknown {
+function valueAt(item: VariableNode): unknown {
   const current = readVariable(item.location);
   return current.kind === "value" ? current.value : undefined;
 }
 
 /**
- * Reconcile only supplied siblings. Stable IDs keep existing TreeItems;
+ * Reconcile only supplied siblings. Stable IDs keep existing VariableNodes;
  * previously loaded descendants are revisited only on owner replacement.
  */
-export function reconcileChildren(nodes: TreeItem[], previous: TreeItem[] = []): TreeItem[] {
+export function reconcileChildren(nodes: VariableNode[], previous: VariableNode[] = []): VariableNode[] {
   const byId = new Map(previous.map((item) => [item.key, item]));
   let changed = nodes.length !== previous.length;
   const next = nodes.map((node, index) => {
@@ -123,8 +123,8 @@ export function reconcileChildren(nodes: TreeItem[], previous: TreeItem[] = []):
 
 /** Update only the path to a requested item; preserve unaffected sibling arrays. */
 export function updateTreeItem(
-  items: TreeItem[], target: number, update: (item: TreeItem) => TreeItem,
-): TreeItem[] {
+  items: VariableNode[], target: number, update: (item: VariableNode) => VariableNode,
+): VariableNode[] {
   let changed = false;
   const next = items.map((item) => {
     if (item.key === target) {
@@ -142,7 +142,7 @@ export function updateTreeItem(
 }
 
 /** Refresh a node's direct children only if loaded or explicitly expanding. */
-export function refreshItem(item: TreeItem, load = false): TreeItem {
+export function refreshItem(item: VariableNode, load = false): VariableNode {
   const isLeaf = !isExpandableNode(item);
   const children = isLeaf || (!load && item.children === undefined)
     ? undefined

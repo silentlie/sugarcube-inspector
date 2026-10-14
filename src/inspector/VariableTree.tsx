@@ -8,10 +8,10 @@ import { variableWatcher } from "../inspection/variableWatcher";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { VariableNodeContent } from "./VariableNodeContent";
 import { VariableScopeContext, useStructure, useVariable } from "./useVariableWatch";
-import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type TreeItem } from "./variableTreeItems";
+import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
 
 /** Snapshot both the current owner identity and its direct child structure. */
-function readExpanded(node: TreeItem) {
+function readExpanded(node: VariableNode) {
   const current = readVariable(node.location);
   const value = current.kind === "value" ? current.value : undefined;
   return {
@@ -32,12 +32,12 @@ function RichVariableTree({ storeKey, rootValue }: {
   storeKey: VariableStoreKey; rootValue: object;
 }) {
   const structure = useStructure(rootValue);
-  const rootNode = useMemo<TreeItem>(() => ({
+  const rootNode = useMemo<VariableNode>(() => ({
     key: storeKey === "variables" ? 0 : 1,
     location: { kind: "state", key: storeKey },
     ancestors: [],
   }), [storeKey]);
-  const [items, setItems] = useState<TreeItem[]>(() => reconcileChildren(getVariableChildren(rootNode)));
+  const [items, setItems] = useState<VariableNode[]>(() => reconcileChildren(getVariableChildren(rootNode)));
   const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
   const expandedWatches = useRef(new Map<number, ExpandedWatch>());
@@ -71,8 +71,8 @@ function RichVariableTree({ storeKey, rootValue }: {
   // Expanded logical nodes keep polling even when Ant virtualizes their rows.
   // Collapsing a parent also pauses descendants retained in expandedKeys.
   useEffect(() => {
-    const live = new Map<number, TreeItem>();
-    const collect = (siblings: readonly TreeItem[]) => {
+    const live = new Map<number, VariableNode>();
+    const collect = (siblings: readonly VariableNode[]) => {
       for (const item of siblings) {
         if (!expanded.has(item.key)) continue;
         live.set(item.key, item);
@@ -127,12 +127,12 @@ function RichVariableTree({ storeKey, rootValue }: {
     loadData={loadData}
     onExpand={(keys, info) => {
       setExpandedKeys(keys.filter((key): key is number => typeof key === "number"));
-      if (info.expanded && (info.node as TreeItem).children) {
+      if (info.expanded && (info.node as VariableNode).children) {
         refresh(info.node.key as number, true);
       }
     }}
     titleRender={(data) => {
-      const item = data as TreeItem;
+      const item = data as VariableNode;
       return <VariableNodeContent
         node={item} refresh={refresh} isLeaf={Boolean(item.isLeaf)} />;
     }}

@@ -25,7 +25,7 @@ It reads live story and temporary variables directly without attaching a debugge
 
 - `VariableLocation` describes a direct owner/key or the trusted SugarCube
   `State.variables` / `State.temporary` store, with keys checked against the
-  installed `StateAPI` type. A single `TreeItem` holds both live location and
+  installed `StateAPI` type. A single `VariableNode` holds both live location and
   Ant tree state, with lazily loaded `children`; unchanged items are reused by ID.
 - `VariableSnapshot` discriminates actual values, accessors, and missing properties.
   Value previews and expandability are computed at read time, not implemented as

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type TreeItem } from "./variableTreeItems";
+import { getVariableChildren, reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
 
-function parent(value: object): TreeItem {
+function parent(value: object): VariableNode {
   return { key: 0, location: { kind: "property", owner: { value }, key: "value" }, ancestors: [] };
 }
 function child(items: ReturnType<typeof reconcileChildren>, name: string) {
@@ -10,7 +10,7 @@ function child(items: ReturnType<typeof reconcileChildren>, name: string) {
 }
 
 describe("ID-based tree reconciliation", () => {
-  it("reuses the original array and TreeItems when there are no structural changes", () => {
+  it("reuses the original array and VariableNodes when there are no structural changes", () => {
     const value = { first: 1, second: { count: 2 } };
     const root = parent(value);
     const first = reconcileChildren(getVariableChildren(root));
@@ -51,7 +51,7 @@ describe("ID-based tree reconciliation", () => {
   });
 
 
-  it("keeps descendant IDs stable when ancestor TreeItems are immutably copied", () => {
+  it("keeps descendant IDs stable when ancestor VariableNodes are immutably copied", () => {
     const value = { stats: { health: 100 } };
     const root = parent(value);
     let items = reconcileChildren(getVariableChildren(root));
@@ -61,7 +61,7 @@ describe("ID-based tree reconciliation", () => {
     const health = first.children![0]!;
     const copied = { ...first };
 
-    // Immutable tree updates replace TreeItem objects, not their live locations.
+    // Immutable tree updates replace VariableNode objects, not their live locations.
     expect(getVariableChildren(copied)[0]!.key).toBe(health.key);
     value.stats.health = 80;
     const next = reconcileChildren(getVariableChildren(root), items);
