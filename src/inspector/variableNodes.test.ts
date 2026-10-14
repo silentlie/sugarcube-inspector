@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
 
 function parent(value: object): VariableNode {
@@ -9,7 +9,35 @@ function child(items: ReturnType<typeof reconcileChildren>, name: string) {
     item.location.key === name)!;
 }
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe("ID-based tree reconciliation", () => {
+  it("removes root children when the store becomes invalid and restores them when it recovers", () => {
+    const state: { variables: unknown } = { variables: { original: 1 } };
+    vi.stubGlobal("SugarCube", { State: state });
+    const root: VariableNode = {
+      key: 0,
+      location: { kind: "state", key: "variables" },
+      ancestors: [],
+    };
+
+    const original = reconcileChildren(root);
+    expect(original.map((node) => node.location.kind === "property" && node.location.key))
+      .toEqual(["original"]);
+
+    state.variables = undefined;
+    const missing = reconcileChildren(root, original);
+    expect(missing).toEqual([]);
+
+    state.variables = 42;
+    expect(reconcileChildren(root, missing)).toBe(missing);
+
+    state.variables = { restored: true };
+    const recovered = reconcileChildren(root, missing);
+    expect(recovered.map((node) => node.location.kind === "property" && node.location.key))
+      .toEqual(["restored"]);
+  });
+
   it("reuses the original array and VariableNodes when there are no structural changes", () => {
     const value = { first: 1, second: { count: 2 } };
     const root = parent(value);

@@ -1,5 +1,4 @@
-import { isObject } from "@sindresorhus/is";
-import { Tree, Typography, type TreeDataNode } from "antd";
+import { Tree, type TreeDataNode } from "antd";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type VariableStoreKey } from "../inspection/direct";
@@ -7,7 +6,7 @@ import { readLocation, type VariableLocation } from "../inspection/variableLocat
 import { variableWatcher } from "../inspection/variableWatcher";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { VariableNodeContent } from "./VariableNodeContent";
-import { VariableScopeContext, useVariable } from "./useVariableWatch";
+import { VariableScopeContext } from "./useVariableWatch";
 import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
 
 /** Snapshot both the current owner identity and its direct child structure. */
@@ -135,16 +134,6 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
   </div>;
 }
 
-function VariableTreeContent({ storeKey }: { storeKey: VariableStoreKey }) {
-  const location = useMemo<VariableLocation>(() => ({ kind: "state", key: storeKey }), [storeKey]);
-  const root = useVariable(location);
-  return root.kind !== "value"
-    ? <Typography.Text type="secondary">Store unavailable</Typography.Text>
-    : isObject(root.value)
-      ? <RichVariableTree storeKey={storeKey} />
-      : <Typography.Text type="secondary">{root.preview}</Typography.Text>;
-}
-
 export default function VariableTree({ storeKey, active }: {
   storeKey: VariableStoreKey; active: boolean;
 }) {
@@ -155,7 +144,7 @@ export default function VariableTree({ storeKey, active }: {
 
   return <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <VariableScopeContext.Provider value={storeKey}>
-      <VariableTreeContent storeKey={storeKey} />
+      <RichVariableTree storeKey={storeKey} />
     </VariableScopeContext.Provider>
   </div>;
 }
