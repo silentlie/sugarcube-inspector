@@ -19,7 +19,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "compile": "tsc --noEmit",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "bench:tree": "vitest bench tests/benchmarks/treeUpdates.bench.ts --run"
   },
   "dependencies": {
     "@sindresorhus/is": "^8.1.0",
