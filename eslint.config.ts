@@ -46,7 +46,9 @@ export default defineConfig([
   },
   {
     files: ["**/*.{jsx,tsx}"],
-    plugins: { tailwindcss },
+    // ESLint 10 and the plugin's preset use incompatible config types.
+    // Register only runtime rules and metadata; presets are configured explicitly below.
+    plugins: { tailwindcss: { meta: tailwindcss.meta, rules: tailwindcss.rules } },
     settings: {
       tailwindcss: { cssConfigPath: "./src/styles/tailwind.css" },
     },
