@@ -7,7 +7,7 @@ import { readVariable, type VariableLocation } from "../inspection/variableLocat
 import { variableWatcher } from "../inspection/variableWatcher";
 import { readStructure, sameStructure } from "../inspection/variableStructure";
 import { VariableNodeContent } from "./VariableNodeContent";
-import { VariableScopeContext, useStructure, useVariable } from "./useVariableWatch";
+import { VariableScopeContext, useVariable } from "./useVariableWatch";
 import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
 
 /** Snapshot both the current owner identity and its direct child structure. */
@@ -28,10 +28,7 @@ function sameExpanded(a: ReturnType<typeof readExpanded>, b: ReturnType<typeof r
 
 type ExpandedWatch = { location: VariableLocation; unsubscribe: () => void };
 
-function RichVariableTree({ storeKey, rootValue }: {
-  storeKey: VariableStoreKey; rootValue: object;
-}) {
-  const structure = useStructure(rootValue);
+function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
   const rootNode = useMemo<VariableNode>(() => ({
     key: storeKey === "variables" ? 0 : 1,
     location: { kind: "state", key: storeKey },
@@ -55,23 +52,14 @@ function RichVariableTree({ storeKey, rootValue }: {
     return () => observer.disconnect();
   }, [viewport]);
 
-  // Root structural mutations are the only reason to replace top-level items.
-  useEffect(() => {
-    let active = true;
-    queueMicrotask(() => {
-      if (active) setItems((old) => reconcileChildren(rootNode, old));
-    });
-    return () => { active = false; };
-  }, [rootNode, rootValue, structure]);
-
   const refresh = useCallback((id: number, load = false) => {
     setItems((old) => updateTreeItem(old, id, (item) => refreshItem(item, load)));
   }, []);
 
-  // Expanded logical nodes keep polling even when Ant virtualizes their rows.
-  // Collapsing a parent also pauses descendants retained in expandedKeys.
+  // Watch the root and expanded logical nodes, even when Ant virtualizes their rows.
+  // Collapsing a parent pauses its descendants; the root always remains watched.
   useEffect(() => {
-    const live = new Map<number, VariableNode>();
+    const live = new Map<number, VariableNode>([[rootNode.key, rootNode]]);
     const collect = (siblings: readonly VariableNode[]) => {
       for (const item of siblings) {
         if (!expanded.has(item.key)) continue;
@@ -94,10 +82,16 @@ function RichVariableTree({ storeKey, rootValue }: {
       );
       watches.set(id, {
         location: node.location,
-        unsubscribe: subscription.subscribe(() => refresh(id, true)),
+        unsubscribe: subscription.subscribe(() => {
+          if (id === rootNode.key) {
+            setItems((old) => reconcileChildren(rootNode, old));
+          } else {
+            refresh(id, true);
+          }
+        }),
       });
     }
-  }, [items, expanded, refresh, storeKey]);
+  }, [items, expanded, refresh, rootNode, storeKey]);
 
   useEffect(() => {
     const watches = expandedWatches.current;
@@ -147,7 +141,7 @@ function VariableTreeContent({ storeKey }: { storeKey: VariableStoreKey }) {
   return root.kind !== "value"
     ? <Typography.Text type="secondary">Store unavailable</Typography.Text>
     : isObject(root.value)
-      ? <RichVariableTree storeKey={storeKey} rootValue={root.value} />
+      ? <RichVariableTree storeKey={storeKey} />
       : <Typography.Text type="secondary">{root.preview}</Typography.Text>;
 }
 
