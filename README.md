@@ -92,3 +92,5 @@ isolated experiment, not enabled in the extension. Compare results on the same
 machine and repeat runs because short microbenchmarks are noisy.
 
 Measurement details: [immutable vs. mutable tree updates](docs/mutable-tree-update-benchmark.md).
+
+End-to-end Chromium A/B result: [immutable vs. direct mutable tree updates](docs/mutable-tree-e2e-benchmark.md). The mutable approach offered no reproducible end-to-end improvement, so the inspector keeps immutable updates.
