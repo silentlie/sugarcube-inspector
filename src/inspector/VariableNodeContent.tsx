@@ -1,5 +1,7 @@
+import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
 import { useEffect } from "react";
+import { isExpandableNode } from "../inspection/isExpandableNode";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "./variableNodes";
@@ -13,11 +15,9 @@ export function VariableNodeContent({ node, refresh }: {
   const current = useVariable(node.location);
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
-  const circular = !isMapEntry && current.kind === "value" && current.expandable &&
-    node.ancestors.includes(current.value as object);
-  const expandable = isMapEntry
-    ? current.kind === "value"
-    : current.kind === "value" && current.expandable && !circular;
+  const expandable = isExpandableNode(node, current);
+  const circular = !isMapEntry && current.kind === "value" &&
+    isObject(current.value) && !expandable;
 
   // A collapsed row can become expandable (or a leaf) while visible.
   useEffect(() => {
