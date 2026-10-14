@@ -77,9 +77,9 @@ export function sameStructure(a: readonly StructurePart[], b: readonly Structure
 }
 
 /** Enumerate direct live locations; a Map entry appears once, a Set member once. */
-export function listChildren(value: unknown): VariableLocation[] {
+export function listChildren(value: unknown): Exclude<VariableLocation, { kind: "state" }>[] {
   if (!isObject(value)) return [];
-  const children: VariableLocation[] = [];
+  const children: Exclude<VariableLocation, { kind: "state" }>[] = [];
   if (isMap(value)) {
     for (const key of Map.prototype.keys.call(value) as MapIterator<unknown>) {
       children.push({ kind: "map", owner: value, key });
