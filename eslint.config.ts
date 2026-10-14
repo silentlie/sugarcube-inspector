@@ -46,9 +46,15 @@ export default defineConfig([
   },
   {
     files: ["**/*.{jsx,tsx}"],
-    extends: [tailwindcss.configs.recommended],
+    plugins: { tailwindcss },
     settings: {
       tailwindcss: { cssConfigPath: "./src/styles/tailwind.css" },
+    },
+    rules: {
+      "tailwindcss/no-contradicting-classname": "error",
+      "tailwindcss/enforces-canonical-classname": "warn",
+      "tailwindcss/enforces-shorthand": "warn",
+      "tailwindcss/classnames-order": "warn",
     },
   },
   {
