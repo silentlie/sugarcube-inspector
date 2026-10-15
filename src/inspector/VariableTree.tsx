@@ -108,7 +108,7 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
   return <div ref={setViewport} className="min-h-0 flex-1 overflow-hidden">
     {height > 0 && <Tree
     aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
-    className="sugarcube-variable-tree"
+    className="sugarcube-variable-tree flex h-full flex-col"
     blockNode
     selectable={false}
     switcherIcon={({ expanded }) => expanded

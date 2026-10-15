@@ -49,7 +49,7 @@ function InspectorSections() {
     <Tabs
       activeKey={scope}
       aria-label="Variable scope"
-      className="inspector-tabs"
+      className="inspector-tabs flex min-h-0 flex-1 flex-col"
       destroyOnHidden={false}
       animated={false}
       onChange={(key) => setScope(key as VariableScope)}
@@ -75,7 +75,7 @@ function InspectorSections() {
       <Tabs
         activeKey={section}
         aria-label="Inspector sections"
-        className="inspector-tabs"
+        className="inspector-tabs flex min-h-0 flex-1 flex-col"
         destroyOnHidden={false}
         animated={false}
         onChange={(key) => setSection(key as Section)}
