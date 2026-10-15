@@ -1,7 +1,6 @@
-/* Experiment: include Tailwind Preflight alongside Ant Design inside the ShadowRoot. */
+/* Keep Ant Design base styles; Tailwind is utilities-only. */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 @source "../inspector";
 
