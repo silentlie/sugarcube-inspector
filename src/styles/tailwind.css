@@ -22,9 +22,9 @@
   display: block;
 }
 
-/* Root variables have no visible parent, so their leaf elbows look like stray
-   icons. Keep Ant's native elbow/branch connectors for nested descendants. */
-.sugarcube-variable-tree .ant-tree-indent:empty + .ant-tree-switcher-leaf-line {
+/* The leaf-line is INSIDE the switcher, not its sibling. Suppress elbows only
+   at depth 0, where no parent exists; nested branches keep their connectors. */
+.sugarcube-variable-tree .ant-tree-indent:empty + .ant-tree-switcher > .ant-tree-switcher-leaf-line {
   visibility: hidden;
 }
 
