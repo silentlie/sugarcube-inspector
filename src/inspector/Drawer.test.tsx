@@ -58,6 +58,19 @@ describe("drawer interaction modes", () => {
     expect(drawer.style.transform).toBe("translateX(0)");
   });
 
+  it("shifts the open tab inside the viewport while keeping the closed tab exposed", () => {
+    const drawer = renderDrawer(2000);
+    fireEvent.mouseEnter(drawer);
+    fireEvent.click(screen.getByRole("button", { name: "Switch to click-to-toggle mode" }));
+    const tab = screen.getByRole("button", { name: "Close SugarCube Inspector" });
+
+    expect(tab.style.left).toBe("max(-32px, calc(100% - 100vw))");
+    fireEvent.click(tab);
+    expect(tab.style.left).toBe("-32px");
+    fireEvent.click(tab);
+    expect(tab.style.left).toBe("max(-32px, calc(100% - 100vw))");
+  });
+
   it("removes the edge tab and restores hover closing when switching back", () => {
     const drawer = renderDrawer();
     fireEvent.mouseEnter(drawer);
@@ -154,7 +167,8 @@ describe("drawer interaction modes", () => {
   it("uses intrinsic content width rather than the old 280px resize minimum", () => {
     vi.spyOn(window, "innerWidth", "get").mockReturnValue(1200);
     const drawer = renderDrawer(380);
-    expect(drawer.style.minWidth).toBe("min-content");
+    // Intrinsic width is enforced during resize, not via CSS min-width overriding max-width.
+    expect(drawer.style.minWidth).toBe("");
 
     vi.spyOn(drawer, "getBoundingClientRect").mockImplementation(() => ({
       width: drawer.style.width === "min-content"
