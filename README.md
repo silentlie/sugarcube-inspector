@@ -1,188 +1,103 @@
 # SugarCube Inspector
 
-A Chromium extension for inspecting local Twine stories that use SugarCube.
-An injected drawer displays the current story and temporary variables, and a
-browser side panel reports the active story's identity and current passage.
+SugarCube Inspector runs its React variable tree in Chrome's MAIN world, alongside SugarCube.
+It reads live story and temporary variables directly without attaching a debugger or using a cross-world messaging bridge.
 
-The extension uses WXT, React, TypeScript, Tailwind CSS, and a typed custom-event
-RPC bridge between the page's SugarCube runtime and the inspector.
+## User interface
 
-## Features
+- **Ant Design** provides tabs, labels, buttons, dark/compact theme and the virtualized Tree.
+- **Tailwind CSS v4** provides its complete stylesheet, including Preflight and utilities, inside the inspector ShadowRoot.
+- Overview, Variables, and Scripts are top-level tabs. Under Variables are
+  Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
+  Favorites are placeholders.
+- The variable tree uses Ant Design's built-in virtualization and discovers children
+  lazily on expansion. ID-based, one-level reconciliation reuses unchanged nodes and
+  child arrays; replaced objects refresh only loaded branches. Expanded logical
+  nodes retain structural subscriptions even when their rows are virtualized,
+  so offscreen changes update Ant tree data without waiting for a row remount.
+  All logical children remain accessible through scrolling.
+- Variable rows syntax-highlight values with `prism-react-renderer` and its
+  built-in VS Dark theme. Type labels reuse that palette instead of custom color
+  definitions; the existing live-data behavior is unchanged.
+- Tailwind classes provide static drawer/layout styling; inline styles remain for live width, open/closed transform and Ant Design theme tokens.
 
-- Expandable trees for story variables (`$`) and temporary variables (`_`).
-- Automatic snapshot refresh after SugarCube passage changes, plus a manual
-  **Refresh** button.
-- A drawer that opens on hover, supports resizing by dragging its edge, and has
-  keyboard controls.
-- Snapshot validation, request timeouts, and a **Retry** button for snapshot
-  errors.
-- A side panel showing SugarCube detection status, story name, current passage,
-  and IFID when available.
+## Behavior
 
-## Build and install
+- `VariableLocation` describes a direct owner/key or the trusted SugarCube
+  `State.variables` / `State.temporary` store, with keys checked against the
+  installed `StateAPI` type. A single `VariableNode` holds both live location and
+  Ant tree state, with lazily loaded `children`; unchanged items are reused by ID.
+- `VariableSnapshot` discriminates actual values, accessors, and missing properties.
+  Value previews are captured at read time; one `isLeafNode` rule derives
+  leaf classification from either a subscribed snapshot or a direct lightweight
+  read. Ant Tree retains the corresponding `isLeaf` metadata, and non-enumerable
+  properties remain inspectable.
+- The drawer shows a loading status until `SugarCube.State` becomes available.
+  Inspectors then use the required `getState(): StateAPI` accessor, which throws
+  if the runtime unexpectedly loses its State API.
+- Components read live SugarCube values directly without serialization or cloning.
+  Runtime checks use named `@sindresorhus/is` type guards, including functions
+  as expandable references. Boxed primitives are handled explicitly because the
+  library's general-purpose type detector rejects them; their values remain inspectable.
+- Mounted virtualized rows update values while their variable scope is selected.
+  All expanded logical containers watch object identity, structure, array length,
+  and Map/Set membership, including while their rows are offscreen.
+  Structure snapshots use typed data, accessor, Map, and Set entries; enumerable
+  and writable descriptor flags do not trigger tree rebuilds. Structural changes
+  rebuild the tree model; ordinary value changes do not.
+- The outer Variables tab enables polling, and its selected Story or
+  Temporary tab determines the single active scope. Other tabs pause polling;
+  returning to a scope immediately refreshes its subscribed snapshots.
+  Closing the drawer does not pause polling while a variable scope is selected.
+  Ant Tree unmounts offscreen row-value subscriptions; expanded-container
+  subscriptions remain until their branches collapse or disappear. A shared
+  250ms scheduler checks only active subscriptions.
+- References retain object identity; ancestor cycles are marked and stop
+  recursive discovery. Ordinary property accessors are displayed without
+  invoking them; type classification uses the library defaults.
+- Unexpected inspection exceptions propagate unchanged instead of producing
+  placeholder error snapshots or silently empty child lists. Such failures may
+  interrupt the inspector; node-level error isolation is not currently implemented.
+- The virtualized Tree limits mounted rows to the viewport, but Ant still indexes
+  discovered logical children. The inspector is read-only.
 
-Use Node.js 24 and npm to match the CI environment. Run these commands from the
-repository root:
+## Future design note: polling cadence
 
-```sh
-npm ci
-npm run build
-```
+This is a proposal, not current behavior. The shared `VariableWatcher` still polls
+active subscriptions every 250 ms.
 
-`npm ci` also runs WXT's preparation step, which generates the TypeScript
-configuration under `.wxt`. The build creates a Chrome Manifest V3 extension
-under `.output/chrome-mv3`.
+- Allow a **configurable fixed interval** (`pollIntervalMs`) when predictable
+  polling frequency is preferred.
+- Consider an **idle-aware mode** based on `requestIdleCallback` (with a
+  timer fallback when unavailable), plus a configurable **maximum poll interval**
+  (`maxPollIntervalMs`) to avoid indefinite delays on busy pages. Treat this
+  as a best-effort freshness target, not a strict deadline: main-thread work can
+  postpone callbacks, and a timeout-triggered poll can still cause frame jank.
+- Prevent back-to-back idle callbacks from monopolizing otherwise idle CPU,
+  potentially with minimum spacing or a per-cycle work budget. If a full poll
+  produces long tasks, consider yielding between batches of watchers.
+- Preserve one shared scheduler, no overlapping polling cycles, inactive-scope
+  pausing, and immediate catch-up when a scope becomes active again.
+- Benchmark game frame times, longest inspector task, CPU load, and update
+  latency before replacing the 250 ms default.
 
-To load it in Chrome:
+## Shadow DOM integration
 
-1. Open `chrome://extensions` and enable **Developer mode**.
-2. Select **Load unpacked** and choose `.output/chrome-mv3`.
-3. Open **Details** for SugarCube Inspector and enable
-   [**Allow access to file URLs**](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions#allow-access).
-4. Open or reload a local SugarCube story's HTML file in Chrome.
+`entrypoints/content.tsx` mounts React in a manually created ShadowRoot in
+Chrome's MAIN world. Ant's `StyleProvider` inserts styles in the ShadowRoot.
+A dark and compact `ConfigProvider` directs popups to the inspector container.
+Tailwind (including Preflight) and the scoped Tabs flex-height rules are compiled into one stylesheet and mounted only inside that ShadowRoot. The game page receives no CSS reset.
 
-See [Chrome's unpacked extension guide](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked)
-for the browser's installation steps. After rebuilding, reload the extension
-from `chrome://extensions` and reload the story tab.
+Tailwind uses `@tailwindcss/vite` and an inline CSS-string import in the MAIN-world entrypoint. `cssInjectionMode: "manual"` prevents automatic document-level stylesheet injection.
 
-## Using the inspector
+Shadow DOM isolates appearance but not JavaScript. A hostile or broken game
+can affect the inspector, and vice versa. Do not run on untrusted pages.
 
-Move the pointer to the narrow handle at the right edge of the story page to
-open the drawer. Drag the handle to adjust its width. With the handle focused,
-**Enter** or **Space** toggles the drawer, and **Left Arrow** or **Right Arrow**
-adjusts its width.
+## Try it
 
-Expand the variable trees to inspect values. Passage changes refresh them
-automatically; use **Refresh** to capture changes made without passage
-navigation. If a snapshot request fails, the drawer shows the error and a
-**Retry** button.
-
-Select the extension's toolbar icon to open the side panel. Its **Refresh**
-button checks the currently active tab for a local SugarCube story and updates
-the displayed metadata.
-
-## Development commands
-
-| Command                | Purpose                                                        |
-| ---------------------- | -------------------------------------------------------------- |
-| `npm run dev`          | Start WXT development mode for Chrome.                         |
-| `npm run build`        | Build the production Chrome MV3 extension.                     |
-| `npm run zip`          | Package the Chrome extension as a ZIP under `.output`.         |
-| `npm run compile`      | Check TypeScript with TypeScript 7, including the test suites. |
-| `npm test`             | Run unit, startup, and RPC integration tests.                  |
-| `npm run test:watch`   | Run Vitest in watch mode.                                      |
-| `npm run test:browser` | Build the extension and run Chromium smoke tests.              |
-
-The normal `tsc` command and CI use TypeScript 7. The `typescript` dependency
-aliases the TypeScript 6 compatibility package for tools that need its compiler
-API, including `typescript-eslint`; `@typescript/native` supplies TypeScript 7's
-`tsc`. This follows
-[Microsoft's side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0).
-Use `npx tsc --version` and `npx tsc6 --version` to check each compiler, or
-`npx tsc6 --noEmit` to check the project explicitly with TypeScript 6.
-
-The package also provides `npm run dev:firefox`, `npm run build:firefox`, and
-`npm run zip:firefox`. Runtime support and automated browser coverage currently
-target Chromium; Firefox support has not been validated.
-
-## Testing
-
-Before the first browser test run, install Playwright's bundled Chromium:
-
-```sh
-npx playwright install chromium --no-shell
-```
-
-On Linux, install its system dependencies as well:
-
-```sh
-npx playwright install --with-deps chromium --no-shell
-```
-
-Then run the checks:
-
-```sh
-npm run compile
-npm test
-npm run test:browser
-```
-
-Unit and startup tests cover snapshot validation, timeout handling, inspector
-state transitions, bridge readiness, and cleanup. RPC integration tests use the
-production page bridge and actual custom-event transport with a small SugarCube
-fixture.
-
-Browser smoke tests load the built extension with a real SugarCube 2.37.3 story
-and check initial variables, updates after passage navigation, repeated reloads,
-and manual refresh. The pinned story format is downloaded on the first run,
-verified against a SHA-256 checksum, and cached for subsequent runs.
-
-See [the testing guide](tests/README.md) for fixture details and Playwright trace
-instructions.
-
-## Continuous integration
-
-The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pushes to `main`,
-pull requests targeting `main`, and manual runs. It uses Ubuntu 24.04 and Node.js
-24, installs locked dependencies, checks TypeScript, runs the unit and
-integration tests, then builds the extension and runs Chromium smoke tests.
-
-Superseded runs on the same branch are cancelled. Failed browser runs upload
-`test-results` as a `browser-test-results` artifact retained for seven days.
-View results in [GitHub Actions](https://github.com/silentlie/sugarcube-inspector/actions).
-
-## How the bridge works
-
-The page bridge runs in the browser's `MAIN` world, where it can read SugarCube.
-The inspector runs in an isolated content-script context and mounts its React
-drawer in a shadow root. The two scripts communicate through
-`@webext-core/messaging/page` using the `sugarcube-inspector:rpc:v1` namespace.
-
-```mermaid
-sequenceDiagram
-    participant Story as SugarCube runtime
-    participant Bridge as Page bridge
-    participant Inspector as Inspector drawer
-    Inspector->>Bridge: bridgeReady
-    Bridge-->>Inspector: true after initialization
-    Inspector->>Bridge: getSnapshot
-    Bridge-->>Inspector: Cloned snapshot
-    Note over Inspector: Validate snapshot and display variables
-    Story->>Bridge: passageend event
-    Bridge->>Inspector: passageChanged
-    Inspector->>Bridge: getSnapshot
-    Bridge-->>Inspector: Updated snapshot
-```
-
-The bridge registers its readiness handler after successful initialization.
-Readiness and snapshot requests have a three-second timeout. The inspector
-validates snapshots with Zod and ignores superseded results or results received
-after unmounting.
-
-## Project structure
-
-| Path                               | Responsibility                                                                               |
-| ---------------------------------- | -------------------------------------------------------------------------------------------- |
-| `entrypoints/content.tsx`          | Verify bridge readiness and mount the drawer.                                                |
-| `entrypoints/sugarcube.content.ts` | Serve snapshots and emit passage-change notifications from the page.                         |
-| `entrypoints/background.ts`        | Configure toolbar clicks to open the side panel.                                             |
-| `entrypoints/sidepanel/`           | Detect the active local story and display its metadata.                                      |
-| `src/inspector/`                   | Drawer, variable trees, request state, and error UI.                                         |
-| `src/sugarcube/`                   | RPC contract, snapshot construction, and validation schema.                                  |
-| `src/utils/`                       | Request timeout helper.                                                                      |
-| `tests/`                           | Startup, transport integration, and browser tests; unit tests also live beside source files. |
-| `docs/`                            | Deferred feature designs.                                                                    |
-
-## Current scope and limitations
-
-- Content scripts match local `file://` pages. The drawer requires
-  `tw-storydata[format="SugarCube"]`; HTTP/HTTPS stories and other Twine formats
-  are outside the current scope.
-- The page bridge requires the story's SugarCube and jQuery runtimes to be
-  available when it initializes. Startup makes one readiness request and does
-  not reconnect automatically. If startup fails, check the page's developer
-  console and reload the story to retry.
-- The side panel checks metadata on initial load or manual refresh. It does not
-  automatically follow tab switches or passage changes. Window-aware tab
-  synchronization is documented in the
-  [deferred side-panel design](docs/deferred-side-panel-tab-sync.md).
+1. Run `npm ci && npm run build`.
+2. Load `.output/chrome-mv3` in `chrome://extensions` and allow local file access.
+3. Open a SugarCube HTML game, reveal the drawer, and select
+   Variables → Story Variables or Temporary Variables.
+4. Expand objects and change game values. Visible entries update automatically.
+5. Run `npm run lint && npm run compile && npm test && npm run test:browser`.
