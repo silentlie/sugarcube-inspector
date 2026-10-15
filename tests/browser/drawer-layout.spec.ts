@@ -38,6 +38,15 @@ test("maximum drawer width reserves space for the stationary edge tab", async ({
   await expect(openTab).toBeVisible();
   await openTab.click();
   await expect(closeTab).toHaveAttribute("aria-expanded", "true");
+
+  // A later viewport resize must also reserve tab clearance, without a new drag.
+  await page.setViewportSize({ width: 640, height: 700 });
+  await expect(aside).toHaveCSS("width", "608px");
+  const resizedTab = await closeTab.boundingBox();
+  const resizedHandle = await resizeHandle.boundingBox();
+  expect(resizedTab).not.toBeNull();
+  expect(resizedHandle).not.toBeNull();
+  expect(resizedTab!.x + resizedTab!.width).toBeLessThanOrEqual(resizedHandle!.x + 0.5);
 });
 
 test("dragging the toggle tab repositions it without closing the drawer", async ({ page }) => {
