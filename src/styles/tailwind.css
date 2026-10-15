@@ -22,12 +22,6 @@
   display: block;
 }
 
-/* The leaf-line is INSIDE the switcher, not its sibling. Suppress elbows only
-   at depth 0, where no parent exists; nested branches keep their connectors. */
-.sugarcube-variable-tree .ant-tree-indent:empty + .ant-tree-switcher > .ant-tree-switcher-leaf-line {
-  visibility: hidden;
-}
-
 /* Ant's virtual scrollbar overlays its rows, so reserve room inside the list. */
 .sugarcube-variable-tree .ant-tree-list-holder-inner {
   padding-inline-end: 16px;
