@@ -39,6 +39,37 @@ describe("drawer interaction modes", () => {
     expect(drawer.style.transform).toBe("translateX(calc(100% - 8px))");
   });
 
+  it("keeps closed content inert while preserving the appropriate reveal control", () => {
+    const drawer = renderDrawer();
+    const content = drawer.querySelector("div");
+    const modeButton = drawer.querySelector<HTMLButtonElement>(
+      '[aria-label="Switch to click-to-toggle mode"]',
+    );
+    const resizeHandle = drawer.querySelector<HTMLButtonElement>(
+      '[aria-label="Resize SugarCube Inspector"]',
+    );
+    expect(content?.hasAttribute("inert")).toBe(true);
+    expect(modeButton?.hasAttribute("inert")).toBe(true);
+    // Hover mode still needs its keyboard-operable resize/reveal handle.
+    expect(resizeHandle?.hasAttribute("inert")).toBe(false);
+
+    fireEvent.mouseEnter(drawer);
+    expect(content?.hasAttribute("inert")).toBe(false);
+    expect(modeButton?.hasAttribute("inert")).toBe(false);
+
+    fireEvent.click(modeButton!);
+    fireEvent.click(screen.getByRole("button", { name: "Close SugarCube Inspector" }));
+    expect(content?.hasAttribute("inert")).toBe(true);
+    expect(modeButton?.hasAttribute("inert")).toBe(true);
+    expect(resizeHandle?.hasAttribute("inert")).toBe(true);
+    expect(screen.getByRole("button", { name: "Open SugarCube Inspector" })).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open SugarCube Inspector" }));
+    expect(content?.hasAttribute("inert")).toBe(false);
+    expect(modeButton?.hasAttribute("inert")).toBe(false);
+    expect(resizeHandle?.hasAttribute("inert")).toBe(false);
+  });
+
   it("uses a visible edge tab to toggle the drawer in click mode", () => {
     const drawer = renderDrawer();
     fireEvent.mouseEnter(drawer);
