@@ -1,6 +1,5 @@
 import { isArray, isMap, isObject, isSet } from "@sindresorhus/is";
 import type { VariableLocation } from "./location";
-import { preview } from "./valuePreview";
 
 type StructurePart =
   | { kind: "data"; key: PropertyKey; length?: number }
