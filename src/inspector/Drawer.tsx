@@ -18,8 +18,9 @@ const TAB_DRAG_THRESHOLD = 5;
 const TAB_KEYBOARD_STEP = 24;
 
 /** Leave room for the fixed click-mode tab; CSS still enforces min-content. */
-function clampWidth(width: number): number {
-  return Math.min(Math.max(0, window.innerWidth - TAB_WIDTH), Math.max(0, width));
+function clampWidth(width: number, mode: DrawerMode): number {
+  const tabClearance = mode === "click" ? TAB_WIDTH : 0;
+  return Math.min(Math.max(0, window.innerWidth - tabClearance), Math.max(0, width));
 }
 
 function clampTabTop(top: number) {
@@ -132,7 +133,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   function handleResize(event: React.PointerEvent<HTMLButtonElement>) {
     if (resizePointerIdRef.current !== event.pointerId) return;
     const delta = resizeStartRef.current.x - event.clientX;
-    setWidth(clampWidth(resizeStartRef.current.width + delta));
+    setWidth(clampWidth(resizeStartRef.current.width + delta, mode));
   }
 
   function handleResizeEnd(event: React.PointerEvent<HTMLButtonElement>) {
@@ -155,7 +156,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
     const delta = event.key === "ArrowLeft" ? 24 : -24;
     const drawer = drawerRef.current;
     const currentWidth = drawer?.getBoundingClientRect().width || width;
-    setWidth(clampWidth(currentWidth + delta));
+    setWidth(clampWidth(currentWidth + delta, mode));
   }
 
   useEffect(() => () => cancelClose(), []);
@@ -165,7 +166,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
       onMouseEnter={handleEnter} onMouseLeave={handleLeave}
       style={{
         width, minWidth: "min-content",
-        maxWidth: `max(0px, calc(100vw - ${TAB_WIDTH}px))`,
+        maxWidth: mode === "click" ? `max(0px, calc(100vw - ${TAB_WIDTH}px))` : "100vw",
         background: token.colorBgElevated,
         color: token.colorText, boxShadow: token.boxShadowSecondary,
         fontFamily: token.fontFamily, fontSize: token.fontSize,
