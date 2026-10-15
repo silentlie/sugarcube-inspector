@@ -1,10 +1,13 @@
 import { theme } from "antd";
+import { ChevronLeft, ChevronRight, MousePointer2, Pin } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 interface DrawerProps {
   initialWidth: number;
   children: ReactNode;
 }
+
+type DrawerMode = "hover" | "click";
 
 const HANDLE_WIDTH = 8;
 const CLOSE_DELAY = 400;
@@ -14,6 +17,7 @@ const MAX_WIDTH = 1600;
 /** Retain the custom hover/resize drawer; Ant's modal Drawer is not a substitute. */
 export default function Drawer({ initialWidth, children }: DrawerProps) {
   const { token } = theme.useToken();
+  const [mode, setMode] = useState<DrawerMode>("hover");
   const [open, setOpen] = useState(false);
   const [width, setWidth] = useState(initialWidth);
   const closeTimerRef = useRef<number | null>(null);
@@ -28,17 +32,23 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   }
 
   function handleEnter() {
+    if (mode !== "hover") return;
     cancelClose();
     setOpen(true);
   }
 
   function handleLeave() {
-    if (resizePointerIdRef.current !== null) return;
+    if (mode !== "hover" || resizePointerIdRef.current !== null) return;
     cancelClose();
     closeTimerRef.current = window.setTimeout(() => {
       setOpen(false);
       closeTimerRef.current = null;
     }, CLOSE_DELAY);
+  }
+
+  function switchMode() {
+    cancelClose();
+    setMode((current) => current === "hover" ? "click" : "hover");
   }
 
   function handleResizeStart(event: React.PointerEvent<HTMLButtonElement>) {
@@ -93,8 +103,33 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
         color: token.colorText, boxShadow: token.boxShadowSecondary,
         fontFamily: token.fontFamily, fontSize: token.fontSize,
         transform: open ? "translateX(0)" :
-          `translateX(calc(100% - ${HANDLE_WIDTH}px))`,
+          mode === "hover" ? `translateX(calc(100% - ${HANDLE_WIDTH}px))` : "translateX(100%)",
       }}>
+      {mode === "click" && (
+        <button type="button"
+          className="absolute top-16 -left-8 flex h-10 w-8 cursor-pointer items-center justify-center border p-0"
+          aria-label={open ? "Close SugarCube Inspector" : "Open SugarCube Inspector"}
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+          style={{
+            color: token.colorText,
+            background: token.colorBgElevated,
+            borderColor: token.colorBorder,
+            borderRight: 0,
+            borderRadius: "8px 0 0 8px",
+          }}>
+          {open ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
+      )}
+      <button type="button"
+        className="absolute top-3 right-3 z-10 flex size-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0"
+        aria-label={mode === "hover" ? "Switch to click-to-toggle mode" : "Switch to hover mode"}
+        aria-pressed={mode === "click"}
+        title={mode === "hover" ? "Switch to click-to-toggle mode" : "Switch to hover mode"}
+        onClick={switchMode}
+        style={{ color: token.colorTextSecondary }}>
+        {mode === "hover" ? <Pin size={16} /> : <MousePointer2 size={16} />}
+      </button>
       <button type="button" className="absolute top-0 left-0 h-full cursor-ew-resize touch-none border-0 p-0" aria-label="Resize SugarCube Inspector"
         aria-expanded={open} onPointerDown={handleResizeStart}
         onPointerMove={handleResize} onPointerUp={handleResizeEnd}
