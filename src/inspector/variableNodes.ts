@@ -1,5 +1,5 @@
 import type { TreeDataNode } from "antd";
-import { isExpandableNode } from "../inspection/isExpandableNode";
+import { isLeafNode } from "../inspection/isLeafNode";
 import { readLocation, type VariableLocation } from "../inspection/variableLocation";
 import { listChildren } from "../inspection/variableStructure";
 
@@ -41,7 +41,7 @@ function childLocations(item: VariableNode): {
       ancestors: item.ancestors,
     };
   }
-  if (current.kind !== "value" || !isExpandableNode(item, current)) {
+  if (isLeafNode(item, current)) {
     return { locations: [], ancestors: item.ancestors };
   }
 
@@ -84,11 +84,11 @@ export function reconcileChildren(parent: VariableNode, previous: VariableNode[]
     if (!old) {
       changed = true;
       const node: VariableNode = { key: nextNodeId++, location, ancestors };
-      node.isLeaf = !isExpandableNode(node);
+      node.isLeaf = isLeafNode(node);
       return node;
     }
 
-    const isLeaf = !isExpandableNode(old);
+    const isLeaf = isLeafNode(old);
     if (old.isLeaf === isLeaf &&
         (old.children === undefined || (!isLeaf && Object.is(old.loadedValue, valueAt(old))))) {
       if (old !== previous[index]) changed = true;
@@ -127,7 +127,7 @@ export function updateTreeItem(
 
 /** Refresh a node's direct children only if loaded or explicitly expanding. */
 export function refreshItem(item: VariableNode, load = false): VariableNode {
-  const isLeaf = !isExpandableNode(item);
+  const isLeaf = isLeafNode(item);
   const children = isLeaf || (!load && item.children === undefined)
     ? undefined
     : reconcileChildren(item, item.children);

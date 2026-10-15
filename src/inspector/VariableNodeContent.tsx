@@ -1,7 +1,7 @@
 import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
 import { useEffect } from "react";
-import { isExpandableNode } from "../inspection/isExpandableNode";
+import { isLeafNode } from "../inspection/isLeafNode";
 import type { VariableLocation } from "../inspection/variableLocation";
 import { getLocationName } from "../inspection/variableStructure";
 import type { VariableNode } from "./variableNodes";
@@ -15,14 +15,14 @@ export function VariableNodeContent({ node, refresh }: {
   const current = useVariable(node.location);
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
-  const expandable = isExpandableNode(node, current);
+  const isLeaf = isLeafNode(node, current);
   const circular = !isMapEntry && current.kind === "value" &&
-    isObject(current.value) && !expandable;
+    isObject(current.value) && isLeaf;
 
   // A collapsed row can become expandable (or a leaf) while visible.
   useEffect(() => {
-    if (node.isLeaf !== !expandable) refresh(node.key);
-  }, [expandable, node.isLeaf, node.key, refresh]);
+    if (node.isLeaf !== isLeaf) refresh(node.key);
+  }, [isLeaf, node.isLeaf, node.key, refresh]);
 
   return <span className="flex w-full min-w-0 items-center gap-[8px]">
     {isMapEntry ? <>

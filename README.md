@@ -28,8 +28,8 @@ It reads live story and temporary variables directly without attaching a debugge
   installed `StateAPI` type. A single `VariableNode` holds both live location and
   Ant tree state, with lazily loaded `children`; unchanged items are reused by ID.
 - `VariableSnapshot` discriminates actual values, accessors, and missing properties.
-  Value previews are captured at read time; one `isExpandableNode` rule derives
-  expansion eligibility from either a subscribed snapshot or a direct lightweight
+  Value previews are captured at read time; one `isLeafNode` rule derives
+  leaf classification from either a subscribed snapshot or a direct lightweight
   read. Ant Tree retains the corresponding `isLeaf` metadata, and non-enumerable
   properties remain inspectable.
 - The drawer shows a loading status until `SugarCube.State` becomes available.

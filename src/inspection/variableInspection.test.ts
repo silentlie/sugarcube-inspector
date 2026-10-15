@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readLocation, readVariable, sameVariable } from "./variableLocation";
-import { isExpandableNode } from "./isExpandableNode";
+import { isLeafNode } from "./isLeafNode";
 import { getLocationName, listChildren, readStructure, sameStructure } from "./variableStructure";
 import { reconcileChildren, type VariableNode } from "../inspector/variableNodes";
 import { VariableWatcher } from "./variableWatcher";
@@ -128,7 +128,7 @@ describe("recursive variable locations", () => {
     }
   });
 
-  it("derives one expandability rule for live nodes and subscribed snapshots", () => {
+  it("classifies leaves for live nodes and subscribed snapshots", () => {
     const values: Record<string, unknown> = {
       primitive: 3,
       object: { health: 50 },
@@ -139,19 +139,19 @@ describe("recursive variable locations", () => {
     Object.defineProperty(values, "accessor", { get: getter });
 
     for (const [name, expected] of [
-      ["primitive", false],
-      ["object", true],
-      ["function", true],
-      ["boxed", true],
-      ["accessor", false],
-      ["missing", false],
+      ["primitive", true],
+      ["object", false],
+      ["function", false],
+      ["boxed", false],
+      ["accessor", true],
+      ["missing", true],
     ] as const) {
       const node: VariableNode = {
         key: 0, location: { kind: "property", owner: values, key: name },
         ancestors: [],
       };
-      expect(isExpandableNode(node)).toBe(expected);
-      expect(isExpandableNode(node, readVariable(node.location))).toBe(expected);
+      expect(isLeafNode(node)).toBe(expected);
+      expect(isLeafNode(node, readVariable(node.location))).toBe(expected);
     }
     expect(getter).not.toHaveBeenCalled();
 
@@ -161,22 +161,22 @@ describe("recursive variable locations", () => {
       key: 1, location: { kind: "property", owner: circular, key: "self" },
       ancestors: [circular],
     };
-    expect(isExpandableNode(cycleNode)).toBe(false);
-    expect(isExpandableNode(cycleNode, readVariable(cycleNode.location))).toBe(false);
+    expect(isLeafNode(cycleNode)).toBe(true);
+    expect(isLeafNode(cycleNode, readVariable(cycleNode.location))).toBe(true);
 
     const map = new Map<unknown, unknown>([["primitive", 1]]);
     const entry: VariableNode = {
       key: 2, location: { kind: "map", owner: map, key: "primitive" },
       ancestors: [],
     };
-    expect(isExpandableNode(entry)).toBe(true);
-    expect(isExpandableNode(entry, readVariable(entry.location))).toBe(true);
+    expect(isLeafNode(entry)).toBe(false);
+    expect(isLeafNode(entry, readVariable(entry.location))).toBe(false);
     const valueNode: VariableNode = {
       ...entry, location: { kind: "map", owner: map, key: "primitive", part: "value" },
     };
-    expect(isExpandableNode(valueNode, readVariable(valueNode.location))).toBe(false);
+    expect(isLeafNode(valueNode, readVariable(valueNode.location))).toBe(true);
     map.delete("primitive");
-    expect(isExpandableNode(entry, readVariable(entry.location))).toBe(false);
+    expect(isLeafNode(entry, readVariable(entry.location))).toBe(true);
   });
 
   it("reuses subscribed snapshots without reading the location again", () => {
@@ -192,7 +192,7 @@ describe("recursive variable locations", () => {
     };
     const current = readVariable(node.location);
     const initialReads = descriptorReads;
-    expect(isExpandableNode(node, current)).toBe(true);
+    expect(isLeafNode(node, current)).toBe(false);
     expect(descriptorReads).toBe(initialReads);
   });
 
