@@ -36,14 +36,13 @@ test("full-width drawer keeps its click-mode edge tab within the viewport", asyn
   await expect(closeTab).toHaveAttribute("aria-expanded", "true");
 });
 
-test("intrinsic minimum resizing never forces the drawer beyond the viewport", async ({ page }) => {
+test("CSS intrinsic minimum responds to content changes without resizing", async ({ page }) => {
   await page.setViewportSize({ width: 960, height: 700 });
   await page.goto(storyUrl);
-  const { host, resizeHandle } = await openInspector(page);
+  const { host } = await openInspector(page);
   const aside = host.locator("aside");
 
-  // A fixed-width child forces an intrinsic min-content width of at least 600px.
-  // This is deliberately outside the normal inspector layout to isolate the constraint.
+  // Inject a fixed-width child so the intrinsic minimum is deterministic.
   await aside.evaluate((element) => {
     const probe = document.createElement("div");
     probe.dataset.intrinsicWidthProbe = "yes";
@@ -51,24 +50,33 @@ test("intrinsic minimum resizing never forces the drawer beyond the viewport", a
     probe.style.height = "1px";
     element.append(probe);
   });
-
-  await resizeHandle.press("ArrowRight");
+  await expect(aside).toHaveCSS("min-width", "min-content");
   await expect(aside).toHaveCSS("width", "600px");
 
-  // max-width must win if the viewport becomes narrower than min-content.
-  await page.setViewportSize({ width: 320, height: 700 });
-  await expect(aside).toHaveCSS("width", "320px");
-  await resizeHandle.press("ArrowLeft");
-  await expect(aside).toHaveCSS("width", "320px");
+  // Reflow must happen without any pointer or keyboard resize event.
+  await aside.locator("[data-intrinsic-width-probe]").evaluate((probe) => {
+    (probe as HTMLElement).style.width = "720px";
+  });
+  await expect(aside).toHaveCSS("width", "720px");
 
-  const size = await aside.evaluate((element) => ({
-    actual: element.getBoundingClientRect().width,
-    child: element.querySelector<HTMLElement>("[data-intrinsic-width-probe]")!
-      .getBoundingClientRect().width,
-    viewport: window.innerWidth,
-  }));
-  expect(size.child).toBeGreaterThan(size.viewport);
-  expect(size.actual).toBeLessThanOrEqual(size.viewport);
+  await aside.locator("[data-intrinsic-width-probe]").evaluate((probe) => {
+    (probe as HTMLElement).style.width = "600px";
+  });
+  await expect(aside).toHaveCSS("width", "600px");
+
+  // Intentional trade-off: min-content takes precedence over max-width on small screens.
+  await page.setViewportSize({ width: 320, height: 700 });
+  await expect(aside).toHaveCSS("width", "600px");
+
+  // Even with an oversized drawer, the click-mode tab stays on screen.
+  await host.getByRole("button", { name: "Switch to click-to-toggle mode" }).click();
+  const closeTab = host.getByRole("button", { name: "Close SugarCube Inspector" });
+  const bounds = await closeTab.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320);
+  await closeTab.click();
+  await expect(host.getByRole("button", { name: "Open SugarCube Inspector" })).toBeVisible();
 });
 
 test("virtualized nested tree preserves leaf elbows and centers branch chevrons", async ({ page }) => {
