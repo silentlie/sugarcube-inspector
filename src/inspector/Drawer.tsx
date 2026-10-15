@@ -11,11 +11,24 @@ type DrawerMode = "hover" | "click";
 
 const HANDLE_WIDTH = 8;
 const CLOSE_DELAY = 400;
-const MIN_WIDTH = 280;
 const TAB_HEIGHT = 40;
 const TAB_START_TOP = 64;
 const TAB_DRAG_THRESHOLD = 5;
 const TAB_KEYBOARD_STEP = 24;
+
+/** Ask the browser for the current content's intrinsic minimum, not a fixed pixel limit. */
+function measureMinWidth(drawer: HTMLElement): number {
+  const previousWidth = drawer.style.width;
+  drawer.style.width = "min-content";
+  const minWidth = drawer.getBoundingClientRect().width;
+  drawer.style.width = previousWidth;
+  return Math.min(minWidth, window.innerWidth);
+}
+
+function clampWidth(width: number, minWidth: number): number {
+  const maxWidth = window.innerWidth;
+  return Math.min(maxWidth, Math.max(minWidth, width));
+}
 
 function clampTabTop(top: number) {
   return Math.min(Math.max(0, top), Math.max(0, window.innerHeight - TAB_HEIGHT));
@@ -27,12 +40,13 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   const [mode, setMode] = useState<DrawerMode>("hover");
   const [open, setOpen] = useState(false);
   const [width, setWidth] = useState(initialWidth);
+  const drawerRef = useRef<HTMLElement>(null);
   const [tabTop, setTabTop] = useState(TAB_START_TOP);
   const tabDragRef = useRef<{ pointerId: number; startY: number; startTop: number; moved: boolean } | null>(null);
   const suppressTabClickRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
   const resizePointerIdRef = useRef<number | null>(null);
-  const resizeStartRef = useRef({ x: 0, width: initialWidth });
+  const resizeStartRef = useRef({ x: 0, width: initialWidth, minWidth: 0 });
 
   function cancelClose() {
     if (closeTimerRef.current !== null) {
@@ -115,17 +129,20 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
     cancelClose();
     setOpen(true);
     resizePointerIdRef.current = event.pointerId;
-    resizeStartRef.current = { x: event.clientX, width };
+    const drawer = drawerRef.current;
+    resizeStartRef.current = {
+      x: event.clientX,
+      width: drawer?.getBoundingClientRect().width ?? width,
+      minWidth: drawer ? measureMinWidth(drawer) : 0,
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function handleResize(event: React.PointerEvent<HTMLButtonElement>) {
     if (resizePointerIdRef.current !== event.pointerId) return;
     const delta = resizeStartRef.current.x - event.clientX;
-    const maxWidth = window.innerWidth;
-    const nextWidth = Math.min(maxWidth,
-      Math.max(Math.min(MIN_WIDTH, maxWidth), resizeStartRef.current.width + delta));
-    setWidth(nextWidth);
+    setWidth(clampWidth(resizeStartRef.current.width + delta,
+      resizeStartRef.current.minWidth));
   }
 
   function handleResizeEnd(event: React.PointerEvent<HTMLButtonElement>) {
@@ -146,18 +163,19 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
     event.preventDefault();
     setOpen(true);
     const delta = event.key === "ArrowLeft" ? 24 : -24;
-    const maxWidth = window.innerWidth;
-    setWidth((current) =>
-      Math.min(maxWidth, Math.max(Math.min(MIN_WIDTH, maxWidth), current + delta)));
+    const drawer = drawerRef.current;
+    const minWidth = drawer ? measureMinWidth(drawer) : 0;
+    const currentWidth = drawer?.getBoundingClientRect().width ?? width;
+    setWidth(clampWidth(currentWidth + delta, minWidth));
   }
 
   useEffect(() => () => cancelClose(), []);
 
   return (
-    <aside className="fixed top-0 right-0 h-screen max-w-[100vw] transition-transform duration-150"
+    <aside ref={drawerRef} className="fixed top-0 right-0 h-screen max-w-[100vw] transition-transform duration-150"
       onMouseEnter={handleEnter} onMouseLeave={handleLeave}
       style={{
-        width, background: token.colorBgElevated,
+        width, minWidth: "min-content", background: token.colorBgElevated,
         color: token.colorText, boxShadow: token.boxShadowSecondary,
         fontFamily: token.fontFamily, fontSize: token.fontSize,
         transform: open ? "translateX(0)" :
