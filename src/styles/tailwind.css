@@ -10,3 +10,19 @@
   display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden;
 }
 
+/* Center the custom chevrons against variable rows of differing heights. */
+.sugarcube-variable-tree .ant-tree-switcher {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+}
+
+.sugarcube-variable-tree .ant-tree-switcher > svg {
+  display: block;
+}
+
+/* Ant's virtual scrollbar overlays its rows, so reserve room inside the list. */
+.sugarcube-variable-tree .ant-tree-list-holder-inner {
+  padding-inline-end: 16px;
+}
