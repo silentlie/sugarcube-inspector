@@ -21,8 +21,13 @@ export function inlinePreview(type: string, preview: string): string {
 /** Tokenize the displayed JavaScript value with Prism instead of mapping types to CSS classes. */
 /* eslint-disable @eslint-react/no-array-index-key -- Prism line/token spans are stateless, ordered presentation; indices are their natural identities. */
 export function ValueSyntax({ type, preview }: { type: string; preview: string }) {
+  const code = inlinePreview(type, preview);
+  // Temporary A/B benchmark switch. Not intended for production.
+  if ((globalThis as typeof globalThis & { __SCROLL_BENCH_PLAIN__?: boolean }).__SCROLL_BENCH_PLAIN__) {
+    return <span>{code}</span>;
+  }
   return (
-    <Highlight code={inlinePreview(type, preview)} language="javascript" theme={themes.vsDark}>
+    <Highlight code={code} language="javascript" theme={themes.vsDark}>
       {({ tokens, getTokenProps }) => (
         <>
           {tokens.map((line, lineIndex) => (
