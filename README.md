@@ -18,7 +18,11 @@ It reads live story and temporary variables directly without attaching a debugge
   All logical children remain accessible through scrolling.
 - Variable rows syntax-highlight values with `prism-react-renderer` and its
   built-in VS Dark theme. Type labels reuse that palette instead of custom color
-  definitions; the existing live-data behavior is unchanged.
+  definitions, displayed next to keys as `key: type`, with values right-aligned.
+  Clicking an expandable row title (or using Enter/Space while focused) also
+  expands or collapses its children; native tree chevrons remain usable.
+  Native tree connector lines show hierarchy, and right padding keeps
+  virtual-scrollbar overlays away from value previews.
 - Tailwind classes provide static drawer/layout styling; inline styles remain for live width, open/closed transform and Ant Design theme tokens.
 - Resizing the drawer is bounded by the browser viewport width and the current content's intrinsic CSS `min-content` width instead of a fixed minimum width. Both pointer and keyboard resizing use the same bounds.
 - The drawer starts in hover mode, revealing itself when entered and closing after a short leave delay. Its top-right icon switches to click-to-toggle mode: a protruding edge tab then opens or closes the drawer, without mouse-leave closing it. The tab appears only in click mode and can be dragged vertically or moved with Up/Down arrow keys. Its position stays within the viewport and survives drawer toggles and mode switches until the page reloads. Switching back restores hover behavior.
