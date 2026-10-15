@@ -78,4 +78,67 @@ describe("drawer interaction modes", () => {
     act(() => vi.advanceTimersByTime(1000));
     expect(drawer.style.transform).toBe("translateX(0)");
   });
+  it("drags the click-mode tab vertically without toggling the drawer", () => {
+    const drawer = renderDrawer();
+    fireEvent.mouseEnter(drawer);
+    fireEvent.click(screen.getByRole("button", { name: "Switch to click-to-toggle mode" }));
+    const tab = screen.getByRole("button", { name: "Close SugarCube Inspector" });
+
+    // Pointer capture is supported in Chromium but not all DOM test environments.
+    Object.defineProperties(tab, {
+      setPointerCapture: { configurable: true, value: vi.fn() },
+      hasPointerCapture: { configurable: true, value: () => true },
+      releasePointerCapture: { configurable: true, value: vi.fn() },
+    });
+
+    fireEvent.pointerDown(tab, { pointerId: 1, button: 0, clientY: 100 });
+    fireEvent.pointerMove(tab, { pointerId: 1, clientY: 180 });
+    expect(tab.style.top).toBe("clamp(0px, 144px, calc(100vh - 40px))");
+    fireEvent.pointerUp(tab, { pointerId: 1 });
+    fireEvent.click(tab);
+    expect(drawer.style.transform).toBe("translateX(0)");
+
+    fireEvent.click(tab);
+    expect(drawer.style.transform).toBe("translateX(100%)");
+    expect(tab.style.top).toContain("144px");
+
+    // Switching modes does not reset the tab's position.
+    fireEvent.mouseEnter(drawer);
+    expect(drawer.style.transform).toBe("translateX(100%)");
+  });
+
+  it("clamps vertical dragging to the viewport", () => {
+    const drawer = renderDrawer();
+    fireEvent.mouseEnter(drawer);
+    fireEvent.click(screen.getByRole("button", { name: "Switch to click-to-toggle mode" }));
+    const tab = screen.getByRole("button", { name: "Close SugarCube Inspector" });
+    Object.defineProperties(tab, {
+      setPointerCapture: { configurable: true, value: vi.fn() },
+      hasPointerCapture: { configurable: true, value: () => true },
+      releasePointerCapture: { configurable: true, value: vi.fn() },
+    });
+
+    fireEvent.pointerDown(tab, { pointerId: 2, button: 0, clientY: 100 });
+    fireEvent.pointerMove(tab, { pointerId: 2, clientY: 10000 });
+    expect(tab.style.top).toBe(
+      `clamp(0px, ${Math.max(0, window.innerHeight - 40)}px, calc(100vh - 40px))`,
+    );
+    fireEvent.pointerMove(tab, { pointerId: 2, clientY: -10000 });
+    expect(tab.style.top).toBe("clamp(0px, 0px, calc(100vh - 40px))");
+    fireEvent.pointerCancel(tab, { pointerId: 2 });
+  });
+
+  it("allows keyboard positioning of the edge tab", () => {
+    const drawer = renderDrawer();
+    fireEvent.mouseEnter(drawer);
+    fireEvent.click(screen.getByRole("button", { name: "Switch to click-to-toggle mode" }));
+    const tab = screen.getByRole("button", { name: "Close SugarCube Inspector" });
+
+    fireEvent.keyDown(tab, { key: "ArrowDown" });
+    expect(tab.style.top).toContain("88px");
+    fireEvent.keyDown(tab, { key: "ArrowUp" });
+    expect(tab.style.top).toContain("64px");
+    expect(drawer.style.transform).toBe("translateX(0)");
+  });
+
 });
