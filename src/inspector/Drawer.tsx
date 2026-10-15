@@ -172,7 +172,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
       }}>
       {mode === "click" && (
         <button type="button"
-          className="absolute flex h-10 w-8 cursor-ns-resize touch-none items-center justify-center border p-0"
+          className="absolute flex cursor-ns-resize touch-none items-center justify-center border p-0"
           aria-label={open ? "Close SugarCube Inspector" : "Open SugarCube Inspector"}
           aria-expanded={open}
           title="Click to toggle; drag up or down to reposition"
@@ -184,6 +184,9 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
           onLostPointerCapture={() => { tabDragRef.current = null; }}
           onKeyDown={handleTabKeyDown}
           style={{
+            // Fixed pixel dimensions match the viewport clamp, regardless of host rem sizing.
+            width: TAB_WIDTH,
+            height: TAB_HEIGHT,
             // Protrude at normal widths; shift only if min-content forces overflow.
             left: open ? `max(-${TAB_WIDTH}px, calc(100% - 100vw))` : `-${TAB_WIDTH}px`,
             top: `clamp(0px, ${tabTop}px, calc(100vh - ${TAB_HEIGHT}px))`,
