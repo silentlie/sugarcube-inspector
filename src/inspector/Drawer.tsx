@@ -103,7 +103,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
         onKeyDown={handleKeyDown}
         style={{ width: HANDLE_WIDTH, background: token.colorFillSecondary }}
       />
-      <div className="flex h-full min-h-0 flex-col overflow-hidden p-[16px]"
+      <div className="flex h-full min-h-0 flex-col overflow-hidden p-4"
         style={{ marginLeft: HANDLE_WIDTH }}>
         {children}
       </div>
