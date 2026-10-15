@@ -11,16 +11,16 @@ async function openInspector(page: Page) {
   return { host, resizeHandle };
 }
 
-test("full-width drawer keeps its click-mode edge tab within the viewport", async ({ page }) => {
+test("maximum drawer width reserves space for the stationary edge tab", async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 700 });
   await page.goto(storyUrl);
   const { host, resizeHandle } = await openInspector(page);
   await host.getByRole("button", { name: "Switch to click-to-toggle mode" }).click();
 
-  // Resize to the exact viewport width through the real keyboard interaction.
+  // Resize to the viewport minus the 32px tab through real keyboard interaction.
   for (let i = 0; i < 20; i++) await resizeHandle.press("ArrowLeft");
   const aside = host.locator("aside");
-  await expect(aside).toHaveCSS("width", "800px");
+  await expect(aside).toHaveCSS("width", "768px");
 
   const closeTab = host.getByRole("button", { name: "Close SugarCube Inspector" });
   await expect(closeTab).toBeVisible();
@@ -28,11 +28,74 @@ test("full-width drawer keeps its click-mode edge tab within the viewport", asyn
   expect(bounds).not.toBeNull();
   expect(bounds!.x).toBeGreaterThanOrEqual(0);
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(800);
+  const handleBounds = await resizeHandle.boundingBox();
+  expect(handleBounds).not.toBeNull();
+  // Adjacent hit areas: the tab must not cover any of the 8px resize handle.
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(handleBounds!.x + 0.5);
 
   await closeTab.click();
   const openTab = host.getByRole("button", { name: "Open SugarCube Inspector" });
   await expect(openTab).toBeVisible();
   await openTab.click();
+  await expect(closeTab).toHaveAttribute("aria-expanded", "true");
+});
+
+test("dragging the toggle tab repositions it without closing the drawer", async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 700 });
+  await page.goto(storyUrl);
+  const { host } = await openInspector(page);
+  await host.getByRole("button", { name: "Switch to click-to-toggle mode" }).click();
+
+  const closeTab = host.getByRole("button", { name: "Close SugarCube Inspector" });
+  const initial = await closeTab.boundingBox();
+  expect(initial).not.toBeNull();
+
+  const x = initial!.x + initial!.width / 2;
+  const y = initial!.y + initial!.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y + 120, { steps: 6 });
+  await page.mouse.up();
+
+  // Releasing a drag must not also trigger the button's click action.
+  await expect(closeTab).toHaveAttribute("aria-expanded", "true");
+  const dragged = await closeTab.boundingBox();
+  expect(dragged).not.toBeNull();
+  expect(dragged!.y).toBeGreaterThan(initial!.y + 100);
+
+  await page.mouse.move(100, 500);
+  await page.waitForTimeout(500);
+  await expect(closeTab).toHaveAttribute("aria-expanded", "true");
+
+  await closeTab.click();
+  const openTab = host.getByRole("button", { name: "Open SugarCube Inspector" });
+  await expect(openTab).toBeVisible();
+  expect((await openTab.boundingBox())!.y).toBeCloseTo(dragged!.y, 0);
+
+  await openTab.click();
+  await expect(closeTab).toHaveAttribute("aria-expanded", "true");
+
+  // Keyboard positioning uses the same vertically constrained tab.
+  await closeTab.press("ArrowDown");
+  const down = await closeTab.boundingBox();
+  expect(down!.y).toBeCloseTo(dragged!.y + 24, 0);
+  await closeTab.press("ArrowUp");
+  expect((await closeTab.boundingBox())!.y).toBeCloseTo(dragged!.y, 0);
+
+  // Mode changes also retain the tab position.
+  await host.getByRole("button", { name: "Switch to hover mode" }).click();
+  await host.getByRole("button", { name: "Switch to click-to-toggle mode" }).click();
+  expect((await closeTab.boundingBox())!.y).toBeCloseTo(dragged!.y, 0);
+
+  // Real pointer capture must constrain the drag within the viewport.
+  const beforeClamp = await closeTab.boundingBox();
+  await page.mouse.move(beforeClamp!.x + beforeClamp!.width / 2, beforeClamp!.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(beforeClamp!.x + beforeClamp!.width / 2, 1000, { steps: 6 });
+  await page.mouse.up();
+  const clamped = await closeTab.boundingBox();
+  expect(clamped!.y).toBeGreaterThanOrEqual(0);
+  expect(clamped!.y + clamped!.height).toBeLessThanOrEqual(700);
   await expect(closeTab).toHaveAttribute("aria-expanded", "true");
 });
 
