@@ -675,7 +675,7 @@ test("diagnostic: compare Preflight-on and Preflight-off styles in the same page
     const removed: string[] = [];
     for (let i = sheet.cssRules.length - 1; i >= 0; i--) {
       const rule = sheet.cssRules[i];
-      if (/^@layer\\s+base\\s*\\{/.test(rule.cssText)) {
+      if (rule.cssText.trimStart().startsWith("@layer base") && rule.cssText.includes("{")) {
         removed.push(rule.cssText.slice(0, 160));
         sheet.deleteRule(i);
       }
