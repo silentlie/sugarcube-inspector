@@ -22,9 +22,9 @@
   display: block;
 }
 
-/* showLeafIcon: false draws a CSS elbow for every non-expandable row.
-   Keep the branch guides but suppress these misleading leaf markers. */
-.sugarcube-variable-tree .ant-tree-switcher-leaf-line {
+/* Root variables have no visible parent, so their leaf elbows look like stray
+   icons. Keep Ant's native elbow/branch connectors for nested descendants. */
+.sugarcube-variable-tree .ant-tree-indent:empty + .ant-tree-switcher-leaf-line {
   visibility: hidden;
 }
 
