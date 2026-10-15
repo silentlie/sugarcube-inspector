@@ -3,20 +3,26 @@ import type { VariableLocation, VariableSnapshot } from "../location";
 import { useVariable } from "./useVariableWatch";
 import { TypeSyntax, ValueSyntax } from "./valueSyntax";
 
-/** Render a live value snapshot as syntax-highlighted type and preview tokens. */
-export function VariableValuePreview({ current, showType = true }: { current: VariableSnapshot; showType?: boolean }) {
-  const type = current.kind === "value" ? current.type :
+function snapshotType(current: VariableSnapshot): string {
+  return current.kind === "value" ? current.type :
     current.kind === "accessor" ? current.accessor : current.kind;
+}
+
+/** Keep the type beside the key while displaying the value at the row's right edge. */
+export function VariableTypePreview({ current }: { current: VariableSnapshot }) {
+  return <TypeSyntax type={snapshotType(current)} />;
+}
+
+/** Syntax-highlight only the value; the type appears beside the key. */
+export function VariableValuePreview({ current }: { current: VariableSnapshot }) {
+  const type = snapshotType(current);
   const preview = current.kind === "value" ? current.preview :
     current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
-  return <>
-    {showType && <span className="shrink-0 font-mono text-[12px] whitespace-nowrap">
-      <TypeSyntax type={type} />
-    </span>}
-    <span title={preview} className={`${showType ? "max-w-[45%]" : "max-w-full"} truncate font-mono text-[12px]`}>
+  return (
+    <span title={preview} className="ml-auto min-w-0 max-w-[45%] truncate text-right font-mono text-[12px]">
       <ValueSyntax type={type} preview={preview} />
     </span>
-  </>;
+  );
 }
 
 export function MapKeyPreview({ location }: {
@@ -24,6 +30,5 @@ export function MapKeyPreview({ location }: {
 }) {
   const keyLocation = useMemo(() => ({ ...location, part: "key" as const }), [location]);
   const key = useVariable(keyLocation);
-  return <VariableValuePreview current={key} showType={false} />;
+  return <VariableValuePreview current={key} />;
 }
-
