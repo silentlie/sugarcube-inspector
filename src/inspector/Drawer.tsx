@@ -10,15 +10,16 @@ interface DrawerProps {
 type DrawerMode = "hover" | "click";
 
 const HANDLE_WIDTH = 8;
+const TAB_WIDTH = 32;
 const CLOSE_DELAY = 400;
 const TAB_HEIGHT = 40;
 const TAB_START_TOP = 64;
 const TAB_DRAG_THRESHOLD = 5;
 const TAB_KEYBOARD_STEP = 24;
 
-/** CSS enforces min-content; only the requested maximum needs JS clamping. */
+/** Leave room for the fixed click-mode tab; CSS still enforces min-content. */
 function clampWidth(width: number): number {
-  return Math.min(window.innerWidth, Math.max(0, width));
+  return Math.min(Math.max(0, window.innerWidth - TAB_WIDTH), Math.max(0, width));
 }
 
 function clampTabTop(top: number) {
@@ -183,8 +184,8 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
           onLostPointerCapture={() => { tabDragRef.current = null; }}
           onKeyDown={handleTabKeyDown}
           style={{
-            // Keep the open tab onscreen at full width, but protrude when closed.
-            left: open ? "max(-32px, calc(100% - 100vw))" : "-32px",
+            // Protrude at normal widths; shift only if min-content forces overflow.
+            left: open ? `max(-${TAB_WIDTH}px, calc(100% - 100vw))` : `-${TAB_WIDTH}px`,
             top: `clamp(0px, ${tabTop}px, calc(100vh - ${TAB_HEIGHT}px))`,
             color: token.colorText,
             background: token.colorBgElevated,
