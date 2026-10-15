@@ -3,6 +3,8 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type VariableStoreKey } from "../../sugarcube/state";
 import { readLocation, type VariableLocation } from "../location";
+import { favoriteStore } from "../favorites";
+import { isLeafNode } from "../isLeafNode";
 import { variableWatcher } from "../watcher";
 import { readStructure, sameStructure } from "../structure";
 import { VariableNodeContent } from "./VariableNodeContent";
@@ -29,13 +31,38 @@ function sameExpanded(a: ExpandedSnapshot, b: ExpandedSnapshot): boolean {
 
 type ExpandedWatch = { location: VariableLocation; unsubscribe: () => void };
 
-function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
-  const rootNode = useMemo<VariableNode>(() => ({
+/** Favourites are top-level nodes. Preserve expanded descendants across list edits. */
+function favoriteNodes(previous: readonly VariableNode[] = []): VariableNode[] {
+  const oldById = new Map(previous.map((node) => [node.key, node]));
+  return favoriteStore.getSnapshot().map(({ location }) => {
+    const old = oldById.get(location.id);
+    if (old) return old;
+    const node: VariableNode = {
+      key: location.id, location, ancestors: [],
+      favoritePath: { root: location.root, path: location.path },
+    };
+    node.isLeaf = isLeafNode(node);
+    return node;
+  });
+}
+
+function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey | "favorites" }) {
+  const rootNode = useMemo<VariableNode | null>(() => storeKey === "favorites" ? null : ({
     key: storeKey === "variables" ? 0 : 1,
     location: { kind: "state", key: storeKey },
     ancestors: [],
+    favoritePath: { root: storeKey, path: [] },
   }), [storeKey]);
-  const [items, setItems] = useState<VariableNode[]>(() => reconcileChildren(rootNode));
+  const [items, setItems] = useState<VariableNode[]>(() =>
+    rootNode ? reconcileChildren(rootNode) : favoriteNodes());
+  const watchScope = storeKey === "favorites" ? "favorites-tree" : storeKey;
+
+  useEffect(() => {
+    if (storeKey !== "favorites") return;
+    return favoriteStore.subscribe(() => {
+      setItems((old) => favoriteNodes(old));
+    });
+  }, [storeKey]);
   const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
   const expandedWatchesRef = useRef(new Map<number, ExpandedWatch>());
@@ -60,7 +87,8 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
   // Watch the root and expanded logical nodes, even when Ant virtualizes their rows.
   // Collapsing a parent pauses its descendants; the root always remains watched.
   useEffect(() => {
-    const live = new Map<number, VariableNode>([[rootNode.key, rootNode]]);
+    const live = new Map<number, VariableNode>();
+    if (rootNode) live.set(rootNode.key, rootNode);
     const collect = (siblings: readonly VariableNode[]) => {
       for (const item of siblings) {
         if (!expanded.has(item.key)) continue;
@@ -79,12 +107,12 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
     for (const [id, node] of live) {
       if (watches.has(id)) continue;
       const subscription = variableWatcher.watch(
-        () => readExpanded(node), sameExpanded, storeKey,
+        () => readExpanded(node), sameExpanded, watchScope,
       );
       watches.set(id, {
         location: node.location,
         unsubscribe: subscription.subscribe(() => {
-          if (id === rootNode.key) {
+          if (rootNode && id === rootNode.key) {
             setItems((old) => reconcileChildren(rootNode, old));
           } else {
             refresh(id, true);
@@ -92,7 +120,7 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
         }),
       });
     }
-  }, [items, expanded, refresh, rootNode, storeKey]);
+  }, [items, expanded, refresh, rootNode, watchScope]);
 
   useEffect(() => {
     const watches = expandedWatchesRef.current;
@@ -108,8 +136,11 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
   }, [refresh]);
 
   return <div ref={setViewport} className="min-h-0 flex-1 overflow-hidden">
-    {height > 0 && <Tree
-    aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
+    {storeKey === "favorites" && items.length === 0 &&
+      <p className="px-3 py-2 text-sm text-neutral-400">Star a variable to watch it here.</p>}
+    {height > 0 && (storeKey !== "favorites" || items.length > 0) && <Tree
+    aria-label={storeKey === "favorites" ? "Favorite variables tree"
+      : storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
     className="sugarcube-variable-tree flex h-full flex-col"
     blockNode
     selectable={false}
@@ -147,6 +178,20 @@ export default function VariableTree({ storeKey, active }: {
   return <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <VariableScopeContext value={storeKey}>
       <RichVariableTree storeKey={storeKey} />
+    </VariableScopeContext>
+  </div>;
+}
+
+/** This tree pauses its structural and descendant watches outside its selected tab. */
+export function FavoritesTree({ active }: { active: boolean }) {
+  useEffect(() => {
+    variableWatcher.setScopeActive("favorites-tree", active);
+    return () => variableWatcher.setScopeActive("favorites-tree", false);
+  }, [active]);
+
+  return <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <VariableScopeContext value="favorites-tree">
+      <RichVariableTree storeKey="favorites" />
     </VariableScopeContext>
   </div>;
 }

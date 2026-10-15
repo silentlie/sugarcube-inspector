@@ -6,6 +6,8 @@ import DirectInspector from "./DirectInspector";
 vi.mock("../variables/ui/VariableTree", () => ({
   default: ({ storeKey, active }: { storeKey: string; active: boolean }) =>
     <div data-testid={`tree-${storeKey}`} data-active={String(active)} />,
+  FavoritesTree: ({ active }: { active: boolean }) =>
+    <div data-testid="tree-favorites" data-active={String(active)} />,
 }));
 
 afterEach(() => {
@@ -55,6 +57,7 @@ describe("SugarCube startup gating", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Favorites" }));
     expect(screen.getByTestId("tree-variables").dataset.active).toBe("false");
     expect(screen.getByTestId("tree-temporary").dataset.active).toBe("false");
+    expect(screen.getByTestId("tree-favorites").dataset.active).toBe("true");
 
     view.unmount();
   });

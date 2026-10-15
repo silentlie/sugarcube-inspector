@@ -8,8 +8,8 @@ It reads live story and temporary variables directly without attaching a debugge
 - **Ant Design** provides tabs, labels, buttons, dark/compact theme and the virtualized Tree.
 - **Tailwind CSS v4** provides its complete stylesheet, including Preflight and utilities, inside the inspector ShadowRoot.
 - Overview, Variables, and Scripts are top-level tabs. Under Variables are
-  Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
-  Favorites are placeholders.
+  Story Variables, Temporary Variables, and Favorites. Overview and Scripts
+  are placeholders. Favorites supports explicit variable-path subscriptions.
 - The variable tree uses Ant Design's built-in virtualization and discovers children
   lazily on expansion. ID-based, one-level reconciliation reuses unchanged nodes and
   child arrays; replaced objects refresh only loaded branches. Expanded logical
@@ -39,7 +39,7 @@ It reads live story and temporary variables directly without attaching a debugge
   Runtime checks use named `@sindresorhus/is` type guards, including functions
   as expandable references. Boxed primitives are handled explicitly because the
   library's general-purpose type detector rejects them; their values remain inspectable.
-- Mounted virtualized rows update values while their variable scope is selected.
+- Starred property and array locations are tracked by root-relative path, so favourites\n  follow replaced ancestor objects and display missing paths without unpinning.\n  Favourites are in-memory for this page session; Map and Set entry nodes cannot\n  currently be pinned, though their containing variables can be. A persistent\n  `favorites` scope polls pinned values regardless of the selected tab, while\n  the `favorites-tree` scope pauses structural/descendant polling off-tab.\n- Mounted virtualized rows update values while their variable scope is selected.
   All expanded logical containers watch object identity, structure, array length,
   and Map/Set membership, including while their rows are offscreen.
   Structure snapshots use typed data, accessor, Map, and Set entries; enumerable

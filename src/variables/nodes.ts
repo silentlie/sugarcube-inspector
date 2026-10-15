@@ -1,6 +1,6 @@
 import type { TreeDataNode } from "antd";
 import { isLeafNode } from "./isLeafNode";
-import { readLocation, type ChildLocation, type VariableLocation, type VariableRead } from "./location";
+import { readLocation, type ChildLocation, type FavoritePath, type VariableLocation, type VariableRead } from "./location";
 import { listChildren } from "./structure";
 
 /** One node model for both live inspection and Ant's treeData. */
@@ -9,6 +9,8 @@ export type VariableNode = TreeDataNode & {
   location: VariableLocation;
   /** Ancestors prevent circular traversal when discovering a branch. */
   ancestors: readonly object[];
+  /** Path used for opt-in favourites; unavailable within Map/Set entries. */
+  favoritePath?: FavoritePath;
   children?: VariableNode[];
   /** Value whose direct children were last loaded (identity, not a snapshot). */
   loadedValue?: unknown;
@@ -79,7 +81,10 @@ export function reconcileChildren(
 
     if (!old) {
       changed = true;
-      const node: VariableNode = { key: nextNodeId++, location, ancestors };
+      const favoritePath = parent.favoritePath && location.kind === "property"
+        ? { root: parent.favoritePath.root, path: [...parent.favoritePath.path, location.key] }
+        : undefined;
+      const node: VariableNode = { key: nextNodeId++, location, ancestors, favoritePath };
       node.isLeaf = isLeafNode(node);
       return node;
     }
