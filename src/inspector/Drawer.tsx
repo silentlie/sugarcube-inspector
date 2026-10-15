@@ -16,18 +16,9 @@ const TAB_START_TOP = 64;
 const TAB_DRAG_THRESHOLD = 5;
 const TAB_KEYBOARD_STEP = 24;
 
-/** Ask the browser for the current content's intrinsic minimum, not a fixed pixel limit. */
-function measureMinWidth(drawer: HTMLElement): number {
-  const previousWidth = drawer.style.width;
-  drawer.style.width = "min-content";
-  const minWidth = drawer.getBoundingClientRect().width;
-  drawer.style.width = previousWidth;
-  return Math.min(minWidth, window.innerWidth);
-}
-
-function clampWidth(width: number, minWidth: number): number {
-  const maxWidth = window.innerWidth;
-  return Math.min(maxWidth, Math.max(minWidth, width));
+/** CSS enforces min-content; only the requested maximum needs JS clamping. */
+function clampWidth(width: number): number {
+  return Math.min(window.innerWidth, Math.max(0, width));
 }
 
 function clampTabTop(top: number) {
@@ -46,7 +37,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   const suppressTabClickRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
   const resizePointerIdRef = useRef<number | null>(null);
-  const resizeStartRef = useRef({ x: 0, width: initialWidth, minWidth: 0 });
+  const resizeStartRef = useRef({ x: 0, width: initialWidth });
 
   function cancelClose() {
     if (closeTimerRef.current !== null) {
@@ -133,7 +124,6 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
     resizeStartRef.current = {
       x: event.clientX,
       width: drawer?.getBoundingClientRect().width || width,
-      minWidth: drawer ? measureMinWidth(drawer) : 0,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -141,8 +131,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   function handleResize(event: React.PointerEvent<HTMLButtonElement>) {
     if (resizePointerIdRef.current !== event.pointerId) return;
     const delta = resizeStartRef.current.x - event.clientX;
-    setWidth(clampWidth(resizeStartRef.current.width + delta,
-      resizeStartRef.current.minWidth));
+    setWidth(clampWidth(resizeStartRef.current.width + delta));
   }
 
   function handleResizeEnd(event: React.PointerEvent<HTMLButtonElement>) {
@@ -164,9 +153,8 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
     setOpen(true);
     const delta = event.key === "ArrowLeft" ? 24 : -24;
     const drawer = drawerRef.current;
-    const minWidth = drawer ? measureMinWidth(drawer) : 0;
     const currentWidth = drawer?.getBoundingClientRect().width || width;
-    setWidth(clampWidth(currentWidth + delta, minWidth));
+    setWidth(clampWidth(currentWidth + delta));
   }
 
   useEffect(() => () => cancelClose(), []);
@@ -175,7 +163,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
     <aside ref={drawerRef} className="fixed top-0 right-0 h-screen max-w-[100vw] transition-transform duration-150"
       onMouseEnter={handleEnter} onMouseLeave={handleLeave}
       style={{
-        width, background: token.colorBgElevated,
+        width, minWidth: "min-content", background: token.colorBgElevated,
         color: token.colorText, boxShadow: token.boxShadowSecondary,
         fontFamily: token.fontFamily, fontSize: token.fontSize,
         transform: open ? "translateX(0)" :
