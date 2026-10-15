@@ -5,11 +5,8 @@ import { Tree } from "antd";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-const rootLeafSelector =
-  ".sugarcube-variable-tree .ant-tree-indent:empty + .ant-tree-switcher > .ant-tree-switcher-leaf-line";
-
 describe("variable tree branch connectors", () => {
-  it("targets only root leaf elbows and preserves nested connectors", () => {
+  it("preserves native leaf connectors at every depth", () => {
     const html = renderToStaticMarkup(
       <Tree
         className="sugarcube-variable-tree"
@@ -30,13 +27,11 @@ describe("variable tree branch connectors", () => {
     host.innerHTML = html;
 
     const leafLines = host.querySelectorAll(".ant-tree-switcher-leaf-line");
-    const hiddenRootLines = host.querySelectorAll(rootLeafSelector);
     expect(leafLines).toHaveLength(2);
-    expect(hiddenRootLines).toHaveLength(1);
-    expect(hiddenRootLines[0].closest(".ant-tree-treenode")?.textContent).toContain("root leaf");
 
     const css = readFileSync(new URL("../../styles/tailwind.css", import.meta.url), "utf8");
-    expect(css).toContain(rootLeafSelector + " {");
+    expect(css).not.toContain(".ant-tree-switcher-leaf-line {");
+    expect(css).not.toContain("visibility: hidden;");
 
     // Ant's leaf-line pseudo-elements use the switcher's full height to form
     // continuous elbows; only the interactive chevrons may be flex-centered.
