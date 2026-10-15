@@ -71,8 +71,6 @@ export class VariableWatcher {
   }
 
   refresh(): void {
-    // Temporary A/B benchmark switch. Not intended for production.
-    if ((globalThis as typeof globalThis & { __SCROLL_BENCH_PAUSE_WATCH__?: boolean }).__SCROLL_BENCH_PAUSE_WATCH__) return;
     for (const watcher of [...this.active]) watcher();
   }
 
