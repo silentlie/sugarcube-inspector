@@ -33,7 +33,7 @@ export function VariableNodeContent({ node, refresh }: {
       <VariableValuePreview current={current} />
     </> : <>
       {!isSetMember &&
-        <span className="flex-1 min-w-0 truncate text-[14px]">
+        <span className="min-w-0 flex-1 truncate text-[14px]">
           {getLocationName(node.location)}
         </span>}
       {isSetMember && <span className="min-w-0 flex-1" />}
