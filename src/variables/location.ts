@@ -2,16 +2,23 @@ import detect from "@sindresorhus/is";
 import { getStore, type VariableStoreKey } from "../sugarcube/state";
 import { boxedPrimitive, preview } from "./valuePreview";
 
-/** A location retains live owners and keys, never copied values or root-relative paths. */
+/** Ordinary locations retain live owners. Favourites use root-relative property paths. */
+export type FavoritePath = {
+  root: VariableStoreKey;
+  path: readonly PropertyKey[];
+};
+
+export type FavoriteLocation = FavoritePath & { kind: "favorite"; id: number };
 export type VariableLocation =
+  | FavoriteLocation
   | { kind: "state"; key: VariableStoreKey }
   | { kind: "property"; owner: object; key: PropertyKey }
   /** A Map entry is one node; part selects an expandable key or value child. */
   | { kind: "map"; owner: Map<unknown, unknown>; key: unknown; part?: "key" | "value" }
   | { kind: "set"; owner: Set<unknown>; member: unknown };
 
-/** A child location excludes the two SugarCube root stores. */
-export type ChildLocation = Exclude<VariableLocation, { kind: "state" }>;
+/** Enumerated children cannot themselves be synthetic roots or favourites. */
+export type ChildLocation = Exclude<VariableLocation, { kind: "state" } | FavoriteLocation>;
 
 type AccessorKind = "getter" | "setter" | "getter/setter";
 
@@ -28,6 +35,19 @@ export type VariableSnapshot =
 /** Only SugarCube's two trusted State getters may be read as accessors. */
 export function readLocation(location: VariableLocation): VariableRead {
   switch (location.kind) {
+    case "favorite": {
+      let value = getStore(location.root);
+      if (value === undefined) return { kind: "missing" };
+      for (const key of location.path) {
+        if (value === null || (typeof value !== "object" && typeof value !== "function")) {
+          return { kind: "missing" };
+        }
+        const current = readLocation({ kind: "property", owner: value, key });
+        if (current.kind !== "value") return current;
+        value = current.value;
+      }
+      return { kind: "value", value };
+    }
     case "state": {
       const value = getStore(location.key);
       return value === undefined ? { kind: "missing" } : { kind: "value", value };
@@ -59,6 +79,8 @@ export function readLocation(location: VariableLocation): VariableRead {
 /** A tree label is derived from a live location; no positional indices. */
 export function getLocationName(location: VariableLocation): string {
   switch (location.kind) {
+    case "favorite":
+      return formatFavoritePath(location);
     case "state":
       return location.key;
     case "property":
@@ -92,4 +114,18 @@ export function sameVariable(a: VariableSnapshot, b: VariableSnapshot): boolean 
     case "missing":
       return true;
   }
+}
+
+/** SugarCube-style names, including brackets for array indices and unusual keys. */
+export function formatFavoritePath(location: FavoritePath): string {
+  const prefix = location.root === "variables" ? "$" : "_";
+  return location.path.reduce<string>((text, key, index) => {
+    if (typeof key === "symbol") return text + "[" + String(key) + "]";
+    const part = String(key);
+    if (/^[A-Za-z_$][\w$]*$/.test(part)) {
+      return text + (index === 0 ? "" : ".") + part;
+    }
+    return text + "[" + (typeof key === "string" && /^(0|[1-9]\d*)$/.test(key)
+      ? key : JSON.stringify(part)) + "]";
+  }, prefix);
 }

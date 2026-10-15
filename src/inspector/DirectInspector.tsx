@@ -1,7 +1,8 @@
 import { Divider, Tabs, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { hasState, type VariableStoreKey } from "../sugarcube/state";
-import VariableTree from "../variables/ui/VariableTree";
+import VariableTree, { FavoritesTree } from "../variables/ui/VariableTree";
+import { variableWatcher } from "../variables/watcher";
 
 type Section = "overview" | "variables" | "scripts";
 type VariableScope = VariableStoreKey | "favorites";
@@ -36,6 +37,11 @@ function InspectorSections() {
   const activeScope = section === "variables" ? scope : null;
 
   useEffect(() => {
+    variableWatcher.setScopeActive("favorites", true);
+    return () => variableWatcher.setScopeActive("favorites", false);
+  }, []);
+
+  useEffect(() => {
     const passages = document.getElementById("passages");
     if (!passages) return;
     const observer = new MutationObserver(() => {
@@ -56,7 +62,7 @@ function InspectorSections() {
       items={[
         { key: "variables", label: "Story Variables", children: <VariableTree storeKey="variables" active={activeScope === "variables"} /> },
         { key: "temporary", label: "Temporary Variables", children: <VariableTree storeKey="temporary" active={activeScope === "temporary"} /> },
-        { key: "favorites", label: "Favorites" },
+        { key: "favorites", label: "Favorites", children: <FavoritesTree active={activeScope === "favorites"} /> },
       ]}
     />
   );

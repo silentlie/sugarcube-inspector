@@ -1,6 +1,8 @@
 import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
-import { useEffect } from "react";
+import { Star } from "lucide-react";
+import { useEffect, useSyncExternalStore } from "react";
+import { favoriteStore, sameFavoritePath } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
 import { getLocationName, type VariableLocation } from "../location";
 import type { VariableNode } from "../nodes";
@@ -15,6 +17,9 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle }: {
   onToggle: () => void;
 }) {
   const current = useVariable(node.location);
+  const favorites = useSyncExternalStore(favoriteStore.subscribe, favoriteStore.getSnapshot);
+  const path = node.favoritePath;
+  const pinned = path !== undefined && favorites.some(({ location }) => sameFavoritePath(path, location));
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
   const isLeaf = isLeafNode(node, current);
@@ -63,6 +68,18 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle }: {
       </span>
       <VariableValuePreview current={current} />
     </>}
+    {path && path.path.length > 0 && <button
+      type="button"
+      className="shrink-0 cursor-pointer rounded p-1"
+      aria-label={`${pinned ? "Remove" : "Add"} ${getLocationName(node.location)} ${pinned ? "from" : "to"} favorites`}
+      title={pinned ? "Remove from favorites" : "Add to favorites"}
+      aria-pressed={pinned}
+      onClick={(event) => {
+        event.stopPropagation();
+        favoriteStore.toggle(path);
+      }}
+      onKeyDown={(event) => event.stopPropagation()}
+    ><Star size={14} fill={pinned ? "currentColor" : "none"} aria-hidden="true" /></button>}
     {circular &&
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         same reference
