@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { Tree } from "antd";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -29,7 +30,7 @@ describe("variable tree branch connectors", () => {
     const leafLines = host.querySelectorAll(".ant-tree-switcher-leaf-line");
     expect(leafLines).toHaveLength(2);
 
-    const css = readFileSync(new URL("../../styles/tailwind.css", import.meta.url), "utf8");
+    const css = readFileSync(resolve("src/styles/tailwind.css"), "utf8");
     expect(css).not.toContain(".ant-tree-switcher-leaf-line {");
     expect(css).not.toContain("visibility: hidden;");
 
