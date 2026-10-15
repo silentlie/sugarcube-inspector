@@ -112,6 +112,27 @@ describe("ID-based tree reconciliation", () => {
     expect(child(reinserted, "first").key).not.toBe(initial[0]!.key);
   });
 
+  it("reads a loaded node's location once per refresh", () => {
+    let reads = 0;
+    const owner = new Proxy({ player: { health: 10 } }, {
+      getOwnPropertyDescriptor(target, key) {
+        if (key === "player") reads++;
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      },
+    });
+    const node: VariableNode = {
+      key: 2,
+      location: { kind: "property", owner, key: "player" },
+      ancestors: [],
+    };
+
+    const loaded = refreshItem(node, true);
+    expect(reads).toBe(1);
+    reads = 0;
+    expect(refreshItem(loaded, true)).toBe(loaded);
+    expect(reads).toBe(1);
+  });
+
   it("updates expandability and reuses unchanged paths for targeted refresh", () => {
     const value: Record<string, unknown> = { player: { hp: 1 }, other: 2 };
     const root = parent(value);

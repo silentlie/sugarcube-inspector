@@ -1,6 +1,6 @@
 import type { TreeDataNode } from "antd";
 import { isLeafNode } from "./isLeafNode";
-import { readLocation, type VariableLocation } from "./location";
+import { readLocation, type VariableLocation, type VariableRead } from "./location";
 import { listChildren } from "./structure";
 
 /** One node model for both live inspection and Ant's treeData. */
@@ -27,12 +27,11 @@ function childIdentity(location: ChildLocation): { kind: string; key: unknown } 
 }
 
 /** Discover direct live locations without eagerly traversing descendants. */
-function childLocations(item: VariableNode): {
+function childLocations(item: VariableNode, current: VariableRead): {
   locations: ChildLocation[];
   ancestors: readonly object[];
 } {
   const location = item.location;
-  const current = readLocation(location);
   if (location.kind === "map" && location.part === undefined) {
     return {
       locations: current.kind === "value"
@@ -51,17 +50,16 @@ function childLocations(item: VariableNode): {
   };
 }
 
-function valueAt(item: VariableNode): unknown {
-  const current = readLocation(item.location);
-  return current.kind === "value" ? current.value : undefined;
-}
-
 /**
  * Reconcile direct children against their previous siblings.
  * IDs belong to retained nodes; removed children leave no registry behind.
  */
-export function reconcileChildren(parent: VariableNode, previous: VariableNode[] = []): VariableNode[] {
-  const { locations, ancestors } = childLocations(parent);
+export function reconcileChildren(
+  parent: VariableNode,
+  previous: VariableNode[] = [],
+  current: VariableRead = readLocation(parent.location),
+): VariableNode[] {
+  const { locations, ancestors } = childLocations(parent, current);
   const byKind = new Map<string, Map<unknown, VariableNode>>();
   for (const old of previous) {
     if (old.location.kind === "state") continue;
@@ -88,9 +86,11 @@ export function reconcileChildren(parent: VariableNode, previous: VariableNode[]
       return node;
     }
 
-    const isLeaf = isLeafNode(old);
+    const childRead = readLocation(old.location);
+    const isLeaf = isLeafNode(old, childRead);
+    const value = childRead.kind === "value" ? childRead.value : undefined;
     if (old.isLeaf === isLeaf &&
-        (old.children === undefined || (!isLeaf && Object.is(old.loadedValue, valueAt(old))))) {
+        (old.children === undefined || (!isLeaf && Object.is(old.loadedValue, value)))) {
       if (old !== previous[index]) changed = true;
       return old;
     }
@@ -99,8 +99,8 @@ export function reconcileChildren(parent: VariableNode, previous: VariableNode[]
     if (isLeaf) return { ...old, isLeaf: true, children: undefined, loadedValue: undefined };
     if (old.children === undefined) return { ...old, isLeaf: false };
 
-    const children = reconcileChildren(old, old.children);
-    return { ...old, isLeaf: false, children, loadedValue: valueAt(old) };
+    const children = reconcileChildren(old, old.children, childRead);
+    return { ...old, isLeaf: false, children, loadedValue: value };
   });
   return changed ? next : previous;
 }
@@ -127,11 +127,13 @@ export function updateTreeItem(
 
 /** Refresh a node's direct children only if loaded or explicitly expanding. */
 export function refreshItem(item: VariableNode, load = false): VariableNode {
-  const isLeaf = isLeafNode(item);
+  const current = readLocation(item.location);
+  const isLeaf = isLeafNode(item, current);
   const children = isLeaf || (!load && item.children === undefined)
     ? undefined
-    : reconcileChildren(item, item.children);
-  const loadedValue = children === undefined ? undefined : valueAt(item);
+    : reconcileChildren(item, item.children, current);
+  const loadedValue = children === undefined || current.kind !== "value"
+    ? undefined : current.value;
 
   if (item.isLeaf === isLeaf && item.children === children &&
       Object.is(item.loadedValue, loadedValue)) return item;

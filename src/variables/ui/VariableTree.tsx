@@ -21,7 +21,9 @@ function readExpanded(node: VariableNode) {
   };
 }
 
-function sameExpanded(a: ReturnType<typeof readExpanded>, b: ReturnType<typeof readExpanded>): boolean {
+type ExpandedSnapshot = ReturnType<typeof readExpanded>;
+
+function sameExpanded(a: ExpandedSnapshot, b: ExpandedSnapshot): boolean {
   return Object.is(a.value, b.value) && sameStructure(a.structure, b.structure);
 }
 
