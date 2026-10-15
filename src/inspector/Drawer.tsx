@@ -132,7 +132,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
     const drawer = drawerRef.current;
     resizeStartRef.current = {
       x: event.clientX,
-      width: drawer?.getBoundingClientRect().width ?? width,
+      width: drawer?.getBoundingClientRect().width || width,
       minWidth: drawer ? measureMinWidth(drawer) : 0,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -165,7 +165,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
     const delta = event.key === "ArrowLeft" ? 24 : -24;
     const drawer = drawerRef.current;
     const minWidth = drawer ? measureMinWidth(drawer) : 0;
-    const currentWidth = drawer?.getBoundingClientRect().width ?? width;
+    const currentWidth = drawer?.getBoundingClientRect().width || width;
     setWidth(clampWidth(currentWidth + delta, minWidth));
   }
 
