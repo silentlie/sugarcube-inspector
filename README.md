@@ -25,7 +25,7 @@ It reads live story and temporary variables directly without attaching a debugge
   Native tree connector lines show hierarchy, and right padding keeps
   virtual-scrollbar overlays away from value previews.
 - Tailwind classes provide static drawer/layout styling; inline styles remain for live width, open/closed transform and Ant Design theme tokens.
-- The drawer uses CSS `min-width: min-content` so its minimum automatically follows content changes. Pointer and keyboard resizing cap the requested width to the viewport minus the 32px click-mode tab, but CSS's intrinsic minimum takes precedence when content is wider than the viewport; in that case the drawer may extend beyond the left edge.
+- The drawer uses CSS `min-width: min-content` so its minimum automatically follows content changes. Pointer and keyboard resizing cap the requested width to the viewport in hover mode or to the viewport minus the 32px tab in click mode, but CSS's intrinsic minimum takes precedence when content is wider than the viewport; in that case the drawer may extend beyond the left edge.
 - The drawer starts in hover mode, revealing itself when entered and closing after a short leave delay. Its top-right icon switches to click-to-toggle mode: a protruding edge tab then opens or closes the drawer, without mouse-leave closing it. The tab appears only in click mode and can be dragged vertically or moved with Up/Down arrow keys. The tab stays outside the drawer at all normal widths; only a content-driven overflow shifts the open tab onscreen. The closed tab always protrudes from the right edge. Its vertical position stays within the viewport and survives drawer toggles and mode switches until the page reloads. Switching back restores hover behavior.
 
 ## Behavior
@@ -67,6 +67,16 @@ It reads live story and temporary variables directly without attaching a debugge
   interrupt the inspector; node-level error isolation is not currently implemented.
 - The virtualized Tree limits mounted rows to the viewport, but Ant still indexes
   discovered logical children. The inspector is read-only.
+
+## Accepted interaction limitations
+
+- The click-mode tab is visually clamped to the viewport after a height reduction,
+  but its saved vertical position is not reset. ArrowUp/ArrowDown may require
+  repeated presses before the tab visibly moves; dragging begins from its
+  visible position and repositions it immediately.
+- Expandable variable titles have their own keyboard focus target in addition
+  to Ant Design Tree's navigation. This adds Tab stops for expandable rows;
+  Enter or Space on a focused title expands or collapses that row.
 
 ## Future design note: polling cadence
 
