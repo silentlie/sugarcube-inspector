@@ -602,7 +602,7 @@ test("renders boxed primitives without crashing the tree", async ({ page }) => {
 test("renders VS Code-style type labels and value token colors", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
-  const score = drawer.getByText("score", { exact: true }).locator("..");
+  const score = drawer.getByRole("treeitem", { name: /^score/ });
   await expect(score.locator(".token.keyword")).toHaveText("number");
   await expect(score.locator(".token.number")).toHaveText("7");
 
@@ -611,7 +611,7 @@ test("renders VS Code-style type labels and value token colors", async ({ page }
   );
   expect(typeColor).not.toBe(valueColor);
 
-  const inventory = drawer.getByText("inventory", { exact: true }).locator("..");
+  const inventory = drawer.getByRole("treeitem", { name: /^inventory/ });
   await expect(inventory.locator(".token.class-name")).toHaveText("Array");
   const inventoryPreview = inventory.locator('[title="Array(2)"]');
   await expect(inventoryPreview).toHaveText("(2)");
