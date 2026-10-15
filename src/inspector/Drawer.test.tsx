@@ -124,6 +124,8 @@ describe("drawer interaction modes", () => {
   it("allows resizing beyond 1600px but reserves the 32px tab width", () => {
     vi.spyOn(window, "innerWidth", "get").mockReturnValue(2000);
     const drawer = renderDrawer(1900);
+    fireEvent.mouseEnter(drawer);
+    fireEvent.click(screen.getByRole("button", { name: "Switch to click-to-toggle mode" }));
     const handle = screen.getByRole("button", { name: "Resize SugarCube Inspector" });
 
     fireEvent.keyDown(handle, { key: "ArrowLeft" });
@@ -141,6 +143,28 @@ describe("drawer interaction modes", () => {
 
     fireEvent.keyDown(handle, { key: "ArrowLeft" });
     expect(drawer.style.width).toBe("1968px");
+  });
+
+  it("uses the full viewport in hover mode and reserves tab space only in click mode", () => {
+    vi.spyOn(window, "innerWidth", "get").mockReturnValue(800);
+    const drawer = renderDrawer(760);
+    const handle = screen.getByRole("button", { name: "Resize SugarCube Inspector" });
+
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(drawer.style.width).toBe("800px");
+    expect(drawer.style.maxWidth).toBe("100vw");
+
+    fireEvent.mouseEnter(drawer);
+    fireEvent.click(screen.getByRole("button", { name: "Switch to click-to-toggle mode" }));
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(drawer.style.width).toBe("768px");
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch to hover mode" }));
+    expect(drawer.style.maxWidth).toBe("100vw");
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(drawer.style.width).toBe("800px");
   });
 
   it("lets CSS enforce the intrinsic minimum during pointer resizing", () => {
