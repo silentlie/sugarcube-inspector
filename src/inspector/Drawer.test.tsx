@@ -151,6 +151,51 @@ describe("drawer interaction modes", () => {
     expect(drawer.style.width).toBe("2000px");
   });
 
+  it("uses intrinsic content width rather than the old 280px resize minimum", () => {
+    vi.spyOn(window, "innerWidth", "get").mockReturnValue(1200);
+    const drawer = renderDrawer(380);
+    expect(drawer.style.minWidth).toBe("min-content");
+
+    vi.spyOn(drawer, "getBoundingClientRect").mockImplementation(() => ({
+      width: drawer.style.width === "min-content"
+        ? 192 : Math.max(192, Number.parseFloat(drawer.style.width)),
+    }) as DOMRect);
+    const handle = screen.getByRole("button", { name: "Resize SugarCube Inspector" });
+    Object.defineProperties(handle, {
+      setPointerCapture: { configurable: true, value: vi.fn() },
+      hasPointerCapture: { configurable: true, value: () => true },
+      releasePointerCapture: { configurable: true, value: vi.fn() },
+    });
+
+    fireEvent.pointerDown(handle, { pointerId: 4, button: 0, clientX: 400 });
+    fireEvent.pointerMove(handle, { pointerId: 4, clientX: 1400 });
+    expect(drawer.style.width).toBe("192px");
+
+    // Moving back from the minimum responds immediately rather than sticking.
+    fireEvent.pointerMove(handle, { pointerId: 4, clientX: 570 });
+    expect(drawer.style.width).toBe("210px");
+    fireEvent.pointerUp(handle, { pointerId: 4 });
+  });
+
+  it("re-measures the minimum when content changes before keyboard resizing", () => {
+    const drawer = renderDrawer(300);
+    let contentMinWidth = 180;
+    vi.spyOn(drawer, "getBoundingClientRect").mockImplementation(() => ({
+      width: drawer.style.width === "min-content"
+        ? contentMinWidth : Math.max(contentMinWidth, Number.parseFloat(drawer.style.width)),
+    }) as DOMRect);
+    const handle = screen.getByRole("button", { name: "Resize SugarCube Inspector" });
+
+    for (let i = 0; i < 8; i++) {
+      fireEvent.keyDown(handle, { key: "ArrowRight" });
+    }
+    expect(drawer.style.width).toBe("180px");
+
+    contentMinWidth = 240;
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(drawer.style.width).toBe("264px");
+  });
+
   it("allows keyboard positioning of the edge tab", () => {
     const drawer = renderDrawer();
     fireEvent.mouseEnter(drawer);
