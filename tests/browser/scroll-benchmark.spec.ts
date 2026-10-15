@@ -6,7 +6,7 @@ import { expect, storyUrl, test } from "./fixtures";
  * Temporary real-browser scroll benchmark. Run with SCROLL_BENCH=1.
  * This is diagnostic, not a pass/fail performance assertion.
  */
-test.skip(!process.env.SCROLL_BENCH, "Run only for the scroll benchmark");
+test.skip(!process.env.SCROLL_BENCH && !process.env.CI, "Run only for the scroll benchmark");
 
 type Mode = { label: string; plain: boolean; pauseWatch: boolean };
 const modes: Mode[] = [
