@@ -24,7 +24,7 @@ export function VariableNodeContent({ node, refresh }: {
     if (node.isLeaf !== isLeaf) refresh(node.key);
   }, [isLeaf, node.isLeaf, node.key, refresh]);
 
-  return <span className="flex w-full min-w-0 items-center gap-[8px]">
+  return <span className="flex w-full min-w-0 items-center gap-2">
     {isMapEntry ? <>
       <span className="flex min-w-0 flex-1">
         <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} />

@@ -59,6 +59,7 @@ export default defineConfig([
     rules: {
       "tailwindcss/no-contradicting-classname": "error",
       "tailwindcss/enforces-canonical-classname": "warn",
+      "tailwindcss/no-unnecessary-arbitrary-value": "warn",
       "tailwindcss/enforces-shorthand": "warn",
       "tailwindcss/classnames-order": "warn",
     },
