@@ -9,11 +9,12 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
-function renderDrawer() {
+function renderDrawer(initialWidth = 380) {
   const { container } = render(
-    <Drawer initialWidth={380}>
+    <Drawer initialWidth={initialWidth}>
       <span>Inspector content</span>
     </Drawer>,
   );
@@ -128,6 +129,28 @@ describe("drawer interaction modes", () => {
     fireEvent.pointerCancel(tab, { pointerId: 2 });
   });
 
+  it("allows keyboard and pointer resizing beyond 1600px up to the viewport width", () => {
+    vi.spyOn(window, "innerWidth", "get").mockReturnValue(2000);
+    const drawer = renderDrawer(1900);
+    const handle = screen.getByRole("button", { name: "Resize SugarCube Inspector" });
+
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(drawer.style.width).toBe("1924px");
+
+    Object.defineProperties(handle, {
+      setPointerCapture: { configurable: true, value: vi.fn() },
+      hasPointerCapture: { configurable: true, value: () => true },
+      releasePointerCapture: { configurable: true, value: vi.fn() },
+    });
+    fireEvent.pointerDown(handle, { pointerId: 3, button: 0, clientX: 400 });
+    fireEvent.pointerMove(handle, { pointerId: 3, clientX: -3000 });
+    expect(drawer.style.width).toBe("2000px");
+    fireEvent.pointerUp(handle, { pointerId: 3 });
+
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(drawer.style.width).toBe("2000px");
+  });
+
   it("allows keyboard positioning of the edge tab", () => {
     const drawer = renderDrawer();
     fireEvent.mouseEnter(drawer);
@@ -140,5 +163,4 @@ describe("drawer interaction modes", () => {
     expect(tab.style.top).toContain("64px");
     expect(drawer.style.transform).toBe("translateX(0)");
   });
-
 });
