@@ -8,6 +8,11 @@ function snapshotType(current: VariableSnapshot): string {
     current.kind === "accessor" ? current.accessor : current.kind;
 }
 
+function snapshotPreview(current: VariableSnapshot): string {
+  return current.kind === "value" ? current.preview :
+    current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
+}
+
 /** Keep the type beside the key while displaying the value at the row's right edge. */
 export function VariableTypePreview({ current }: { current: VariableSnapshot }) {
   return <TypeSyntax type={snapshotType(current)} />;
@@ -16,8 +21,7 @@ export function VariableTypePreview({ current }: { current: VariableSnapshot }) 
 /** Syntax-highlight only the value; the type appears beside the key. */
 export function VariableValuePreview({ current }: { current: VariableSnapshot }) {
   const type = snapshotType(current);
-  const preview = current.kind === "value" ? current.preview :
-    current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
+  const preview = snapshotPreview(current);
   return (
     <span title={preview} className="ml-auto min-w-0 max-w-[45%] truncate text-right font-mono text-[12px]">
       <ValueSyntax type={type} preview={preview} />
@@ -30,5 +34,8 @@ export function MapKeyPreview({ location }: {
 }) {
   const keyLocation = useMemo(() => ({ ...location, part: "key" as const }), [location]);
   const key = useVariable(keyLocation);
-  return <VariableValuePreview current={key} />;
+  const preview = snapshotPreview(key);
+  return <span title={preview} className="block min-w-0 truncate font-mono text-[12px]">
+    <ValueSyntax type={snapshotType(key)} preview={preview} />
+  </span>;
 }
