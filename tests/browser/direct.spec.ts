@@ -671,6 +671,8 @@ test("diagnostic: compare Preflight-on and Preflight-off styles in the same page
       }),
     ) as Record<string, Record<string, unknown> | null>;
 
+    // Wait for Ant Design hover/selection transitions before comparing styles.
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 600));
     const before = capture();
     const removed: string[] = [];
     for (let i = sheet.cssRules.length - 1; i >= 0; i--) {
@@ -680,8 +682,7 @@ test("diagnostic: compare Preflight-on and Preflight-off styles in the same page
         sheet.deleteRule(i);
       }
     }
-    await new Promise<void>((resolve) => requestAnimationFrame(() =>
-      requestAnimationFrame(() => resolve())));
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 600));
     const after = capture();
 
     const changes: Record<string, Record<string, { with: unknown; without: unknown }>> = {};
