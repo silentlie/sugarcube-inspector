@@ -1,5 +1,5 @@
 import { isArray, isMap, isObject, isSet } from "@sindresorhus/is";
-import type { VariableLocation } from "./location";
+import type { ChildLocation } from "./location";
 
 type StructurePart =
   | { kind: "data"; key: PropertyKey; length?: number }
@@ -62,9 +62,9 @@ export function sameStructure(a: readonly StructurePart[], b: readonly Structure
 }
 
 /** Enumerate direct live locations; a Map entry appears once, a Set member once. */
-export function listChildren(value: unknown): Exclude<VariableLocation, { kind: "state" }>[] {
+export function listChildren(value: unknown): ChildLocation[] {
   if (!isObject(value)) return [];
-  const children: Exclude<VariableLocation, { kind: "state" }>[] = [];
+  const children: ChildLocation[] = [];
   if (isMap(value)) {
     for (const key of Map.prototype.keys.call(value) as MapIterator<unknown>) {
       children.push({ kind: "map", owner: value, key });

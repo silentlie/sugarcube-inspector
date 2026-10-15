@@ -1,6 +1,6 @@
 import type { TreeDataNode } from "antd";
 import { isLeafNode } from "./isLeafNode";
-import { readLocation, type VariableLocation, type VariableRead } from "./location";
+import { readLocation, type ChildLocation, type VariableLocation, type VariableRead } from "./location";
 import { listChildren } from "./structure";
 
 /** One node model for both live inspection and Ant's treeData. */
@@ -13,8 +13,6 @@ export type VariableNode = TreeDataNode & {
   /** Value whose direct children were last loaded (identity, not a snapshot). */
   loadedValue?: unknown;
 };
-
-type ChildLocation = Exclude<VariableLocation, { kind: "state" }>;
 
 // 0 and 1 are reserved for root stores. IDs are assigned only to new children.
 let nextNodeId = 2;

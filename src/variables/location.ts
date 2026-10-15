@@ -10,6 +10,9 @@ export type VariableLocation =
   | { kind: "map"; owner: Map<unknown, unknown>; key: unknown; part?: "key" | "value" }
   | { kind: "set"; owner: Set<unknown>; member: unknown };
 
+/** A child location excludes the two SugarCube root stores. */
+export type ChildLocation = Exclude<VariableLocation, { kind: "state" }>;
+
 type AccessorKind = "getter" | "setter" | "getter/setter";
 
 export type VariableRead =
