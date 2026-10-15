@@ -13,6 +13,14 @@ const HANDLE_WIDTH = 8;
 const CLOSE_DELAY = 400;
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 1600;
+const TAB_HEIGHT = 40;
+const TAB_START_TOP = 64;
+const TAB_DRAG_THRESHOLD = 5;
+const TAB_KEYBOARD_STEP = 24;
+
+function clampTabTop(top: number) {
+  return Math.min(Math.max(0, top), Math.max(0, window.innerHeight - TAB_HEIGHT));
+}
 
 /** Retain the custom hover/resize drawer; Ant's modal Drawer is not a substitute. */
 export default function Drawer({ initialWidth, children }: DrawerProps) {
@@ -20,6 +28,9 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   const [mode, setMode] = useState<DrawerMode>("hover");
   const [open, setOpen] = useState(false);
   const [width, setWidth] = useState(initialWidth);
+  const [tabTop, setTabTop] = useState(TAB_START_TOP);
+  const tabDragRef = useRef<{ pointerId: number; startY: number; startTop: number; moved: boolean } | null>(null);
+  const suppressTabClickRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
   const resizePointerIdRef = useRef<number | null>(null);
   const resizeStartRef = useRef({ x: 0, width: initialWidth });
@@ -49,6 +60,54 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   function switchMode() {
     cancelClose();
     setMode((current) => current === "hover" ? "click" : "hover");
+  }
+
+  function handleTabPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return;
+    suppressTabClickRef.current = false;
+    tabDragRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startTop: clampTabTop(tabTop),
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleTabPointerMove(event: React.PointerEvent<HTMLButtonElement>) {
+    const drag = tabDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const delta = event.clientY - drag.startY;
+    if (!drag.moved && Math.abs(delta) < TAB_DRAG_THRESHOLD) return;
+    drag.moved = true;
+    setTabTop(clampTabTop(drag.startTop + delta));
+  }
+
+  function handleTabPointerEnd(event: React.PointerEvent<HTMLButtonElement>) {
+    const drag = tabDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    suppressTabClickRef.current = drag.moved && event.type === "pointerup";
+    tabDragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function handleTabClick() {
+    if (suppressTabClickRef.current) {
+      suppressTabClickRef.current = false;
+      return;
+    }
+    setOpen((current) => !current);
+  }
+
+  function handleTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    suppressTabClickRef.current = false;
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    event.preventDefault();
+    setTabTop((current) => clampTabTop(
+      current + (event.key === "ArrowDown" ? TAB_KEYBOARD_STEP : -TAB_KEYBOARD_STEP),
+    ));
   }
 
   function handleResizeStart(event: React.PointerEvent<HTMLButtonElement>) {
@@ -107,11 +166,19 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
       }}>
       {mode === "click" && (
         <button type="button"
-          className="absolute top-16 -left-8 flex h-10 w-8 cursor-pointer items-center justify-center border p-0"
+          className="absolute -left-8 flex h-10 w-8 cursor-ns-resize touch-none items-center justify-center border p-0"
           aria-label={open ? "Close SugarCube Inspector" : "Open SugarCube Inspector"}
           aria-expanded={open}
-          onClick={() => setOpen((current) => !current)}
+          title="Click to toggle; drag up or down to reposition"
+          onClick={handleTabClick}
+          onPointerDown={handleTabPointerDown}
+          onPointerMove={handleTabPointerMove}
+          onPointerUp={handleTabPointerEnd}
+          onPointerCancel={handleTabPointerEnd}
+          onLostPointerCapture={() => { tabDragRef.current = null; }}
+          onKeyDown={handleTabKeyDown}
           style={{
+            top: `clamp(0px, ${tabTop}px, calc(100vh - ${TAB_HEIGHT}px))`,
             color: token.colorText,
             background: token.colorBgElevated,
             borderColor: token.colorBorder,
