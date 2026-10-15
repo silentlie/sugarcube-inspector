@@ -36,7 +36,7 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
   const [items, setItems] = useState<VariableNode[]>(() => reconcileChildren(rootNode));
   const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
   const expanded = useMemo(() => new Set(expandedKeys), [expandedKeys]);
-  const expandedWatches = useRef(new Map<number, ExpandedWatch>());
+  const expandedWatchesRef = useRef(new Map<number, ExpandedWatch>());
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const [height, setHeight] = useState(0);
 
@@ -68,7 +68,7 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
     };
     collect(items);
 
-    const watches = expandedWatches.current;
+    const watches = expandedWatchesRef.current;
     for (const [id, watch] of watches) {
       if (live.get(id)?.location === watch.location) continue;
       watch.unsubscribe();
@@ -93,7 +93,7 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
   }, [items, expanded, refresh, rootNode, storeKey]);
 
   useEffect(() => {
-    const watches = expandedWatches.current;
+    const watches = expandedWatchesRef.current;
     return () => {
       for (const watch of watches.values()) watch.unsubscribe();
       watches.clear();
@@ -143,8 +143,8 @@ export default function VariableTree({ storeKey, active }: {
   }, [storeKey, active]);
 
   return <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-    <VariableScopeContext.Provider value={storeKey}>
+    <VariableScopeContext value={storeKey}>
       <RichVariableTree storeKey={storeKey} />
-    </VariableScopeContext.Provider>
+    </VariableScopeContext>
   </div>;
 }

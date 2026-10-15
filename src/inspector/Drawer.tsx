@@ -86,7 +86,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   useEffect(() => () => cancelClose(), []);
 
   return (
-    <aside className="fixed right-0 top-0 h-screen max-w-[100vw] transition-transform duration-150"
+    <aside className="fixed top-0 right-0 h-screen max-w-[100vw] transition-transform duration-150"
       onMouseEnter={handleEnter} onMouseLeave={handleLeave}
       style={{
         width, background: token.colorBgElevated,
@@ -95,7 +95,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
         transform: open ? "translateX(0)" :
           `translateX(calc(100% - ${HANDLE_WIDTH}px))`,
       }}>
-      <button type="button" className="absolute left-0 top-0 h-full cursor-ew-resize touch-none border-0 p-0" aria-label="Resize SugarCube Inspector"
+      <button type="button" className="absolute top-0 left-0 h-full cursor-ew-resize touch-none border-0 p-0" aria-label="Resize SugarCube Inspector"
         aria-expanded={open} onPointerDown={handleResizeStart}
         onPointerMove={handleResize} onPointerUp={handleResizeEnd}
         onPointerCancel={handleResizeEnd}

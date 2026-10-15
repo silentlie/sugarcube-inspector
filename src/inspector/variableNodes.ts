@@ -41,7 +41,7 @@ function childLocations(item: VariableNode): {
       ancestors: item.ancestors,
     };
   }
-  if (isLeafNode(item, current)) {
+  if (current.kind !== "value" || isLeafNode(item, current)) {
     return { locations: [], ancestors: item.ancestors };
   }
 

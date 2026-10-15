@@ -10,10 +10,10 @@ export function VariableValuePreview({ current, showType = true }: { current: Va
   const preview = current.kind === "value" ? current.preview :
     current.kind === "accessor" ? `[${current.accessor}]` : "[Missing]";
   return <>
-    {showType && <span className="shrink-0 whitespace-nowrap font-mono text-[12px]">
+    {showType && <span className="shrink-0 font-mono text-[12px] whitespace-nowrap">
       <TypeSyntax type={type} />
     </span>}
-    <span title={preview} className={`overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px] ${showType ? "max-w-[45%]" : "max-w-full"}`}>
+    <span title={preview} className={`${showType ? "max-w-[45%]" : "max-w-full"} truncate font-mono text-[12px]`}>
       <ValueSyntax type={type} preview={preview} />
     </span>
   </>;
