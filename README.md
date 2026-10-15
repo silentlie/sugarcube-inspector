@@ -6,6 +6,7 @@ It reads live story and temporary variables directly without attaching a debugge
 ## User interface
 
 - **Ant Design** provides tabs, labels, buttons, dark/compact theme and the virtualized Tree.
+- Theme settings remain independent: `src/theme/antd.ts` configures Ant Design's dark/compact algorithms, while `src/theme/prism.ts` selects Prism's unmodified VS Dark syntax theme. No shared theme provider or colour overrides are introduced.
 - **Tailwind CSS v4** provides its complete stylesheet, including Preflight and utilities, inside the inspector ShadowRoot.
 - Overview, Variables, and Scripts are top-level tabs. Under Variables are
   Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
@@ -18,8 +19,14 @@ It reads live story and temporary variables directly without attaching a debugge
   All logical children remain accessible through scrolling.
 - Variable rows syntax-highlight values with `prism-react-renderer` and its
   built-in VS Dark theme. Type labels reuse that palette instead of custom color
-  definitions; the existing live-data behavior is unchanged.
+  definitions, displayed next to keys as `key: type`, with values right-aligned.
+  Clicking an expandable row title (or using Enter/Space while focused) also
+  expands or collapses its children; native tree chevrons remain usable.
+  Native tree connector lines show hierarchy, and right padding keeps
+  virtual-scrollbar overlays away from value previews.
 - Tailwind classes provide static drawer/layout styling; inline styles remain for live width, open/closed transform and Ant Design theme tokens.
+- The drawer uses CSS `min-width: min-content` so its minimum automatically follows content changes. Pointer and keyboard resizing cap the requested width to the viewport in hover mode or to the viewport minus the 32px tab in click mode, but CSS's intrinsic minimum takes precedence when content is wider than the viewport; in that case the drawer may extend beyond the left edge.
+- The drawer starts in hover mode, revealing itself when entered and closing after a short leave delay. Its top-right icon switches to click-to-toggle mode: a protruding edge tab then opens or closes the drawer, without mouse-leave closing it. The tab appears only in click mode and can be dragged vertically or moved with Up/Down arrow keys. The tab stays outside the drawer at all normal widths; only a content-driven overflow shifts the open tab onscreen. The closed tab always protrudes from the right edge. Its vertical position stays within the viewport and survives drawer toggles and mode switches until the page reloads. If the viewport becomes shorter, CSS keeps the tab visible; arrow-key movement clamps the saved position to the current viewport, while dragging starts from the visible position. Switching back restores hover behavior.
 
 ## Behavior
 
@@ -60,6 +67,12 @@ It reads live story and temporary variables directly without attaching a debugge
   interrupt the inspector; node-level error isolation is not currently implemented.
 - The virtualized Tree limits mounted rows to the viewport, but Ant still indexes
   discovered logical children. The inspector is read-only.
+
+## Accepted interaction limitations
+
+- Expandable variable titles have their own keyboard focus target in addition
+  to Ant Design Tree's navigation. This adds Tab stops for expandable rows;
+  Enter or Space on a focused title expands or collapses that row.
 
 ## Future design note: polling cadence
 

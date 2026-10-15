@@ -107,12 +107,22 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
     return Promise.resolve();
   }, [refresh]);
 
+  /** Clicking a title expands the same logical node as its chevron, including lazy children. */
+  const toggleExpanded = useCallback((item: VariableNode) => {
+    if (item.isLeaf) return;
+    if (!expanded.has(item.key)) refresh(item.key, true);
+    setExpandedKeys((old) => old.includes(item.key)
+      ? old.filter((key) => key !== item.key)
+      : [...old, item.key]);
+  }, [expanded, refresh]);
+
   return <div ref={setViewport} className="min-h-0 flex-1 overflow-hidden">
     {height > 0 && <Tree
     aria-label={storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
     className="sugarcube-variable-tree flex h-full flex-col"
     blockNode
     selectable={false}
+    showLine={{ showLeafIcon: false }}
     switcherIcon={({ expanded }) => expanded
       ? <ChevronDown size={16} aria-hidden="true" />
       : <ChevronRight size={16} aria-hidden="true" />}
@@ -130,7 +140,12 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey }) {
     }}
     titleRender={(data) => {
       const item = data as VariableNode;
-      return <VariableNodeContent node={item} refresh={refresh} />;
+      return <VariableNodeContent
+        node={item}
+        refresh={refresh}
+        expanded={expanded.has(item.key)}
+        onToggle={() => toggleExpanded(item)}
+      />;
     }}
   />}
   </div>;

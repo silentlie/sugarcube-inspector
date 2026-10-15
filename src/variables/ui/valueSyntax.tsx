@@ -1,10 +1,11 @@
 import { Fragment } from "react";
-import { Highlight, themes } from "prism-react-renderer";
+import { Highlight } from "prism-react-renderer";
+import { prismTheme } from "../../theme/prism";
 
 /** Type labels reuse the VS Dark palette rather than maintaining custom colors. */
 export function TypeSyntax({ type }: { type: string }) {
   const tokenType = /^[A-Z]/.test(type) ? "class-name" : "keyword";
-  const color = themes.vsDark.styles.find(({ types }) => types.includes(tokenType))?.style.color;
+  const color = prismTheme.styles.find(({ types }) => types.includes(tokenType))?.style.color;
   return <span className={`token ${tokenType}`} style={{ color }}>{type}</span>;
 }
 
@@ -22,7 +23,7 @@ export function inlinePreview(type: string, preview: string): string {
 /* eslint-disable @eslint-react/no-array-index-key -- Prism line/token spans are stateless, ordered presentation; indices are their natural identities. */
 export function ValueSyntax({ type, preview }: { type: string; preview: string }) {
   return (
-    <Highlight code={inlinePreview(type, preview)} language="javascript" theme={themes.vsDark}>
+    <Highlight code={inlinePreview(type, preview)} language="javascript" theme={prismTheme}>
       {({ tokens, getTokenProps }) => (
         <>
           {tokens.map((line, lineIndex) => (
