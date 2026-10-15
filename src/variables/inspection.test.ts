@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readLocation, readVariable, sameVariable } from "./variableLocation";
+import { readLocation, readVariable, sameVariable } from "./location";
 import { isLeafNode } from "./isLeafNode";
-import { getLocationName, listChildren, readStructure, sameStructure } from "./variableStructure";
-import { reconcileChildren, type VariableNode } from "../inspector/variableNodes";
-import { VariableWatcher } from "./variableWatcher";
+import { getLocationName } from "./location";
+import { listChildren, readStructure, sameStructure } from "./structure";
+import { reconcileChildren, type VariableNode } from "./nodes";
+import { VariableWatcher } from "./watcher";
 
 afterEach(() => {
   vi.useRealTimers();

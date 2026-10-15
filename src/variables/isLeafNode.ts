@@ -1,5 +1,5 @@
 import { isObject } from "@sindresorhus/is";
-import { readLocation, type VariableLocation, type VariableRead } from "./variableLocation";
+import { readLocation, type VariableLocation, type VariableRead } from "./location";
 
 /** One leaf-classification rule. Visible rows can reuse a subscribed snapshot; reconciliation
  * reads the live value directly without preview/type formatting. */

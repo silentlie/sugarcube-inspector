@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getState, getStore, hasState } from "./direct";
-import { readLocation, readVariable } from "./variableLocation";
+import { getState, getStore, hasState } from "./state";
+import { readLocation, readVariable } from "../variables/location";
 
 afterEach(() => vi.unstubAllGlobals());
 

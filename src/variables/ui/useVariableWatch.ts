@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useSyncExternalStore } from "react";
-import type { VariableStoreKey } from "../inspection/direct";
-import { readVariable, sameVariable, type VariableLocation } from "../inspection/variableLocation";
-import { variableWatcher } from "../inspection/variableWatcher";
+import type { VariableStoreKey } from "../../sugarcube/state";
+import { readVariable, sameVariable, type VariableLocation } from "../location";
+import { variableWatcher } from "../watcher";
 
 export const VariableScopeContext = createContext<VariableStoreKey | null>(null);
 

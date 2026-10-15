@@ -1,13 +1,13 @@
 import { Tree, type TreeDataNode } from "antd";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type VariableStoreKey } from "../inspection/direct";
-import { readLocation, type VariableLocation } from "../inspection/variableLocation";
-import { variableWatcher } from "../inspection/variableWatcher";
-import { readStructure, sameStructure } from "../inspection/variableStructure";
+import { type VariableStoreKey } from "../../sugarcube/state";
+import { readLocation, type VariableLocation } from "../location";
+import { variableWatcher } from "../watcher";
+import { readStructure, sameStructure } from "../structure";
 import { VariableNodeContent } from "./VariableNodeContent";
 import { VariableScopeContext } from "./useVariableWatch";
-import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
+import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "../nodes";
 
 /** Snapshot both the current owner identity and its direct child structure. */
 function readExpanded(node: VariableNode) {

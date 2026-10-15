@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { VariableLocation, VariableSnapshot } from "../inspection/variableLocation";
+import type { VariableLocation, VariableSnapshot } from "../location";
 import { useVariable } from "./useVariableWatch";
 import { TypeSyntax, ValueSyntax } from "./valueSyntax";
 

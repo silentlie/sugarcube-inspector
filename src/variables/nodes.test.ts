@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./variableNodes";
+import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "./nodes";
 
 function parent(value: object): VariableNode {
   return { key: 0, location: { kind: "property", owner: { value }, key: "value" }, ancestors: [] };

@@ -1,7 +1,7 @@
 import { Divider, Tabs, Typography } from "antd";
 import { useEffect, useState } from "react";
-import { hasState, type VariableStoreKey } from "../inspection/direct";
-import VariableTree from "./VariableTree";
+import { hasState, type VariableStoreKey } from "../sugarcube/state";
+import VariableTree from "../variables/ui/VariableTree";
 
 type Section = "overview" | "variables" | "scripts";
 type VariableScope = VariableStoreKey | "favorites";

@@ -1,7 +1,7 @@
 import type { TreeDataNode } from "antd";
-import { isLeafNode } from "../inspection/isLeafNode";
-import { readLocation, type VariableLocation } from "../inspection/variableLocation";
-import { listChildren } from "../inspection/variableStructure";
+import { isLeafNode } from "./isLeafNode";
+import { readLocation, type VariableLocation } from "./location";
+import { listChildren } from "./structure";
 
 /** One node model for both live inspection and Ant's treeData. */
 export type VariableNode = TreeDataNode & {

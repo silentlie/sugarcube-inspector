@@ -1,5 +1,5 @@
 import detect from "@sindresorhus/is";
-import { getStore, type VariableStoreKey } from "./direct";
+import { getStore, type VariableStoreKey } from "../sugarcube/state";
 import { boxedPrimitive, preview } from "./valuePreview";
 
 /** A location retains live owners and keys, never copied values or root-relative paths. */
@@ -50,6 +50,20 @@ export function readLocation(location: VariableLocation): VariableRead {
     case "set":
       return Set.prototype.has.call(location.owner, location.member)
         ? { kind: "value", value: location.member } : { kind: "missing" };
+  }
+}
+
+/** A tree label is derived from a live location; no positional indices. */
+export function getLocationName(location: VariableLocation): string {
+  switch (location.kind) {
+    case "state":
+      return location.key;
+    case "property":
+      return String(location.key);
+    case "map":
+      return location.part ?? preview(location.key);
+    case "set":
+      return preview(location.member);
   }
 }
 

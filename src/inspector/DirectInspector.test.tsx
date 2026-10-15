@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import DirectInspector from "./DirectInspector";
 
-vi.mock("./VariableTree", () => ({
+vi.mock("../variables/ui/VariableTree", () => ({
   default: ({ storeKey, active }: { storeKey: string; active: boolean }) =>
     <div data-testid={`tree-${storeKey}`} data-active={String(active)} />,
 }));

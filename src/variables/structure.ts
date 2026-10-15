@@ -1,5 +1,5 @@
 import { isArray, isMap, isObject, isSet } from "@sindresorhus/is";
-import type { VariableLocation } from "./variableLocation";
+import type { VariableLocation } from "./location";
 import { preview } from "./valuePreview";
 
 type StructurePart =
@@ -7,20 +7,6 @@ type StructurePart =
   | { kind: "accessor"; key: PropertyKey; getter: boolean; setter: boolean }
   | { kind: "map"; key: unknown }
   | { kind: "set"; key: unknown };
-
-/** A tree label is derived from a live location; no positional indices. */
-export function getLocationName(location: VariableLocation): string {
-  switch (location.kind) {
-    case "state":
-      return location.key;
-    case "property":
-      return String(location.key);
-    case "map":
-      return location.part ?? preview(location.key);
-    case "set":
-      return preview(location.member);
-  }
-}
 
 /** Only expanded containers need a structural watcher. */
 export function readStructure(value: unknown): readonly StructurePart[] {

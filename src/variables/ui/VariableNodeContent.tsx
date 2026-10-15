@@ -1,10 +1,9 @@
 import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
 import { useEffect } from "react";
-import { isLeafNode } from "../inspection/isLeafNode";
-import type { VariableLocation } from "../inspection/variableLocation";
-import { getLocationName } from "../inspection/variableStructure";
-import type { VariableNode } from "./variableNodes";
+import { isLeafNode } from "../isLeafNode";
+import { getLocationName, type VariableLocation } from "../location";
+import type { VariableNode } from "../nodes";
 import { useVariable } from "./useVariableWatch";
 import { MapKeyPreview, VariableValuePreview } from "./VariableValuePreview";
 
