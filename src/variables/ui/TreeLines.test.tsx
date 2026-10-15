@@ -37,5 +37,13 @@ describe("variable tree branch connectors", () => {
 
     const css = readFileSync(new URL("../../styles/tailwind.css", import.meta.url), "utf8");
     expect(css).toContain(rootLeafSelector + " {");
+
+    // Ant's leaf-line pseudo-elements use the switcher's full height to form
+    // continuous elbows; only the interactive chevrons may be flex-centered.
+    expect(css).toContain(
+      ".sugarcube-variable-tree .ant-tree-switcher:not(.ant-tree-switcher-noop) {",
+    );
+    expect(css).not.toContain(".sugarcube-variable-tree .ant-tree-switcher {");
+    expect(css).not.toContain("align-self: center;");
   });
 });
