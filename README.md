@@ -20,6 +20,7 @@ It reads live story and temporary variables directly without attaching a debugge
   built-in VS Dark theme. Type labels reuse that palette instead of custom color
   definitions; the existing live-data behavior is unchanged.
 - Tailwind classes provide static drawer/layout styling; inline styles remain for live width, open/closed transform and Ant Design theme tokens.
+- The drawer starts in hover mode, revealing itself when entered and closing after a short leave delay. Its top-right icon switches to click-to-toggle mode: a protruding edge tab then opens or closes the drawer, without mouse-leave closing it. The tab appears only in click mode; switching back restores hover behavior.
 
 ## Behavior
 
