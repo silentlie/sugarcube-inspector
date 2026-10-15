@@ -1,5 +1,5 @@
 import type {} from "twine-sugarcube";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, storyUrl, test } from "./fixtures";
 
 async function openInspector(page: Page) {
@@ -10,6 +10,39 @@ async function openInspector(page: Page) {
   await expect(resizeHandle).toHaveAttribute("aria-expanded", "true");
   return { host, resizeHandle };
 }
+
+/** Ensure geometry checks run after the drawer's transform transition ends. */
+async function expectOpenDrawerSettled(aside: Locator) {
+  await expect.poll(async () => aside.evaluate((element) =>
+    Math.abs(element.getBoundingClientRect().right - window.innerWidth),
+  )).toBeLessThanOrEqual(0.5);
+}
+
+/** Read both rectangles in the same frame; sequential boundingBox() calls can span animations. */
+async function tabOverlapWithResizeHandle(tab: Locator): Promise<number> {
+  return tab.evaluate((element) => {
+    const handle = element.closest("aside")?.querySelector<HTMLElement>(
+      '[aria-label="Resize SugarCube Inspector"]',
+    );
+    if (!handle) throw new Error("Missing drawer resize handle");
+    return element.getBoundingClientRect().right - handle.getBoundingClientRect().left;
+  });
+}
+
+test("hover mode can use the entire viewport width", async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 700 });
+  await page.goto(storyUrl);
+  const { host, resizeHandle } = await openInspector(page);
+  const aside = host.locator("aside");
+
+  for (let i = 0; i < 20; i++) await resizeHandle.press("ArrowLeft");
+  await expect(aside).toHaveCSS("width", "800px");
+
+  await host.getByRole("button", { name: "Switch to click-to-toggle mode" }).click();
+  await expect(aside).toHaveCSS("width", "768px");
+  await host.getByRole("button", { name: "Switch to hover mode" }).click();
+  await expect(aside).toHaveCSS("width", "800px");
+});
 
 test("maximum drawer width reserves space for the stationary edge tab", async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 700 });
@@ -28,10 +61,8 @@ test("maximum drawer width reserves space for the stationary edge tab", async ({
   expect(bounds).not.toBeNull();
   expect(bounds!.x).toBeGreaterThanOrEqual(0);
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(800);
-  const handleBounds = await resizeHandle.boundingBox();
-  expect(handleBounds).not.toBeNull();
   // Adjacent hit areas: the tab must not cover any of the 8px resize handle.
-  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(handleBounds!.x + 0.5);
+  expect(await tabOverlapWithResizeHandle(closeTab)).toBeLessThanOrEqual(0.5);
 
   await closeTab.click();
   const openTab = host.getByRole("button", { name: "Open SugarCube Inspector" });
@@ -42,11 +73,12 @@ test("maximum drawer width reserves space for the stationary edge tab", async ({
   // A later viewport resize must also reserve tab clearance, without a new drag.
   await page.setViewportSize({ width: 640, height: 700 });
   await expect(aside).toHaveCSS("width", "608px");
+  await expectOpenDrawerSettled(aside);
+  expect(await tabOverlapWithResizeHandle(closeTab)).toBeLessThanOrEqual(0.5);
   const resizedTab = await closeTab.boundingBox();
-  const resizedHandle = await resizeHandle.boundingBox();
   expect(resizedTab).not.toBeNull();
-  expect(resizedHandle).not.toBeNull();
-  expect(resizedTab!.x + resizedTab!.width).toBeLessThanOrEqual(resizedHandle!.x + 0.5);
+  expect(resizedTab!.x).toBeGreaterThanOrEqual(0);
+  expect(resizedTab!.x + resizedTab!.width).toBeLessThanOrEqual(640);
 });
 
 test("dragging the toggle tab repositions it without closing the drawer", async ({ page }) => {
@@ -136,12 +168,16 @@ test("CSS intrinsic minimum responds to content changes without resizing", async
   });
   await expect(aside).toHaveCSS("width", "600px");
 
+  // Select click mode before narrowing the viewport, so the resize test only
+  // measures intrinsic reflow and tab placement rather than hidden controls.
+  await host.getByRole("button", { name: "Switch to click-to-toggle mode" }).click();
+
   // Intentional trade-off: min-content takes precedence over max-width on small screens.
   await page.setViewportSize({ width: 320, height: 700 });
   await expect(aside).toHaveCSS("width", "600px");
+  await expectOpenDrawerSettled(aside);
 
   // Even with an oversized drawer, the click-mode tab stays on screen.
-  await host.getByRole("button", { name: "Switch to click-to-toggle mode" }).click();
   const closeTab = host.getByRole("button", { name: "Close SugarCube Inspector" });
   const bounds = await closeTab.boundingBox();
   expect(bounds).not.toBeNull();
