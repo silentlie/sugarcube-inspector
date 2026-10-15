@@ -25,7 +25,7 @@ It reads live story and temporary variables directly without attaching a debugge
   Native tree connector lines show hierarchy, and right padding keeps
   virtual-scrollbar overlays away from value previews.
 - Tailwind classes provide static drawer/layout styling; inline styles remain for live width, open/closed transform and Ant Design theme tokens.
-- Resizing the drawer respects the current content's intrinsic CSS `min-content` width instead of a fixed minimum, capped at the viewport width. The viewport cap wins when the content's intrinsic minimum is wider than the screen. Both pointer and keyboard resizing use the same bounds.
+- The drawer uses CSS `min-width: min-content` so its minimum automatically follows content changes. Pointer and keyboard resizing cap the requested width to the viewport, but CSS's intrinsic minimum takes precedence when content is wider than the viewport; in that case the drawer may extend beyond the left edge.
 - The drawer starts in hover mode, revealing itself when entered and closing after a short leave delay. Its top-right icon switches to click-to-toggle mode: a protruding edge tab then opens or closes the drawer, without mouse-leave closing it. The tab appears only in click mode and can be dragged vertically or moved with Up/Down arrow keys. At full drawer width the open tab moves inside the viewport, while the closed tab still protrudes from the right edge. Its vertical position stays within the viewport and survives drawer toggles and mode switches until the page reloads. Switching back restores hover behavior.
 
 ## Behavior
