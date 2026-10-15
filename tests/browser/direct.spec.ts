@@ -129,8 +129,12 @@ test("tab switching preserves expansion and tree fills remaining drawer height",
   await drawer.getByRole("tab", { name: "Story Variables" }).click();
   await expect(tree).toHaveAttribute("data-persistent-tree", "yes");
 
+  // The accessible tree role can belong to an internal Ant element.
+  // Measure the Tree component's outer container, not its scrollable list.
   const remainingGap = async () => tree.evaluate((element) => {
-    const treeBottom = element.getBoundingClientRect().bottom;
+    const outerTree = element.closest(".sugarcube-variable-tree");
+    if (!outerTree) throw new Error("Outer Tree container not found");
+    const treeBottom = outerTree.getBoundingClientRect().bottom;
     const drawerBottom = element.closest("aside")!.getBoundingClientRect().bottom;
     return Math.abs(drawerBottom - 16 - treeBottom);
   });
