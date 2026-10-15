@@ -161,10 +161,12 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   useEffect(() => () => cancelClose(), []);
 
   return (
-    <aside ref={drawerRef} className="fixed top-0 right-0 h-screen max-w-[100vw] transition-transform duration-150"
+    <aside ref={drawerRef} className="fixed top-0 right-0 h-screen transition-transform duration-150"
       onMouseEnter={handleEnter} onMouseLeave={handleLeave}
       style={{
-        width, minWidth: "min-content", background: token.colorBgElevated,
+        width, minWidth: "min-content",
+        maxWidth: `max(0px, calc(100vw - ${TAB_WIDTH}px))`,
+        background: token.colorBgElevated,
         color: token.colorText, boxShadow: token.boxShadowSecondary,
         fontFamily: token.fontFamily, fontSize: token.fontSize,
         transform: open ? "translateX(0)" :
