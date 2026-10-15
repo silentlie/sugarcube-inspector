@@ -206,13 +206,14 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
         className="absolute top-3 right-3 z-10 flex size-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0"
         aria-label={mode === "hover" ? "Switch to click-to-toggle mode" : "Switch to hover mode"}
         aria-pressed={mode === "click"}
+        inert={!open}
         title={mode === "hover" ? "Switch to click-to-toggle mode" : "Switch to hover mode"}
         onClick={switchMode}
         style={{ color: token.colorTextSecondary }}>
         {mode === "hover" ? <Pin size={16} /> : <MousePointer2 size={16} />}
       </button>
       <button type="button" className="absolute top-0 left-0 h-full cursor-ew-resize touch-none border-0 p-0" aria-label="Resize SugarCube Inspector"
-        aria-expanded={open} onPointerDown={handleResizeStart}
+        aria-expanded={open} inert={!open && mode === "click"} onPointerDown={handleResizeStart}
         onPointerMove={handleResize} onPointerUp={handleResizeEnd}
         onPointerCancel={handleResizeEnd}
         onLostPointerCapture={() => { resizePointerIdRef.current = null; }}
@@ -220,6 +221,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
         style={{ width: HANDLE_WIDTH, background: token.colorFillSecondary }}
       />
       <div className="flex h-full min-h-0 flex-col overflow-hidden px-3 py-2"
+        inert={!open}
         style={{ marginLeft: HANDLE_WIDTH }}>
         {children}
       </div>
