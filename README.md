@@ -86,7 +86,7 @@ active subscriptions every 250 ms.
 `entrypoints/content.tsx` mounts React in a manually created ShadowRoot in
 Chrome's MAIN world. Ant's `StyleProvider` inserts styles in the ShadowRoot.
 A dark and compact `ConfigProvider` directs popups to the inspector container.
-Tailwind utilities and the scoped tabs/tree flex-height rules are compiled into one stylesheet and mounted only inside that ShadowRoot. The game page receives no CSS reset.
+Tailwind utilities and the scoped Tabs flex-height rules are compiled into one stylesheet and mounted only inside that ShadowRoot. The game page receives no CSS reset.
 
 Tailwind uses `@tailwindcss/vite` and an inline CSS-string import in the MAIN-world entrypoint. `cssInjectionMode: "manual"` prevents automatic document-level stylesheet injection.
 

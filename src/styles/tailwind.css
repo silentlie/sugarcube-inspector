@@ -14,7 +14,3 @@
   display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden;
 }
 
-.sugarcube-variable-tree > .ant-tree-list {
-  flex: 1; min-height: 0; display: flex; flex-direction: column;
-}
-.sugarcube-variable-tree .ant-tree-list-holder { flex: 1; min-height: 0; }

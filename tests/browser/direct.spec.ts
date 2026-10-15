@@ -129,8 +129,7 @@ test("tab switching preserves expansion and tree fills remaining drawer height",
   await drawer.getByRole("tab", { name: "Story Variables" }).click();
   await expect(tree).toHaveAttribute("data-persistent-tree", "yes");
 
-  const holder = tree.locator(".ant-tree-list-holder");
-  const remainingGap = async () => holder.evaluate((element) => {
+  const remainingGap = async () => tree.evaluate((element) => {
     const treeBottom = element.getBoundingClientRect().bottom;
     const drawerBottom = element.closest("aside")!.getBoundingClientRect().bottom;
     return Math.abs(drawerBottom - 16 - treeBottom);
