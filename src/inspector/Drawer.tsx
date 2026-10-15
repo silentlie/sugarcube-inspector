@@ -175,7 +175,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
     <aside ref={drawerRef} className="fixed top-0 right-0 h-screen max-w-[100vw] transition-transform duration-150"
       onMouseEnter={handleEnter} onMouseLeave={handleLeave}
       style={{
-        width, minWidth: "min-content", background: token.colorBgElevated,
+        width, background: token.colorBgElevated,
         color: token.colorText, boxShadow: token.boxShadowSecondary,
         fontFamily: token.fontFamily, fontSize: token.fontSize,
         transform: open ? "translateX(0)" :
@@ -183,7 +183,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
       }}>
       {mode === "click" && (
         <button type="button"
-          className="absolute -left-8 flex h-10 w-8 cursor-ns-resize touch-none items-center justify-center border p-0"
+          className="absolute flex h-10 w-8 cursor-ns-resize touch-none items-center justify-center border p-0"
           aria-label={open ? "Close SugarCube Inspector" : "Open SugarCube Inspector"}
           aria-expanded={open}
           title="Click to toggle; drag up or down to reposition"
@@ -195,6 +195,8 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
           onLostPointerCapture={() => { tabDragRef.current = null; }}
           onKeyDown={handleTabKeyDown}
           style={{
+            // Keep the open tab onscreen at full width, but protrude when closed.
+            left: open ? "max(-32px, calc(100% - 100vw))" : "-32px",
             top: `clamp(0px, ${tabTop}px, calc(100vh - ${TAB_HEIGHT}px))`,
             color: token.colorText,
             background: token.colorBgElevated,
