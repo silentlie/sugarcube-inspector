@@ -1,11 +1,7 @@
-/* Keep Ant Design base styles; Tailwind is utilities-only. */
-@layer theme, base, components, utilities;
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@import "tailwindcss";
 @source "../inspector";
 
 :host { color-scheme: dark; }
-:host *, :host *::before, :host *::after { box-sizing: border-box; }
 
 .inspector-tabs > .ant-tabs-body-holder,
 .inspector-tabs > .ant-tabs-body-holder > .ant-tabs-body,

@@ -6,7 +6,7 @@ It reads live story and temporary variables directly without attaching a debugge
 ## User interface
 
 - **Ant Design** provides tabs, labels, buttons, dark/compact theme and the virtualized Tree.
-- **Tailwind CSS v4** handles layout, spacing and text utilities. Its Preflight reset is deliberately omitted to preserve Ant Design component styles.
+- **Tailwind CSS v4** provides its complete stylesheet, including Preflight and utilities, inside the inspector ShadowRoot.
 - Overview, Variables, and Scripts are top-level tabs. Under Variables are
   Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
   Favorites are placeholders.
@@ -86,7 +86,7 @@ active subscriptions every 250 ms.
 `entrypoints/content.tsx` mounts React in a manually created ShadowRoot in
 Chrome's MAIN world. Ant's `StyleProvider` inserts styles in the ShadowRoot.
 A dark and compact `ConfigProvider` directs popups to the inspector container.
-Tailwind utilities and the scoped Tabs flex-height rules are compiled into one stylesheet and mounted only inside that ShadowRoot. The game page receives no CSS reset.
+Tailwind (including Preflight) and the scoped Tabs flex-height rules are compiled into one stylesheet and mounted only inside that ShadowRoot. The game page receives no CSS reset.
 
 Tailwind uses `@tailwindcss/vite` and an inline CSS-string import in the MAIN-world entrypoint. `cssInjectionMode: "manual"` prevents automatic document-level stylesheet injection.
 
