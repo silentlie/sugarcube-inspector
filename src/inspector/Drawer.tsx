@@ -12,7 +12,6 @@ type DrawerMode = "hover" | "click";
 const HANDLE_WIDTH = 8;
 const CLOSE_DELAY = 400;
 const MIN_WIDTH = 280;
-const MAX_WIDTH = 1600;
 const TAB_HEIGHT = 40;
 const TAB_START_TOP = 64;
 const TAB_DRAG_THRESHOLD = 5;
@@ -123,7 +122,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
   function handleResize(event: React.PointerEvent<HTMLButtonElement>) {
     if (resizePointerIdRef.current !== event.pointerId) return;
     const delta = resizeStartRef.current.x - event.clientX;
-    const maxWidth = Math.min(MAX_WIDTH, window.innerWidth);
+    const maxWidth = window.innerWidth;
     const nextWidth = Math.min(maxWidth,
       Math.max(Math.min(MIN_WIDTH, maxWidth), resizeStartRef.current.width + delta));
     setWidth(nextWidth);
@@ -147,7 +146,7 @@ export default function Drawer({ initialWidth, children }: DrawerProps) {
     event.preventDefault();
     setOpen(true);
     const delta = event.key === "ArrowLeft" ? 24 : -24;
-    const maxWidth = Math.min(MAX_WIDTH, window.innerWidth);
+    const maxWidth = window.innerWidth;
     setWidth((current) =>
       Math.min(maxWidth, Math.max(Math.min(MIN_WIDTH, maxWidth), current + delta)));
   }
