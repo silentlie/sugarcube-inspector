@@ -61,6 +61,26 @@ It reads live story and temporary variables directly without attaching a debugge
 - The virtualized Tree limits mounted rows to the viewport, but Ant still indexes
   discovered logical children. The inspector is read-only.
 
+## Future design note: polling cadence
+
+This is a proposal, not current behavior. The shared `VariableWatcher` still polls
+active subscriptions every 250 ms.
+
+- Allow a **configurable fixed interval** (`pollIntervalMs`) when predictable
+  polling frequency is preferred.
+- Consider an **idle-aware mode** based on `requestIdleCallback` (with a
+  timer fallback when unavailable), plus a configurable **maximum poll interval**
+  (`maxPollIntervalMs`) to avoid indefinite delays on busy pages. Treat this
+  as a best-effort freshness target, not a strict deadline: main-thread work can
+  postpone callbacks, and a timeout-triggered poll can still cause frame jank.
+- Prevent back-to-back idle callbacks from monopolizing otherwise idle CPU,
+  potentially with minimum spacing or a per-cycle work budget. If a full poll
+  produces long tasks, consider yielding between batches of watchers.
+- Preserve one shared scheduler, no overlapping polling cycles, inactive-scope
+  pausing, and immediate catch-up when a scope becomes active again.
+- Benchmark game frame times, longest inspector task, CPU load, and update
+  latency before replacing the 250 ms default.
+
 ## Shadow DOM integration
 
 `entrypoints/content.tsx` mounts React in a manually created ShadowRoot in
