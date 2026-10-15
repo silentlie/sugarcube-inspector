@@ -6,8 +6,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   timeout: 30_000,
-  // Temporary CI scroll benchmark needs more than the regular smoke-suite timeout.
-  globalTimeout: process.env.CI || process.env.SCROLL_BENCH ? 480_000 : 120_000,
+  globalTimeout: 120_000,
   expect: { timeout: 5_000 },
   reporter: "list",
   use: { trace: "retain-on-failure" },
