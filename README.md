@@ -6,6 +6,7 @@ It reads live story and temporary variables directly without attaching a debugge
 ## User interface
 
 - **Ant Design** provides tabs, labels, buttons, dark/compact theme and the virtualized Tree.
+- Theme settings remain independent: `src/theme/antd.ts` configures Ant Design's dark/compact algorithms, while `src/theme/prism.ts` selects Prism's unmodified VS Dark syntax theme. No shared theme provider or colour overrides are introduced.
 - **Tailwind CSS v4** provides its complete stylesheet, including Preflight and utilities, inside the inspector ShadowRoot.
 - Overview, Variables, and Scripts are top-level tabs. Under Variables are
   Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
