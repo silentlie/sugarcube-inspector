@@ -10,3 +10,24 @@
   display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden;
 }
 
+/* Preserve Ant's stretched leaf switchers: the built-in branch elbows need
+   the full row height. Center only interactive chevrons, never leaf lines. */
+.sugarcube-variable-tree .ant-tree-switcher:not(.ant-tree-switcher-noop) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sugarcube-variable-tree .ant-tree-switcher:not(.ant-tree-switcher-noop) > svg {
+  display: block;
+}
+
+/* Disable Ant Tree's rounded switcher hover highlight, not its click target. */
+.sugarcube-variable-tree .ant-tree-switcher:not(.ant-tree-switcher-noop):hover::before {
+  background-color: transparent;
+}
+
+/* Ant's virtual scrollbar overlays its rows, so reserve room inside the list. */
+.sugarcube-variable-tree .ant-tree-list-holder-inner {
+  padding-inline-end: 16px;
+}

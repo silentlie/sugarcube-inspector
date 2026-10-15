@@ -1,5 +1,6 @@
 import { StyleProvider } from "@ant-design/cssinjs";
-import { ConfigProvider, theme } from "antd";
+import { ConfigProvider } from "antd";
+import { antdTheme } from "@/src/theme/antd";
 import Drawer from "@/src/inspector/Drawer";
 import DirectInspector from "@/src/inspector/DirectInspector";
 import ReactDOM from "react-dom/client";
@@ -31,7 +32,7 @@ export default defineContentScript({
       <StyleProvider container={shadow}>
         <ConfigProvider
           getPopupContainer={() => container}
-          theme={{ algorithm: [theme.darkAlgorithm, theme.compactAlgorithm] }}
+          theme={antdTheme}
         >
           <Drawer initialWidth={380}>
             <DirectInspector />

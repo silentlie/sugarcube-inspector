@@ -31,7 +31,7 @@ function sameExpanded(a: ExpandedSnapshot, b: ExpandedSnapshot): boolean {
 
 type ExpandedWatch = { location: VariableLocation; unsubscribe: () => void };
 
-/** Favourites are top-level nodes. Preserve expanded descendants across list edits. */
+/** Favourites are top-level nodes; keep stable nodes while their list is edited. */
 function favoriteNodes(previous: readonly VariableNode[] = []): VariableNode[] {
   const oldById = new Map(previous.map((node) => [node.key, node]));
   return favoriteStore.getSnapshot().map(({ location }) => {
@@ -135,15 +135,25 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey | "favorite
     return Promise.resolve();
   }, [refresh]);
 
+  /** Clicking a title expands the same logical node as its chevron, including lazy children. */
+  const toggleExpanded = useCallback((item: VariableNode) => {
+    if (item.isLeaf) return;
+    if (!expanded.has(item.key)) refresh(item.key, true);
+    setExpandedKeys((old) => old.includes(item.key)
+      ? old.filter((key) => key !== item.key)
+      : [...old, item.key]);
+  }, [expanded, refresh]);
+
   return <div ref={setViewport} className="min-h-0 flex-1 overflow-hidden">
     {storeKey === "favorites" && items.length === 0 &&
-      <p className="px-3 py-2 text-sm text-neutral-400">Star a variable to watch it here.</p>}
+      <p className="px-3 py-2 text-sm">Star a variable to watch it here.</p>}
     {height > 0 && (storeKey !== "favorites" || items.length > 0) && <Tree
     aria-label={storeKey === "favorites" ? "Favorite variables tree"
       : storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
     className="sugarcube-variable-tree flex h-full flex-col"
     blockNode
     selectable={false}
+    showLine={{ showLeafIcon: false }}
     switcherIcon={({ expanded }) => expanded
       ? <ChevronDown size={16} aria-hidden="true" />
       : <ChevronRight size={16} aria-hidden="true" />}
@@ -161,7 +171,12 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey | "favorite
     }}
     titleRender={(data) => {
       const item = data as VariableNode;
-      return <VariableNodeContent node={item} refresh={refresh} />;
+      return <VariableNodeContent
+        node={item}
+        refresh={refresh}
+        expanded={expanded.has(item.key)}
+        onToggle={() => toggleExpanded(item)}
+      />;
     }}
   />}
   </div>;
@@ -182,7 +197,7 @@ export default function VariableTree({ storeKey, active }: {
   </div>;
 }
 
-/** This tree pauses its structural and descendant watches outside its selected tab. */
+/** Favourites retain independent polling when this tree is hidden. */
 export function FavoritesTree({ active }: { active: boolean }) {
   useEffect(() => {
     variableWatcher.setScopeActive("favorites-tree", active);

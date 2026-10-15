@@ -62,7 +62,7 @@ export function reconcileChildren(
   const { locations, ancestors } = childLocations(parent, current);
   const byKind = new Map<string, Map<unknown, VariableNode>>();
   for (const old of previous) {
-    if (old.location.kind === "state") continue;
+    if (old.location.kind === "state" || old.location.kind === "favorite") continue;
     const { kind, key } = childIdentity(old.location);
     let byKey = byKind.get(kind);
     if (!byKey) {
@@ -77,7 +77,7 @@ export function reconcileChildren(
     const { kind, key } = childIdentity(location);
     const candidate = byKind.get(kind)?.get(key);
     const old = candidate && candidate.location.kind !== "state" &&
-      candidate.location.owner === location.owner ? candidate : undefined;
+      candidate.location.kind !== "favorite" && candidate.location.owner === location.owner ? candidate : undefined;
 
     if (!old) {
       changed = true;
