@@ -81,9 +81,9 @@ It reads live story and temporary variables directly without attaching a debugge
   Polling read failures keep the last readable snapshot.
   Other initial inspection failures can interrupt the affected tree.
 - The virtualized Tree limits mounted rows to the viewport, but Ant still indexes
-  discovered logical children. Use the pencil beside a writable top-level story
-  or temporary variable to edit a string, finite number, or boolean in the live
-  game. Save preserves the variable's type.
+  discovered logical children. Click a writable string, finite number, or
+  boolean row to edit it, including ordinary nested properties and array entries.
+  Expandable rows still expand or collapse. Save preserves the variable's type.
 
 ## Accepted interaction limitations
 

@@ -1,12 +1,12 @@
 import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
 import { History, Star } from "lucide-react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { favoriteStore, sameFavoritePath } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
 import { getLocationName, type VariableLocation } from "../location";
 import type { VariableNode } from "../nodes";
-import { isEditablePrimitive, PrimitiveVariableEditor } from "./PrimitiveVariableEditor";
+import { isEditablePrimitive, PrimitiveVariableEditor, type Primitive } from "./PrimitiveVariableEditor";
 import { useVariable } from "./useVariableWatch";
 import { MapKeyPreview, VariableTypePreview, VariableValuePreview } from "./VariableValuePreview";
 
@@ -26,6 +26,16 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
   const isLeaf = isLeafNode(node, current);
+  const name = isMapEntry || isSetMember ? "" : getLocationName(node.location);
+  const tileRef = useRef<HTMLSpanElement>(null);
+  const [original, setOriginal] = useState<Primitive>();
+  const location = node.location;
+  const editableValue = isLeaf && path && location.kind === "property" &&
+    current.kind === "value" && current.editable && isEditablePrimitive(current.value) &&
+    path.path.length > 0 ? current.value : undefined;
+  const activate = !isLeaf ? onToggle : editableValue !== undefined ? () => {
+    if (original === undefined) setOriginal(editableValue);
+  } : undefined;
   const circular = !isMapEntry && current.kind === "value" &&
     isObject(current.value) && isLeaf;
 
@@ -36,20 +46,22 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
 
   return <div className="flex w-full min-w-0 items-center gap-2">
     <span
-      className={`flex min-w-0 flex-1 items-center gap-2 ${isLeaf ? "" : "cursor-pointer"}`}
-      role={isLeaf ? undefined : "button"}
-      tabIndex={isLeaf ? undefined : 0}
+      ref={tileRef}
+      className={`flex min-w-0 flex-1 items-center gap-2 ${activate ? "cursor-pointer" : ""}`}
+      role={activate ? "button" : undefined}
+      tabIndex={activate ? 0 : -1}
+      aria-description={editableValue !== undefined ? "Edit value" : undefined}
       aria-expanded={isLeaf ? undefined : expanded}
-      onClick={isLeaf ? undefined : (event) => {
+      onClick={activate ? (event) => {
         event.stopPropagation();
-        onToggle();
-      }}
-      onKeyDown={isLeaf ? undefined : (event) => {
+        activate();
+      } : undefined}
+      onKeyDown={activate ? (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
         event.stopPropagation();
-        onToggle();
-      }}>
+        activate();
+      } : undefined}>
       {isMapEntry ? <>
         <span className="flex min-w-0 flex-1 items-baseline">
           <span className="min-w-0 truncate">
@@ -64,7 +76,7 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
       </> : <>
         <span className="flex min-w-0 flex-1 items-baseline">
           {!isSetMember && <span className="min-w-0 truncate text-[14px]">
-            {getLocationName(node.location)}
+            {name}
           </span>}
           <span className="shrink-0 whitespace-nowrap font-mono text-[12px]">
             {!isSetMember && ": "}<VariableTypePreview current={current} />
@@ -73,12 +85,14 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
         <VariableValuePreview current={current} />
       </>}
     </span>
-    {path?.path.length === 1 && node.location.kind === "property" &&
-      current.kind === "value" && isEditablePrimitive(current.value) &&
-      <PrimitiveVariableEditor name={getLocationName(node.location)} root={path.root}
-        location={node.location} value={current.value} />}
+    {original !== undefined && path && location.kind === "property" &&
+      <PrimitiveVariableEditor name={name} path={path} location={location} original={original}
+        close={() => {
+          setOriginal(undefined);
+          tileRef.current?.focus();
+        }} />}
     {onShowHistory && <button type="button" className="shrink-0 cursor-pointer rounded p-1"
-      aria-label={`Show change history for ${getLocationName(node.location)}`} title="Show change history"
+      aria-label={`Show change history for ${name}`} title="Show change history"
       aria-expanded={historyOpen} aria-controls={historyOpen ? "sugarcube-favorite-history" : undefined}
       onClick={(event) => {
         event.stopPropagation();
@@ -90,7 +104,7 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
     {path && path.path.length > 0 && <button
       type="button"
       className="shrink-0 cursor-pointer rounded p-1"
-      aria-label={`${pinned ? "Remove" : "Add"} ${getLocationName(node.location)} ${pinned ? "from" : "to"} favorites`}
+      aria-label={`${pinned ? "Remove" : "Add"} ${name} ${pinned ? "from" : "to"} favorites`}
       title={pinned ? "Remove from favorites" : "Add to favorites"}
       aria-pressed={pinned}
       onClick={(event) => {

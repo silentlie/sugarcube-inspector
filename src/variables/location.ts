@@ -23,7 +23,7 @@ export type ChildLocation = Exclude<VariableLocation, { kind: "state" } | Favori
 type AccessorKind = "getter" | "setter" | "getter/setter";
 
 export type VariableRead =
-  | { kind: "value"; value: unknown }
+  | { kind: "value"; value: unknown; editable?: boolean }
   | { kind: "accessor"; accessor: AccessorKind }
   | { kind: "missing" };
 
@@ -32,27 +32,30 @@ export type VariableSnapshot =
   | (Extract<VariableRead, { kind: "value" }> & { preview: string; type: string })
   | Exclude<VariableRead, { kind: "value" }>;
 
+export function readPropertyPath({ root, path }: FavoritePath): VariableRead {
+  let value = getStore(root);
+  if (value === undefined) return { kind: "missing" };
+  try {
+    for (const key of path) {
+      if (value === null || (typeof value !== "object" && typeof value !== "function")) {
+        return { kind: "missing" };
+      }
+      const current = readLocation({ kind: "property", owner: value, key });
+      if (current.kind !== "value") return current;
+      value = current.value;
+    }
+  } catch {
+    // A saved path can be unreadable in a different export of the story.
+    return { kind: "missing" };
+  }
+  return { kind: "value", value };
+}
+
 /** Only SugarCube's two trusted State getters may be read as accessors. */
 export function readLocation(location: VariableLocation): VariableRead {
   switch (location.kind) {
-    case "favorite": {
-      let value = getStore(location.root);
-      if (value === undefined) return { kind: "missing" };
-      try {
-        for (const key of location.path) {
-          if (value === null || (typeof value !== "object" && typeof value !== "function")) {
-            return { kind: "missing" };
-          }
-          const current = readLocation({ kind: "property", owner: value, key });
-          if (current.kind !== "value") return current;
-          value = current.value;
-        }
-      } catch {
-        // A restored pin can be unreadable in a different export of the same story.
-        return { kind: "missing" };
-      }
-      return { kind: "value", value };
-    }
+    case "favorite":
+      return readPropertyPath(location);
     case "state": {
       const value = getStore(location.key);
       return value === undefined ? { kind: "missing" } : { kind: "value", value };
@@ -65,7 +68,9 @@ export function readLocation(location: VariableLocation): VariableRead {
           : descriptor.get ? "getter" : "setter";
         return { kind: "accessor", accessor };
       }
-      return { kind: "value", value: descriptor.value };
+      const editable = descriptor.writable === true && !ArrayBuffer.isView(location.owner) &&
+        !(location.key === "length" && Array.isArray(location.owner));
+      return { kind: "value", value: descriptor.value, editable };
     }
     case "map":
       if (!Map.prototype.has.call(location.owner, location.key)) return { kind: "missing" };
@@ -113,7 +118,7 @@ export function sameVariable(a: VariableSnapshot, b: VariableSnapshot): boolean 
   switch (a.kind) {
     case "value":
       return b.kind === "value" && Object.is(a.value, b.value) &&
-        a.preview === b.preview && a.type === b.type;
+        a.preview === b.preview && a.type === b.type && a.editable === b.editable;
     case "accessor":
       return b.kind === "accessor" && a.accessor === b.accessor;
     case "missing":

@@ -207,6 +207,7 @@ function RichVariableTree({ storeKey, active, searchRef }: {
     activeKey={activeKey}
     onActiveChange={setActiveKey}
     showLine={{ showLeafIcon: false }}
+    motion={false /* Ant's temporary expansion rows discard open editors. */}
     switcherIcon={({ expanded }) => expanded
       ? <ChevronDown size={16} aria-hidden="true" />
       : <ChevronRight size={16} aria-hidden="true" />}

@@ -34,7 +34,7 @@ describe("recursive variable locations", () => {
   it("reads raw locations without formatting values or invoking property getters", () => {
     const owner: Record<string, unknown> = { present: undefined };
     expect(readLocation({ kind: "property", owner, key: "present" }))
-      .toEqual({ kind: "value", value: undefined });
+      .toEqual({ kind: "value", value: undefined, editable: true });
     expect(readLocation({ kind: "property", owner, key: "absent" }))
       .toEqual({ kind: "missing" });
 
@@ -47,7 +47,7 @@ describe("recursive variable locations", () => {
     const value = { level: 1 };
     owner.child = value;
     expect(readLocation({ kind: "property", owner, key: "child" }))
-      .toEqual({ kind: "value", value });
+      .toEqual({ kind: "value", value, editable: true });
     expect(readLocation({ kind: "property", owner, key: "child" }))
       .not.toHaveProperty("preview");
 
@@ -90,7 +90,7 @@ describe("recursive variable locations", () => {
     const present = { kind: "property" as const, owner: obj, key: "present" };
     expect(readVariable(present)).toEqual({
       kind: "value", value: undefined, type: "undefined",
-      preview: "undefined",
+      preview: "undefined", editable: true,
     });
     Object.defineProperty(obj, "hidden", { value: 10, enumerable: false });
     expect(readVariable({ kind: "property", owner: obj, key: "hidden" }))

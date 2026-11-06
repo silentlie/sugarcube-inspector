@@ -88,13 +88,18 @@ test("edits top-level primitive values in the live story and temporary stores", 
   await page.evaluate(() => {
     SugarCube.State.setVar("$ready", false);
     SugarCube.State.setVar("$offset", -0);
-    Object.defineProperty(SugarCube.State.variables, "readOnly", { value: 1, enumerable: true });
+    Object.defineProperty(SugarCube.State.variables, "readOnly", { value: 1, enumerable: true, configurable: true });
   });
   const drawer = await openVariables(page);
 
-  await expect(drawer.getByRole("button", { name: "Edit inventory" })).toHaveCount(0);
-  await expect(drawer.getByRole("button", { name: "Edit readOnly" })).toHaveCount(0);
-  await drawer.getByRole("button", { name: "Edit score" }).click();
+  const readOnlyTile = drawer.getByRole("button", { name: /^readOnly\s*:/ });
+  await expect(readOnlyTile).toHaveCount(0);
+  await page.evaluate(() => Object.defineProperty(SugarCube.State.variables, "readOnly", { writable: true }));
+  await expect(readOnlyTile).toBeVisible();
+  await page.evaluate(() => Object.defineProperty(SugarCube.State.variables, "readOnly", { writable: false }));
+  await expect(readOnlyTile).toHaveCount(0);
+  const scoreTile = drawer.getByRole("button", { name: /^score\s*:/ });
+  await scoreTile.getByText("score", { exact: true }).click();
   const score = drawer.getByRole("textbox", { name: "New value for score" });
   await score.fill("invalid");
   await score.press("Enter");
@@ -107,31 +112,80 @@ test("edits top-level primitive values in the live story and temporary stores", 
   expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(10);
   await score.press("Escape");
   await expect(drawer.getByTitle("10", { exact: true })).toBeVisible();
-  await drawer.getByRole("button", { name: "Edit score" }).click();
+  await scoreTile.click();
   await score.fill("21.5");
   await score.press("Enter");
   await expect(drawer.getByTitle("21.5", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(21.5);
 
-  await drawer.getByRole("button", { name: "Edit ready" }).click();
+  await drawer.getByRole("button", { name: /^ready\s*:/ }).click();
   await drawer.getByRole("combobox", { name: "New value for ready" }).selectOption("true");
   await drawer.getByRole("button", { name: "Save value" }).click();
   expect(await page.evaluate(() => SugarCube.State.getVar("$ready"))).toBe(true);
 
-  await drawer.getByRole("button", { name: "Edit offset" }).click();
+  await drawer.getByRole("button", { name: /^offset\s*:/ }).click();
   await drawer.getByRole("button", { name: "Save value" }).click();
   expect(await page.evaluate(() => Object.is(SugarCube.State.getVar("$offset"), -0))).toBe(true);
 
   await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
-  await drawer.getByRole("button", { name: "Edit choice" }).click();
+  const choiceTile = drawer.getByRole("button", { name: /^choice\s*:/ });
+  await choiceTile.click();
   const choice = drawer.getByRole("textbox", { name: "New value for choice" });
   await choice.fill("discard this");
   await choice.press("Escape");
   expect(await page.evaluate(() => SugarCube.State.temporary.choice)).toBe("north");
-  await drawer.getByRole("button", { name: "Edit choice" }).click();
+  await choiceTile.click();
   await choice.fill("north\nwest");
   await drawer.getByRole("button", { name: "Save value" }).click();
   expect(await page.evaluate(() => SugarCube.State.temporary.choice)).toBe("north\nwest");
+
+  await choiceTile.click();
+  await page.evaluate(() => SugarCube.State.setVar("_choice", null));
+  await expect(choiceTile).toHaveCount(0);
+  await choice.press("Escape");
+  const choiceLabel = drawer.getByText("choice", { exact: true });
+  await expect(choiceLabel.locator("xpath=../..")).toBeFocused();
+});
+
+test("expands containers and edits nested primitive tiles without a pencil", async ({ page }) => {
+  await page.goto(storyUrl);
+  await page.evaluate(() => SugarCube.State.setVar("$player", { stats: { health: 10 } }));
+  const drawer = await openVariables(page);
+  const player = drawer.getByRole("button", { name: /^player\s*:/ });
+  await expect(player).toBeVisible();
+  await player.click();
+  const stats = drawer.getByRole("button", { name: /^stats\s*:/ });
+  await stats.click();
+  await expect(drawer.getByRole("textbox", { name: /^New value/ })).toHaveCount(0);
+
+  const health = drawer.getByRole("button", { name: /^health\s*:/ });
+  await health.press("Enter");
+  const editor = drawer.getByRole("textbox", { name: "New value for health" });
+  await editor.fill("25");
+  await editor.press("Enter");
+  await expect(health).toBeFocused();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$player.stats.health"))).toBe(25);
+  await expect(health.getByTitle("25", { exact: true })).toBeVisible();
+
+  await health.getByText("health", { exact: true }).click();
+  await editor.fill("35");
+  const values = await editor.evaluate((input: HTMLInputElement) => {
+    const oldStats = SugarCube.State.getVar("$player.stats") as { health: number };
+    SugarCube.State.setVar("$player.stats", { health: 25 });
+    input.form!.requestSubmit();
+    return [oldStats.health, SugarCube.State.getVar("$player.stats.health")];
+  });
+  expect(values).toEqual([25, 25]);
+  await expect(editor).toHaveCount(0);
+
+  await drawer.getByRole("button", { name: /^inventory\s*:/ }).click();
+  await expect(drawer.getByRole("button", { name: /^length\s*:/ })).toHaveCount(0);
+  const item = drawer.getByRole("button", { name: /^0\s*:/ });
+  await item.getByText("0", { exact: true }).click();
+  await drawer.getByRole("textbox", { name: "New value for 0" }).fill("lantern");
+  await drawer.getByRole("button", { name: "Save value" }).click();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$inventory[0]"))).toBe("lantern");
+  await expect(drawer.locator("svg.lucide-pencil")).toHaveCount(0);
 });
 
 test("searches both variable scopes and reveals a result in a collapsed branch", async ({ page }) => {

@@ -1,31 +1,24 @@
-import { Check, Pencil, X } from "lucide-react";
-import { useRef, useState } from "react";
-import { getStore, type VariableStoreKey } from "../../sugarcube/state";
-import type { VariableLocation } from "../location";
+import { Check, X } from "lucide-react";
+import { useState } from "react";
+import { readPropertyPath, type FavoritePath, type VariableLocation } from "../location";
 
-type Primitive = string | number | boolean;
+export type Primitive = string | number | boolean;
 
 export function isEditablePrimitive(value: unknown): value is Primitive {
   return typeof value === "string" || typeof value === "boolean" ||
     (typeof value === "number" && Number.isFinite(value));
 }
 
-export function PrimitiveVariableEditor({ name, root, location, value }: {
+export function PrimitiveVariableEditor({ name, path, location, original, close }: {
   name: string;
-  root: VariableStoreKey;
+  path: FavoritePath;
   location: Extract<VariableLocation, { kind: "property" }>;
-  value: Primitive;
+  original: Primitive;
+  close: () => void;
 }) {
-  const [original, setOriginal] = useState<Primitive>();
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(() => Object.is(original, -0) ? "-0" : String(original));
   const [error, setError] = useState("");
-  const editButtonRef = useRef<HTMLButtonElement>(null);
   const { owner, key } = location;
-
-  function close() {
-    setOriginal(undefined);
-    editButtonRef.current?.focus();
-  }
 
   function save() {
     const next = typeof original === "number" ? Number(draft)
@@ -36,8 +29,10 @@ export function PrimitiveVariableEditor({ name, root, location, value }: {
     }
 
     try {
+      const liveOwner = readPropertyPath({ root: path.root, path: path.path.slice(0, -1) });
       const descriptor = Object.getOwnPropertyDescriptor(owner, key);
-      if (getStore(root) !== owner || !descriptor?.writable || !Object.is(descriptor.value, original)) {
+      if (liveOwner.kind !== "value" || liveOwner.value !== owner ||
+          !descriptor?.writable || !Object.is(descriptor.value, original)) {
         setError("Value changed. Reopen the editor.");
         return;
       }
@@ -48,31 +43,17 @@ export function PrimitiveVariableEditor({ name, root, location, value }: {
     }
   }
 
-  if (original === undefined && !Object.getOwnPropertyDescriptor(owner, key)?.writable) return null;
-
   const inputLabel = `New value for ${name}`;
   const inputClass = "w-24 rounded border border-current px-1";
-  return <div className="flex shrink-0 items-center gap-1"
+  return <form className="flex shrink-0 items-center gap-1"
     onClick={(event) => event.stopPropagation()}
     onKeyDown={(event) => {
       event.stopPropagation();
-      if (event.key === "Escape" && original !== undefined) {
+      if (event.key === "Escape") {
         event.preventDefault();
         close();
       }
-    }}>
-    <button ref={editButtonRef} type="button" className="cursor-pointer rounded p-1"
-      aria-label={`Edit ${name}`} title="Edit value" aria-expanded={original !== undefined}
-      onClick={() => {
-        if (original !== undefined) {
-          close();
-          return;
-        }
-        setOriginal(value);
-        setDraft(Object.is(value, -0) ? "-0" : String(value));
-        setError("");
-      }}><Pencil size={14} aria-hidden="true" /></button>
-    {original !== undefined && <form className="flex items-center gap-1" onSubmit={(event) => {
+    }} onSubmit={(event) => {
       event.preventDefault();
       save();
     }}>
@@ -91,6 +72,5 @@ export function PrimitiveVariableEditor({ name, root, location, value }: {
         <X size={14} aria-hidden="true" />
       </button>
       {error && <span role="alert" className="text-xs">{error}</span>}
-    </form>}
-  </div>;
+  </form>;
 }
