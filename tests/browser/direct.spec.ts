@@ -96,6 +96,70 @@ test("edits top-level primitive values in the live story and temporary stores", 
   expect(await page.evaluate(() => SugarCube.State.temporary.choice)).toBe("north\nwest");
 });
 
+test("searches both variable scopes and reveals a result in a collapsed branch", async ({ page }) => {
+  await page.goto(storyUrl);
+  await page.evaluate(() => {
+    SugarCube.State.setVar("$settings", { needle: "nested result", oldNeedle: true, 'a"b': true });
+    SugarCube.State.setVar("$unopened", { needle: "excluded result" });
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    for (let index = 0; index < 150; index++) vars[`padding${index}`] = index;
+    vars.tailNeedle = "offscreen result";
+    for (let index = 0; index < 25; index++) vars[`capName${index}`] = index;
+    vars.capName = true;
+  });
+  const drawer = await openVariables(page);
+  const settings = await expandVariable(drawer, "settings");
+  await settings.locator(".ant-tree-switcher").click();
+  await expect(settings).toHaveAttribute("aria-expanded", "false");
+  await page.evaluate(() => {
+    SugarCube.State.setVar("_needle", "temporary result");
+    SugarCube.State.setVar("$settings.newNeedle", true);
+    const settings = SugarCube.State.getVar("$settings") as Record<string, unknown>;
+    delete settings.oldNeedle;
+  });
+
+  const search = drawer.getByRole("searchbox", { name: "Search variables" });
+  await expect(search).toBeVisible();
+  await search.fill("NEEDLE");
+  await search.press("Enter");
+  await expect(drawer.getByRole("button", { name: "$settings.newNeedle" })).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "$settings.oldNeedle" })).toHaveCount(0);
+  await expect(drawer.getByRole("button", { name: "$unopened.needle" })).toHaveCount(0);
+  await drawer.getByRole("button", { name: "_needle" }).click();
+  await expect(drawer.getByRole("tab", { name: "Temporary Variables" })).toHaveAttribute("aria-selected", "true");
+  await expect(drawer.getByTitle('"temporary result"', { exact: true })).toBeVisible();
+
+  await search.fill("needle");
+  await search.press("Enter");
+  await drawer.getByRole("button", { name: "$settings.needle" }).click();
+  await expect(drawer.getByRole("tab", { name: "Story Variables" })).toHaveAttribute("aria-selected", "true");
+  await expect(settings).toHaveAttribute("aria-expanded", "true");
+  await expect(drawer.getByTitle('"nested result"', { exact: true })).toBeVisible();
+
+  await expect(drawer.getByText("tailNeedle", { exact: true })).toHaveCount(0);
+  await search.press("Enter");
+  await drawer.getByRole("button", { name: "$tailNeedle" }).click();
+  const tailRow = drawer.getByRole("treeitem", { name: /^tailNeedle/ });
+  await expect(tailRow).toBeInViewport();
+  const storyTree = drawer.getByRole("tree", { name: "Story variables tree" });
+  const tailId = await tailRow.getAttribute("id");
+  expect(tailId).toBeTruthy();
+  await storyTree.focus();
+  await expect(storyTree).toHaveAttribute("aria-activedescendant", tailId!);
+  await storyTree.press("ArrowUp");
+  await expect(storyTree).not.toHaveAttribute("aria-activedescendant", tailId!);
+
+  await search.fill('a"b');
+  await search.press("Enter");
+  await expect(drawer.getByRole("button", { name: String.raw`$settings["a\"b"]` })).toBeVisible();
+
+  await search.fill("capName");
+  await search.press("Enter");
+  const results = drawer.getByRole("list", { name: "Story variables" }).getByRole("button");
+  await expect(results).toHaveCount(20);
+  await expect(results.first()).toHaveAccessibleName("$capName");
+});
+
 test("Tailwind utilities stay inside the inspector ShadowRoot", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);

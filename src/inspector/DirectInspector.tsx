@@ -1,7 +1,8 @@
 import { Divider, Tabs, Typography } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { hasState, type VariableStoreKey } from "../sugarcube/state";
-import VariableTree, { FavoritesTree } from "../variables/ui/VariableTree";
+import VariableSearch from "../variables/ui/VariableSearch";
+import VariableTree, { FavoritesTree, type VariableTreeSearch } from "../variables/ui/VariableTree";
 import { variableWatcher } from "../variables/watcher";
 
 type Section = "overview" | "variables" | "scripts";
@@ -35,6 +36,8 @@ function InspectorSections() {
   const [section, setSection] = useState<Section>("overview");
   const [scope, setScope] = useState<VariableScope>("variables");
   const activeScope = section === "variables" ? scope : null;
+  const variablesRef = useRef<VariableTreeSearch>(null);
+  const temporaryRef = useRef<VariableTreeSearch>(null);
 
   useEffect(() => {
     variableWatcher.setScopeActive("favorites", true);
@@ -51,7 +54,16 @@ function InspectorSections() {
     return () => observer.disconnect();
   }, []);
 
-  const variables = (
+  const variables = <>
+    <VariableSearch find={(query) => [
+      ...(variablesRef.current?.find(query) ?? []),
+      ...(temporaryRef.current?.find(query) ?? []),
+    ]} reveal={({ root, path }) => {
+      const tree = root === "variables" ? variablesRef.current : temporaryRef.current;
+      if (!tree?.reveal(path)) return false;
+      setScope(root);
+      return true;
+    }} />
     <Tabs
       activeKey={scope}
       aria-label="Variable scope"
@@ -60,12 +72,12 @@ function InspectorSections() {
       animated={false}
       onChange={(key) => setScope(key as VariableScope)}
       items={[
-        { key: "variables", label: "Story Variables", children: <VariableTree storeKey="variables" active={activeScope === "variables"} /> },
-        { key: "temporary", label: "Temporary Variables", children: <VariableTree storeKey="temporary" active={activeScope === "temporary"} /> },
+        { key: "variables", label: "Story Variables", forceRender: true, children: <VariableTree storeKey="variables" active={activeScope === "variables"} searchRef={variablesRef} /> },
+        { key: "temporary", label: "Temporary Variables", forceRender: true, children: <VariableTree storeKey="temporary" active={activeScope === "temporary"} searchRef={temporaryRef} /> },
         { key: "favorites", label: "Favorites", children: <FavoritesTree active={activeScope === "favorites"} /> },
       ]}
     />
-  );
+  </>;
 
   return (
     <section data-tailwind-layout className="flex min-h-0 flex-1 flex-col overflow-hidden">

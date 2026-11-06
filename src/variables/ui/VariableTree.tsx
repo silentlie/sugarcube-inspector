@@ -1,12 +1,13 @@
 import { Tree, type TreeDataNode } from "antd";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ComponentRef, type Key, type Ref, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { type VariableStoreKey } from "../../sugarcube/state";
-import { readLocation, type VariableLocation } from "../location";
+import { readLocation, type FavoritePath, type VariableLocation } from "../location";
 import { favoriteStore } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
 import { variableWatcher } from "../watcher";
 import { readStructure, sameStructure } from "../structure";
+import { findVariablePaths, revealVariablePath } from "../search";
 import { VariableNodeContent } from "./VariableNodeContent";
 import { VariableScopeContext } from "./useVariableWatch";
 import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "../nodes";
@@ -46,7 +47,16 @@ function favoriteNodes(previous: readonly VariableNode[] = []): VariableNode[] {
   });
 }
 
-function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey | "favorites" }) {
+export type VariableTreeSearch = {
+  find: (query: string) => FavoritePath[];
+  reveal: (path: readonly PropertyKey[]) => boolean;
+};
+
+function RichVariableTree({ storeKey, active, searchRef }: {
+  storeKey: VariableStoreKey | "favorites";
+  active: boolean;
+  searchRef?: Ref<VariableTreeSearch>;
+}) {
   const rootNode = useMemo<VariableNode | null>(() => storeKey === "favorites" ? null : ({
     key: storeKey === "variables" ? 0 : 1,
     location: { kind: "state", key: storeKey },
@@ -68,6 +78,34 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey | "favorite
   const expandedWatchesRef = useRef(new Map<number, ExpandedWatch>());
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const [height, setHeight] = useState(0);
+  const treeRef = useRef<ComponentRef<typeof Tree>>(null);
+  const [activeKey, setActiveKey] = useState<Key | null>(null);
+  const [scrollRequest, setScrollRequest] = useState<{ key: number } | null>(null);
+
+  useImperativeHandle(searchRef, () => ({
+    find(query) {
+      return rootNode ? findVariablePaths(reconcileChildren(rootNode, items), query) : [];
+    },
+    reveal(path) {
+      if (!rootNode) return false;
+      const target = revealVariablePath(reconcileChildren(rootNode, items), path);
+      if (!target) return false;
+      setItems(target.items);
+      setExpandedKeys((old) => [...new Set([...old, ...target.ancestors])]);
+      setScrollRequest({ key: target.key });
+      return true;
+    },
+  }), [items, rootNode]);
+
+  useEffect(() => {
+    if (!active || !height || !scrollRequest) return;
+    const frame = requestAnimationFrame(() => {
+      setActiveKey(scrollRequest.key);
+      treeRef.current?.scrollTo({ key: scrollRequest.key });
+      setScrollRequest(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [active, height, scrollRequest]);
 
   useEffect(() => {
     if (!viewport) return;
@@ -148,11 +186,14 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey | "favorite
     {storeKey === "favorites" && items.length === 0 &&
       <p className="px-3 py-2 text-sm">Star a variable to watch it here.</p>}
     {height > 0 && (storeKey !== "favorites" || items.length > 0) && <Tree
+    ref={treeRef}
     aria-label={storeKey === "favorites" ? "Favorite variables tree"
       : storeKey === "variables" ? "Story variables tree" : "Temporary variables tree"}
     className="sugarcube-variable-tree flex h-full flex-col"
     blockNode
     selectable={false}
+    activeKey={activeKey}
+    onActiveChange={setActiveKey}
     showLine={{ showLeafIcon: false }}
     switcherIcon={({ expanded }) => expanded
       ? <ChevronDown size={16} aria-hidden="true" />
@@ -182,8 +223,8 @@ function RichVariableTree({ storeKey }: { storeKey: VariableStoreKey | "favorite
   </div>;
 }
 
-export default function VariableTree({ storeKey, active }: {
-  storeKey: VariableStoreKey; active: boolean;
+export default function VariableTree({ storeKey, active, searchRef }: {
+  storeKey: VariableStoreKey; active: boolean; searchRef?: Ref<VariableTreeSearch>;
 }) {
   useEffect(() => {
     variableWatcher.setScopeActive(storeKey, active);
@@ -192,7 +233,7 @@ export default function VariableTree({ storeKey, active }: {
 
   return <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <VariableScopeContext value={storeKey}>
-      <RichVariableTree storeKey={storeKey} />
+      <RichVariableTree storeKey={storeKey} active={active} searchRef={searchRef} />
     </VariableScopeContext>
   </div>;
 }
@@ -206,7 +247,7 @@ export function FavoritesTree({ active }: { active: boolean }) {
 
   return <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <VariableScopeContext value="favorites-tree">
-      <RichVariableTree storeKey="favorites" />
+      <RichVariableTree storeKey="favorites" active={active} />
     </VariableScopeContext>
   </div>;
 }

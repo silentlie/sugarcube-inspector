@@ -11,6 +11,9 @@ It reads live story and temporary variables directly without attaching a debugge
 - Overview, Variables, and Scripts are top-level tabs. Under Variables are
   Story Variables, Temporary Variables, and Favorites. Overview and Scripts
   are placeholders. Favorites tracks explicitly starred variables.
+- Under Variables, search both scopes by name or path. Search lists up to 20
+  results per scope from top-level variables and already discovered branches.
+  Selecting a result opens its scope and reveals its row.
 - The variable tree uses Ant Design's built-in virtualization and discovers children
   lazily on expansion. ID-based, one-level reconciliation reuses unchanged nodes and
   child arrays; replaced objects refresh only loaded branches. Expanded logical
