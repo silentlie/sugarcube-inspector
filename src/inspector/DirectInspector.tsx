@@ -6,8 +6,9 @@ import VariableSearch from "../variables/ui/VariableSearch";
 import VariableTree, { FavoritesTree, type VariableTreeSearch } from "../variables/ui/VariableTree";
 import { variableWatcher } from "../variables/watcher";
 import StoryOverview from "./StoryOverview";
+import StoryPassages from "./StoryPassages";
 
-type Section = "overview" | "variables" | "scripts";
+type Section = "overview" | "variables" | "passages";
 type VariableScope = VariableStoreKey | "favorites";
 
 /** Wait for initialization before any inspection hook can read the State API. */
@@ -37,6 +38,8 @@ export default function DirectInspector() {
 function InspectorSections() {
   const [section, setSection] = useState<Section>("overview");
   const [scope, setScope] = useState<VariableScope>("variables");
+  const [selectedPassage, setSelectedPassage] = useState<string>();
+  const [sourceFocusRequest, setSourceFocusRequest] = useState(0);
   const activeScope = section === "variables" ? scope : null;
   const variablesRef = useRef<VariableTreeSearch>(null);
   const temporaryRef = useRef<VariableTreeSearch>(null);
@@ -91,9 +94,14 @@ function InspectorSections() {
         animated={false}
         onChange={(key) => setSection(key as Section)}
         items={[
-          { key: "overview", label: "Overview", children: <StoryOverview /> },
+          { key: "overview", label: "Overview", children: <StoryOverview openSource={(name) => {
+            setSelectedPassage(name);
+            setSourceFocusRequest((count) => count + 1);
+            setSection("passages");
+          }} /> },
           { key: "variables", label: "Variables", children: variables },
-          { key: "scripts", label: "Scripts" },
+          { key: "passages", label: "Passages", children: <StoryPassages selected={selectedPassage}
+            onSelect={setSelectedPassage} focusRequest={sourceFocusRequest} /> },
         ]}
       />
     </section>

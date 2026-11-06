@@ -15,7 +15,7 @@ type PassageEventTarget = {
   off: (name: string, callback: () => void) => void;
 };
 
-export default function StoryOverview() {
+export default function StoryOverview({ openSource }: { openSource: (name: string) => void }) {
   const [overview, setOverview] = useState(readOverview);
   const name = SugarCube.Story?.name || SugarCube.Story?.title || "SugarCube story";
 
@@ -36,6 +36,8 @@ export default function StoryOverview() {
       <dt>Turn</dt>
       <dd aria-label="Turn">{overview.turn}</dd>
     </dl>
+    {overview.passage && <button type="button" className="mb-3 cursor-pointer rounded border border-current px-2 py-1"
+      onClick={() => openSource(overview.passage)}>Open current passage source</button>}
     <h4 className="font-semibold">Recent passages</h4>
     {overview.recent.length > 0 ? <ol aria-label="Recent passages" className="list-decimal pl-5">
       {overview.recent.map(({ index, title }) => <li key={index} className="wrap-anywhere">{title}</li>)}

@@ -247,6 +247,41 @@ test("favorite history records passage context and changes to and from missing",
   await expect(historyButton).toBeFocused();
 });
 
+test("finds exported passage source by title and tag without running it", async ({ page }) => {
+  await page.goto(storyUrl);
+  await page.evaluate(() => {
+    for (const passage of document.querySelectorAll("tw-passagedata")) {
+      passage.append("\nAdditional source line".repeat(200));
+    }
+  });
+  const drawer = await openDrawer(page);
+  const openSource = drawer.getByRole("button", { name: "Open current passage source" });
+  await expect(openSource).toBeVisible();
+  await openSource.click();
+  await expect(drawer.getByRole("tab", { name: "Passages" })).toHaveAttribute("aria-selected", "true");
+  const browser = drawer.getByRole("region", { name: "Passage browser" });
+  const source = browser.locator("pre");
+  await expect(source).toContainText("<<set $score = 7>>");
+
+  const picker = browser.getByRole("combobox", { name: "Find passage" });
+  await expect(picker).toBeFocused();
+  expect(await source.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    return element.scrollTop;
+  })).toBeGreaterThan(0);
+  await picker.fill("Next Passage");
+  await picker.press("Enter");
+  await expect(source).toContainText("<<set $score = 12>>");
+  await expect.poll(() => source.evaluate((element) => element.scrollTop)).toBe(0);
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(7);
+
+  await picker.fill("intro");
+  const options = drawer.locator(".ant-select-dropdown");
+  await expect(options.getByText("Next Passage", { exact: true })).toHaveCount(0);
+  await options.locator(".ant-select-item-option-content").getByText("Start", { exact: true }).click();
+  await expect(source).toContainText("<<set $score = 7>>");
+});
+
 test("Tailwind utilities stay inside the inspector ShadowRoot", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
@@ -274,7 +309,7 @@ test("Ant Design Tree View preserves scope navigation and variable inspection", 
 
   const overview = drawer.getByRole("tab", { name: "Overview" });
   const variables = drawer.getByRole("tab", { name: "Variables", exact: true });
-  const scripts = drawer.getByRole("tab", { name: "Scripts" });
+  const passages = drawer.getByRole("tab", { name: "Passages" });
   await expect(overview).toHaveAttribute("aria-selected", "true");
   await expect(drawer.getByText("score", { exact: true })).toBeHidden();
   await expect(drawer.locator(".ant-tabs").first()).toBeVisible();
@@ -303,8 +338,8 @@ test("Ant Design Tree View preserves scope navigation and variable inspection", 
   await overview.click();
   await expect(overview).toHaveAttribute("aria-selected", "true");
   await expect(drawer.getByRole("tab", { name: "Favorites" })).toHaveCount(0);
-  await scripts.click();
-  await expect(scripts).toHaveAttribute("aria-selected", "true");
+  await passages.click();
+  await expect(passages).toHaveAttribute("aria-selected", "true");
   await expect(drawer.getByText("score", { exact: true })).toBeHidden();
 
   await variables.click();
@@ -321,7 +356,7 @@ test("tab switching preserves expansion and tree fills remaining drawer height",
   await tree.evaluate((element) => { element.dataset.persistentTree = "yes"; });
 
   await drawer.getByRole("tab", { name: "Overview" }).click();
-  await drawer.getByRole("tab", { name: "Scripts" }).click();
+  await drawer.getByRole("tab", { name: "Passages" }).click();
   await drawer.getByRole("tab", { name: "Variables", exact: true }).click();
   await expect(tree).toHaveAttribute("data-persistent-tree", "yes");
   await expect(drawer.getByRole("treeitem", { name: /^inventory/ }))

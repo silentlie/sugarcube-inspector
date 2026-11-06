@@ -10,8 +10,10 @@ It reads live story and temporary variables directly without attaching a debugge
 - **Tailwind CSS v4** provides its complete stylesheet, including Preflight and utilities, inside the inspector ShadowRoot.
 - Overview shows the story name, current passage, turn, and up to ten previous
   passages in the current playable history. Under Variables are Story Variables,
-  Temporary Variables, and Favorites. Scripts is a placeholder. Favorites tracks
-  explicitly starred variables.
+  Temporary Variables, and Favorites. Favorites tracks explicitly starred
+  variables. Passages lets you search a Twine 2 export by passage title or tag
+  and read the source as plain text. Overview links to the current passage source
+  when it exists in the export.
 - Under Variables, search both scopes by name or path. Search lists up to 20
   results per scope from top-level variables and already discovered branches.
   Selecting a result opens its scope and reveals its row.
