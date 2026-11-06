@@ -476,6 +476,34 @@ describe("recursive variable locations", () => {
 });
 
 describe("shared variable watcher", () => {
+  it("keeps polling other scopes while a favorite read throws and retries it", () => {
+    vi.useFakeTimers();
+    const watcher = new VariableWatcher(50);
+    let favorite: number | undefined = 1;
+    let temporary = 2;
+    const pinned = watcher.watch(() => {
+      if (favorite === undefined) throw new Error("Value is unreadable");
+      return favorite;
+    }, Object.is, "favorites");
+    const healthy = watcher.watch(() => temporary, Object.is, "temporary");
+    watcher.setScopeActive("favorites", true);
+    watcher.setScopeActive("temporary", true);
+    const stopPinned = pinned.subscribe(vi.fn());
+    const stopHealthy = healthy.subscribe(vi.fn());
+
+    favorite = undefined;
+    temporary = 3;
+    vi.advanceTimersByTime(50);
+    expect(pinned.getSnapshot()).toBe(1);
+    expect(healthy.getSnapshot()).toBe(3);
+
+    favorite = 4;
+    vi.advanceTimersByTime(50);
+    expect(pinned.getSnapshot()).toBe(4);
+    stopPinned();
+    stopHealthy();
+  });
+
   it("keeps one timer and notifies only changed locations", async () => {
     vi.useFakeTimers();
     const watcher = new VariableWatcher(50);
