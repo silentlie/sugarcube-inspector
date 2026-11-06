@@ -42,7 +42,13 @@ export class VariableWatcher {
     let current = read();
     const listeners = new Set<() => void>();
     const observer: ActiveWatch = () => {
-      const next = read();
+      let next: T;
+      try {
+        next = read();
+      } catch {
+        // Keep the last readable snapshot and retry without interrupting other watches.
+        return;
+      }
       if (equal(current, next)) return;
       current = next;
       for (const listener of [...listeners]) listener();

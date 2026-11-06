@@ -243,6 +243,16 @@ test("Ant Design Tree View exposes keyboard-controlled expansion", async ({ page
   await tree.press("ArrowLeft");
   await expect(inventory).toHaveAttribute("aria-expanded", "false");
   await expect(drawer.getByRole("treeitem", { name: /^0/ })).toHaveCount(0);
+
+  const expand = inventory.getByRole("button", { name: /^inventory/ });
+  const star = inventory.getByRole("button", { name: /^(Add inventory to|Remove inventory from) favorites$/ });
+  await expect(expand).not.toHaveAccessibleName(/favorites/);
+  await expect(expand.getByRole("button")).toHaveCount(0);
+  await star.press("Enter");
+  await expect(star).toHaveAttribute("aria-pressed", "true");
+  await expect(inventory).toHaveAttribute("aria-expanded", "false");
+  await expand.press("Enter");
+  await expect(inventory).toHaveAttribute("aria-expanded", "true");
 });
 
 test("inspects shared live references and cycles without writes or serialization", async ({ page }) => {
@@ -617,4 +627,40 @@ test("renders VS Code-style type labels and value token colors", async ({ page }
   await expect(inventoryPreview).toHaveText("(2)");
   await expect(inventoryPreview.locator(".token.punctuation")).toHaveText(["(", ")"]);
   await expect(inventoryPreview.locator(".token.number")).toHaveText("2");
+});
+
+test("favourites stay live across tabs, object replacement, and missing paths", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await page.evaluate(() => {
+    const variables = SugarCube.State.variables as unknown as Record<string, unknown>;
+    variables.pinnedPlayer = { health: 10 };
+  });
+  await expandVariable(drawer, "pinnedPlayer");
+  const storyTree = drawer.getByRole("tree", { name: "Story variables tree" });
+  await storyTree.getByRole("treeitem", { name: /^health/ })
+    .getByRole("button", { name: "Add health to favorites" }).click();
+
+  await drawer.getByRole("tab", { name: "Favorites" }).click();
+  const favorites = drawer.getByRole("tree", { name: "Favorite variables tree" });
+  const pinned = favorites.getByRole("treeitem", { name: /^\$pinnedPlayer\.health/ });
+  await expect(pinned.getByTitle("10", { exact: true })).toBeVisible();
+
+  await drawer.getByRole("tab", { name: "Overview" }).click();
+  await page.evaluate(() => {
+    const variables = SugarCube.State.variables as unknown as Record<string, unknown>;
+    variables.pinnedPlayer = { health: 42 };
+  });
+  await drawer.getByRole("tab", { name: "Variables", exact: true }).click();
+  await drawer.getByRole("tab", { name: "Favorites" }).click();
+  await expect(pinned.getByTitle("42", { exact: true })).toBeVisible();
+
+  await page.evaluate(() => {
+    const variables = SugarCube.State.variables as unknown as Record<string, unknown>;
+    variables.pinnedPlayer = {};
+  });
+  await expect(pinned.getByTitle("[Missing]", { exact: true })).toBeVisible();
+
+  await pinned.getByRole("button", { name: "Remove $pinnedPlayer.health from favorites" }).click();
+  await expect(favorites.getByRole("treeitem")).toHaveCount(0);
 });

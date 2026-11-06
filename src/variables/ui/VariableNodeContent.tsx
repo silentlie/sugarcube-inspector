@@ -1,6 +1,8 @@
 import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
-import { useEffect } from "react";
+import { Star } from "lucide-react";
+import { useEffect, useSyncExternalStore } from "react";
+import { favoriteStore, sameFavoritePath } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
 import { getLocationName, type VariableLocation } from "../location";
 import type { VariableNode } from "../nodes";
@@ -15,6 +17,9 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle }: {
   onToggle: () => void;
 }) {
   const current = useVariable(node.location);
+  const favorites = useSyncExternalStore(favoriteStore.subscribe, favoriteStore.getSnapshot);
+  const path = node.favoritePath;
+  const pinned = path !== undefined && favorites.some(({ location }) => sameFavoritePath(path, location));
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
   const isLeaf = isLeafNode(node, current);
@@ -26,43 +31,57 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle }: {
     if (node.isLeaf !== isLeaf) refresh(node.key);
   }, [isLeaf, node.isLeaf, node.key, refresh]);
 
-  return <span
-    className={`flex w-full min-w-0 items-center gap-2 ${isLeaf ? "" : "cursor-pointer"}`}
-    role={isLeaf ? undefined : "button"}
-    tabIndex={isLeaf ? undefined : 0}
-    aria-expanded={isLeaf ? undefined : expanded}
-    onClick={isLeaf ? undefined : (event) => {
-      event.stopPropagation();
-      onToggle();
-    }}
-    onKeyDown={isLeaf ? undefined : (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      event.stopPropagation();
-      onToggle();
-    }}>
-    {isMapEntry ? <>
-      <span className="flex min-w-0 flex-1 items-baseline">
-        <span className="min-w-0 truncate">
-          <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} />
+  return <span className="flex w-full min-w-0 items-center gap-2">
+    <span
+      className={`flex min-w-0 flex-1 items-center gap-2 ${isLeaf ? "" : "cursor-pointer"}`}
+      role={isLeaf ? undefined : "button"}
+      tabIndex={isLeaf ? undefined : 0}
+      aria-expanded={isLeaf ? undefined : expanded}
+      onClick={isLeaf ? undefined : (event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      onKeyDown={isLeaf ? undefined : (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        onToggle();
+      }}>
+      {isMapEntry ? <>
+        <span className="flex min-w-0 flex-1 items-baseline">
+          <span className="min-w-0 truncate">
+            <MapKeyPreview location={node.location as Extract<VariableLocation, {kind:"map"}>} />
+          </span>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>&nbsp;→&nbsp;</Typography.Text>
+          <span className="shrink-0 whitespace-nowrap font-mono text-[12px]">
+            <VariableTypePreview current={current} />
+          </span>
         </span>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>&nbsp;→&nbsp;</Typography.Text>
-        <span className="shrink-0 whitespace-nowrap font-mono text-[12px]">
-          <VariableTypePreview current={current} />
+        <VariableValuePreview current={current} />
+      </> : <>
+        <span className="flex min-w-0 flex-1 items-baseline">
+          {!isSetMember && <span className="min-w-0 truncate text-[14px]">
+            {getLocationName(node.location)}
+          </span>}
+          <span className="shrink-0 whitespace-nowrap font-mono text-[12px]">
+            {!isSetMember && ": "}<VariableTypePreview current={current} />
+          </span>
         </span>
-      </span>
-      <VariableValuePreview current={current} />
-    </> : <>
-      <span className="flex min-w-0 flex-1 items-baseline">
-        {!isSetMember && <span className="min-w-0 truncate text-[14px]">
-          {getLocationName(node.location)}
-        </span>}
-        <span className="shrink-0 whitespace-nowrap font-mono text-[12px]">
-          {!isSetMember && ": "}<VariableTypePreview current={current} />
-        </span>
-      </span>
-      <VariableValuePreview current={current} />
-    </>}
+        <VariableValuePreview current={current} />
+      </>}
+    </span>
+    {path && path.path.length > 0 && <button
+      type="button"
+      className="shrink-0 cursor-pointer rounded p-1"
+      aria-label={`${pinned ? "Remove" : "Add"} ${getLocationName(node.location)} ${pinned ? "from" : "to"} favorites`}
+      title={pinned ? "Remove from favorites" : "Add to favorites"}
+      aria-pressed={pinned}
+      onClick={(event) => {
+        event.stopPropagation();
+        favoriteStore.toggle(path);
+      }}
+      onKeyDown={(event) => event.stopPropagation()}
+    ><Star size={14} fill={pinned ? "currentColor" : "none"} aria-hidden="true" /></button>}
     {circular &&
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         same reference

@@ -9,8 +9,8 @@ It reads live story and temporary variables directly without attaching a debugge
 - Theme settings remain independent: `src/theme/antd.ts` configures Ant Design's dark/compact algorithms, while `src/theme/prism.ts` selects Prism's unmodified VS Dark syntax theme. No shared theme provider or colour overrides are introduced.
 - **Tailwind CSS v4** provides its complete stylesheet, including Preflight and utilities, inside the inspector ShadowRoot.
 - Overview, Variables, and Scripts are top-level tabs. Under Variables are
-  Story Variables, Temporary Variables, and Favorites. Overview, Scripts, and
-  Favorites are placeholders.
+  Story Variables, Temporary Variables, and Favorites. Overview and Scripts
+  are placeholders. Favorites tracks explicitly starred variables.
 - The variable tree uses Ant Design's built-in virtualization and discovers children
   lazily on expansion. ID-based, one-level reconciliation reuses unchanged nodes and
   child arrays; replaced objects refresh only loaded branches. Expanded logical
@@ -46,6 +46,11 @@ It reads live story and temporary variables directly without attaching a debugge
   Runtime checks use named `@sindresorhus/is` type guards, including functions
   as expandable references. Boxed primitives are handled explicitly because the
   library's general-purpose type detector rejects them; their values remain inspectable.
+- Starred property and array locations are tracked by root-relative paths, so favourites
+  follow replaced ancestors and retain missing paths. Favourites are in-memory for
+  each page session; Map/Set entry nodes cannot be pinned, but their containing
+  variables can. An always-active `favorites` scope polls pinned values, while a
+  separate `favorites-tree` scope pauses structural and descendant polling off-tab.
 - Mounted virtualized rows update values while their variable scope is selected.
   All expanded logical containers watch object identity, structure, array length,
   and Map/Set membership, including while their rows are offscreen.
