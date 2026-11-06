@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 interface DrawerProps {
   initialWidth: number;
+  initiallyOpen?: boolean;
   children: ReactNode;
 }
 
@@ -28,10 +29,10 @@ function clampTabTop(top: number) {
 }
 
 /** Retain the custom hover/resize drawer; Ant's modal Drawer is not a substitute. */
-export default function Drawer({ initialWidth, children }: DrawerProps) {
+export default function Drawer({ initialWidth, initiallyOpen = false, children }: DrawerProps) {
   const { token } = theme.useToken();
   const [mode, setMode] = useState<DrawerMode>("hover");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [width, setWidth] = useState(initialWidth);
   const drawerRef = useRef<HTMLElement>(null);
   const [tabTop, setTabTop] = useState(TAB_START_TOP);

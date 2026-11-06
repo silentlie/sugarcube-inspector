@@ -6,8 +6,8 @@ export default defineConfig({
   vite: () => ({ plugins: [tailwindcss()] }),
   manifest: {
     name: "SugarCube Inspector (Direct MAIN POC)",
-    permissions: ["storage"],
+    permissions: ["activeTab", "scripting", "storage"],
     host_permissions: ["file:///*"],
-    action: { default_title: "SugarCube Inspector (Direct MAIN POC)" },
+    action: { default_title: "Inspect this SugarCube story" },
   },
 });

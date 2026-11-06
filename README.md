@@ -131,3 +131,10 @@ can affect the inspector, and vice versa. Do not run on untrusted pages.
    Variables → Story Variables or Temporary Variables.
 4. Expand objects and change game values. Visible entries update automatically.
 5. Run `npm run lint && npm run compile && npm test && npm run test:browser`.
+
+For a hosted SugarCube story, open the story in its own tab and click the
+extension toolbar icon to activate inspection. The drawer opens when it first
+attaches. Use its handle or toggle tab to reopen it in the same document. Click
+the toolbar icon again after reloading or navigating to a new document. Hosted
+favorites are stored separately for each site origin and story IFID. A site's
+content security policy can prevent the drawer's styles from loading.

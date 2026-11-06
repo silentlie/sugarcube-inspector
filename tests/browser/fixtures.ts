@@ -13,6 +13,7 @@ export const test = base.extend<{ context: BrowserContext }>({
       channel: "chromium",
       headless: true,
       args: [
+        "--enable-unsafe-extension-debugging",
         `--disable-extensions-except=${extensionPath}`,
         `--load-extension=${extensionPath}`,
       ],

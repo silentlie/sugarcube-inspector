@@ -1,5 +1,5 @@
 import type {} from "twine-sugarcube";
-import { copyFile, mkdtemp, rmdir, unlink } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, rmdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -28,6 +28,40 @@ async function expandVariable(drawer: Locator, name: string) {
   await expect(row).toHaveAttribute("aria-expanded", "true");
   return row;
 }
+
+test("hosts opt in through the extension action for the current document", async ({ page }) => {
+  const hostedUrl = "https://inspector.test/story";
+  await page.route(hostedUrl, async (route) => route.fulfill({
+    contentType: "text/html", body: await readFile(new URL(storyUrl), "utf8"),
+  }));
+  await page.goto(hostedUrl);
+  await expect(page.locator("#passages")).toContainText("Smoke story ready.");
+  const host = page.locator("sugarcube-inspector");
+  await expect(host).toHaveCount(0);
+
+  const browser = page.context().browser();
+  expect(browser).not.toBeNull();
+  const cdp = await browser!.newBrowserCDPSession();
+  const { extensions } = await cdp.send("Extensions.getExtensions");
+  const extension = extensions.find(({ name }) => name.startsWith("SugarCube Inspector"));
+  expect(extension).toBeDefined();
+  const { targetInfos } = await cdp.send("Target.getTargets", { filter: [{ type: "tab" }] });
+  const tab = targetInfos.find(({ url }) => url === hostedUrl);
+  expect(tab).toBeDefined();
+  const triggerAction = () => cdp.send("Extensions.triggerAction", { id: extension!.id, targetId: tab!.targetId });
+
+  await triggerAction();
+  await expect(host.getByRole("region", { name: "Story overview" })).toBeVisible();
+  await host.getByRole("tab", { name: "Variables", exact: true }).click();
+  await host.getByRole("button", { name: "Add score to favorites" }).click();
+
+  await page.reload();
+  await expect(host).toHaveCount(0);
+  await triggerAction();
+  await host.getByRole("tab", { name: "Variables", exact: true }).click();
+  await host.getByRole("tab", { name: "Favorites" }).click();
+  await expect(host.getByText("$score", { exact: true })).toBeVisible();
+});
 
 test("mounts the React inspector in the game's MAIN world", async ({ page }) => {
   await page.goto(storyUrl);

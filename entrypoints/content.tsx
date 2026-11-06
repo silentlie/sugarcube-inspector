@@ -34,7 +34,7 @@ export default defineContentScript({
           getPopupContainer={() => container}
           theme={antdTheme}
         >
-          <Drawer initialWidth={380}>
+          <Drawer initialWidth={380} initiallyOpen={location.protocol !== "file:"}>
             <DirectInspector />
           </Drawer>
         </ConfigProvider>
