@@ -5,6 +5,7 @@ import { connectFavoriteStorage } from "../variables/favorites";
 import VariableSearch from "../variables/ui/VariableSearch";
 import VariableTree, { FavoritesTree, type VariableTreeSearch } from "../variables/ui/VariableTree";
 import { variableWatcher } from "../variables/watcher";
+import StoryOverview from "./StoryOverview";
 
 type Section = "overview" | "variables" | "scripts";
 type VariableScope = VariableStoreKey | "favorites";
@@ -45,16 +46,6 @@ function InspectorSections() {
     return () => variableWatcher.setScopeActive("favorites", false);
   }, []);
   useEffect(connectFavoriteStorage, []);
-
-  useEffect(() => {
-    const passages = document.getElementById("passages");
-    if (!passages) return;
-    const observer = new MutationObserver(() => {
-      // TODO: Decide whether passage navigation needs special handling beyond polling.
-    });
-    observer.observe(passages, { childList: true });
-    return () => observer.disconnect();
-  }, []);
 
   const variables = <>
     <VariableSearch find={(query) => [
@@ -100,7 +91,7 @@ function InspectorSections() {
         animated={false}
         onChange={(key) => setSection(key as Section)}
         items={[
-          { key: "overview", label: "Overview" },
+          { key: "overview", label: "Overview", children: <StoryOverview /> },
           { key: "variables", label: "Variables", children: variables },
           { key: "scripts", label: "Scripts" },
         ]}

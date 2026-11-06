@@ -199,6 +199,26 @@ test("restores and removes favorites across exports of the same story", async ({
   }
 });
 
+test("overview follows the current passage and playable history", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openDrawer(page);
+  const overview = drawer.getByRole("region", { name: "Story overview" });
+  await expect(overview.getByText("Inspector Smoke Story", { exact: true })).toBeVisible();
+  await expect(overview.getByLabel("Current passage")).toHaveText("Start");
+  await expect(overview.getByLabel("Turn")).toHaveText("1");
+
+  await page.getByRole("link", { name: "Continue" }).click();
+  await openDrawer(page);
+  await expect(overview.getByLabel("Current passage")).toHaveText("Next Passage");
+  await expect(overview.getByLabel("Turn")).toHaveText("2");
+  await expect(overview.getByRole("list", { name: "Recent passages" })).toHaveText("Start");
+
+  await page.evaluate(() => SugarCube.Engine.backward());
+  await expect(overview.getByLabel("Current passage")).toHaveText("Start");
+  await expect(overview.getByLabel("Turn")).toHaveText("1");
+  await expect(overview.getByRole("list", { name: "Recent passages" })).toHaveCount(0);
+});
+
 test("Tailwind utilities stay inside the inspector ShadowRoot", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);

@@ -8,9 +8,10 @@ It reads live story and temporary variables directly without attaching a debugge
 - **Ant Design** provides tabs, labels, buttons, dark/compact theme and the virtualized Tree.
 - Theme settings remain independent: `src/theme/antd.ts` configures Ant Design's dark/compact algorithms, while `src/theme/prism.ts` selects Prism's unmodified VS Dark syntax theme. No shared theme provider or colour overrides are introduced.
 - **Tailwind CSS v4** provides its complete stylesheet, including Preflight and utilities, inside the inspector ShadowRoot.
-- Overview, Variables, and Scripts are top-level tabs. Under Variables are
-  Story Variables, Temporary Variables, and Favorites. Overview and Scripts
-  are placeholders. Favorites tracks explicitly starred variables.
+- Overview shows the story name, current passage, turn, and up to ten previous
+  passages in the current playable history. Under Variables are Story Variables,
+  Temporary Variables, and Favorites. Scripts is a placeholder. Favorites tracks
+  explicitly starred variables.
 - Under Variables, search both scopes by name or path. Search lists up to 20
   results per scope from top-level variables and already discovered branches.
   Selecting a result opens its scope and reveals its row.
