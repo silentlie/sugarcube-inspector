@@ -9,6 +9,7 @@ import { variableWatcher } from "../watcher";
 import { readStructure, sameStructure } from "../structure";
 import { findVariablePaths, revealVariablePath } from "../search";
 import { VariableNodeContent } from "./VariableNodeContent";
+import FavoriteHistory from "./FavoriteHistory";
 import { VariableScopeContext } from "./useVariableWatch";
 import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "../nodes";
 
@@ -78,6 +79,9 @@ function RichVariableTree({ storeKey, active, searchRef }: {
   const expandedWatchesRef = useRef(new Map<number, ExpandedWatch>());
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const [height, setHeight] = useState(0);
+  const [historyKey, setHistoryKey] = useState<number | null>(null);
+  const historyButtonRef = useRef<HTMLButtonElement | null>(null);
+  const historyLocation = historyKey === null ? undefined : items.find((item) => item.key === historyKey)?.location;
   const treeRef = useRef<ComponentRef<typeof Tree>>(null);
   const [activeKey, setActiveKey] = useState<Key | null>(null);
   const [scrollRequest, setScrollRequest] = useState<{ key: number } | null>(null);
@@ -182,7 +186,15 @@ function RichVariableTree({ storeKey, active, searchRef }: {
       : [...old, item.key]);
   }, [expanded, refresh]);
 
-  return <div ref={setViewport} className="min-h-0 flex-1 overflow-hidden">
+  return <>
+  {historyLocation?.kind === "favorite" && <FavoriteHistory key={historyLocation.id} location={historyLocation}
+    close={() => {
+      setHistoryKey(null);
+      const button = historyButtonRef.current;
+      if (button?.isConnected) button.focus();
+      else viewport?.querySelector<HTMLElement>('[role="tree"]')?.focus();
+    }} />}
+  <div ref={setViewport} className="min-h-0 flex-1 overflow-hidden">
     {storeKey === "favorites" && items.length === 0 &&
       <p className="px-3 py-2 text-sm">Star a variable to watch it here.</p>}
     {height > 0 && (storeKey !== "favorites" || items.length > 0) && <Tree
@@ -217,10 +229,16 @@ function RichVariableTree({ storeKey, active, searchRef }: {
         refresh={refresh}
         expanded={expanded.has(item.key)}
         onToggle={() => toggleExpanded(item)}
+        historyOpen={historyKey === item.key}
+        onShowHistory={item.location.kind === "favorite" ? (button) => {
+          historyButtonRef.current = button;
+          setHistoryKey(item.key);
+        } : undefined}
       />;
     }}
   />}
-  </div>;
+  </div>
+  </>;
 }
 
 export default function VariableTree({ storeKey, active, searchRef }: {

@@ -57,6 +57,8 @@ It reads live story and temporary variables directly without attaching a debugge
   nodes cannot be pinned, but their containing
   variables can. An always-active `favorites` scope polls pinned values, while a
   separate `favorites-tree` scope pauses structural and descendant polling off-tab.
+- A favorite's history shows its last 20 observed preview changes with the
+  passage and turn sampled at each change. History is kept for the page session.
 - Mounted virtualized rows update values while their variable scope is selected.
   All expanded logical containers watch object identity, structure, array length,
   and Map/Set membership, including while their rows are offscreen.

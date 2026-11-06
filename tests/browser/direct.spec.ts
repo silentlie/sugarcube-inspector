@@ -219,6 +219,34 @@ test("overview follows the current passage and playable history", async ({ page 
   await expect(overview.getByRole("list", { name: "Recent passages" })).toHaveCount(0);
 });
 
+test("favorite history records passage context and changes to and from missing", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await drawer.getByRole("button", { name: "Add score to favorites" }).click();
+  await drawer.getByRole("tab", { name: "Overview" }).click();
+  await page.getByRole("link", { name: "Continue" }).click();
+  await openVariables(page);
+  await drawer.getByRole("tab", { name: "Favorites" }).click();
+  const historyButton = drawer.getByRole("button", { name: "Show change history for $score" });
+  await expect(historyButton).toBeVisible();
+  await historyButton.press("Enter");
+  await expect(historyButton).toHaveAttribute("aria-expanded", "true");
+  const history = drawer.getByRole("region", { name: "Favorite change history" });
+  await expect(history).toContainText("Turn 2 · Next Passage");
+  await expect(history).toContainText("7 → 12");
+
+  await page.evaluate(() => {
+    const vars = SugarCube.State.variables as unknown as Record<string, unknown>;
+    delete vars.score;
+  });
+  await expect(history).toContainText("12 → Missing");
+  await page.evaluate(() => SugarCube.State.setVar("$score", 19));
+  await expect(history).toContainText("Missing → 19");
+  await history.getByRole("button", { name: "Close history" }).click();
+  await expect(historyButton).toHaveAttribute("aria-expanded", "false");
+  await expect(historyButton).toBeFocused();
+});
+
 test("Tailwind utilities stay inside the inspector ShadowRoot", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);

@@ -137,4 +137,25 @@ describe("favorites", () => {
     stopListening();
     watcher.setScopeActive("favorites", false);
   });
+
+  it("keeps the newest twenty preview changes for each pin", () => {
+    vi.useFakeTimers();
+    const variables = { health: 0 };
+    vi.stubGlobal("SugarCube", { State: { variables, temporary: {}, passage: "Vault", turns: 3 } });
+    const watcher = new VariableWatcher(20);
+    const store = new FavoriteStore(watcher);
+    watcher.setScopeActive("favorites", true);
+    const favorite = store.add({ root: "variables", path: ["health"] });
+
+    for (let health = 1; health <= 25; health++) {
+      variables.health = health;
+      vi.advanceTimersByTime(20);
+    }
+
+    const changes = store.getChanges(favorite.id);
+    expect(changes).toHaveLength(20);
+    expect(changes[0]).toMatchObject({ before: "24", after: "25", turn: 3, passage: "Vault" });
+    expect(changes.at(-1)).toMatchObject({ before: "5", after: "6" });
+    watcher.setScopeActive("favorites", false);
+  });
 });

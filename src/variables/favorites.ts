@@ -1,11 +1,14 @@
+import { getState } from "../sugarcube/state";
 import { readVariable, sameVariable, type FavoriteLocation, type FavoritePath, type VariableSnapshot } from "./location";
 import { variableWatcher, type VariableSubscription, type VariableWatcher } from "./watcher";
 import { decodeFavoritePaths, favoriteStorageEvents as events, getFavoriteStoragePrefix } from "./favoriteStorage";
 
 export type Favorite = { location: FavoriteLocation };
+type FavoriteChange = { id: number; before: string; after: string; turn: number; passage: string };
 type WatchingFavorite = Favorite & {
   subscription: VariableSubscription<VariableSnapshot>;
   unsubscribe: () => void;
+  changes: FavoriteChange[];
 };
 type FavoriteListener = (location: FavoritePath, pinned: boolean) => void;
 
@@ -14,6 +17,11 @@ let nextFavoriteId = -1;
 export function sameFavoritePath(a: FavoritePath, b: FavoritePath): boolean {
   return a.root === b.root && a.path.length === b.path.length &&
     a.path.every((segment, index) => Object.is(segment, b.path[index]));
+}
+
+function changePreview(snapshot: VariableSnapshot): string {
+  if (snapshot.kind === "value") return snapshot.preview;
+  return snapshot.kind === "missing" ? "Missing" : `[${snapshot.accessor}]`;
 }
 
 /** Owns explicit watches independently of which variable tree is selected. */
@@ -53,10 +61,18 @@ export class FavoriteStore {
     const subscription = this.watcher.watch(
       () => readVariable(location), sameVariable, "favorites", initial,
     );
+    const changes: FavoriteChange[] = [];
+    let previous = changePreview(initial);
+    let nextChangeId = 0;
     const unsubscribe = subscription.subscribe(() => {
-      // The subscription retains the latest snapshot even without a mounted row.
+      const after = changePreview(subscription.getSnapshot());
+      if (after === previous) return;
+      const { turns, passage } = getState();
+      changes.unshift({ id: nextChangeId++, before: previous, after, turn: turns, passage });
+      if (changes.length > 20) changes.pop();
+      previous = after;
     });
-    const entry = { location, subscription, unsubscribe };
+    const entry = { location, subscription, unsubscribe, changes };
     this.watches.set(location.id, entry);
     this.snapshot = [...this.snapshot, { location }];
     this.notify(location, true);
@@ -81,6 +97,10 @@ export class FavoriteStore {
     const subscription = this.watches.get(id)?.subscription;
     if (!subscription) throw new Error("Favorite no longer exists");
     return subscription;
+  }
+
+  getChanges(id: number): readonly FavoriteChange[] {
+    return this.watches.get(id)?.changes ?? [];
   }
 
   private notify(location: FavoritePath, pinned: boolean): void {

@@ -1,6 +1,6 @@
 import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
-import { Star } from "lucide-react";
+import { History, Star } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { favoriteStore, sameFavoritePath } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
@@ -11,11 +11,13 @@ import { useVariable } from "./useVariableWatch";
 import { MapKeyPreview, VariableTypePreview, VariableValuePreview } from "./VariableValuePreview";
 
 /** Virtualized rows own only visible-value subscriptions. */
-export function VariableNodeContent({ node, refresh, expanded, onToggle }: {
+export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowHistory, historyOpen }: {
   node: VariableNode;
   refresh: (id: number, load?: boolean) => void;
   expanded: boolean;
   onToggle: () => void;
+  onShowHistory?: (button: HTMLButtonElement) => void;
+  historyOpen?: boolean;
 }) {
   const current = useVariable(node.location);
   const favorites = useSyncExternalStore(favoriteStore.subscribe, favoriteStore.getSnapshot);
@@ -75,6 +77,16 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle }: {
       current.kind === "value" && isEditablePrimitive(current.value) &&
       <PrimitiveVariableEditor name={getLocationName(node.location)} root={path.root}
         location={node.location} value={current.value} />}
+    {onShowHistory && <button type="button" className="shrink-0 cursor-pointer rounded p-1"
+      aria-label={`Show change history for ${getLocationName(node.location)}`} title="Show change history"
+      aria-expanded={historyOpen} aria-controls={historyOpen ? "sugarcube-favorite-history" : undefined}
+      onClick={(event) => {
+        event.stopPropagation();
+        onShowHistory(event.currentTarget);
+      }}
+      onKeyDown={(event) => event.stopPropagation()}>
+      <History size={14} aria-hidden="true" />
+    </button>}
     {path && path.path.length > 0 && <button
       type="button"
       className="shrink-0 cursor-pointer rounded p-1"
