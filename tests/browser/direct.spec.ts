@@ -489,12 +489,13 @@ test("custom drawer retains keyboard resizing and toggle behaviour", async ({ pa
   await handle.press("Enter");
   await expect(handle).toHaveAttribute("aria-expanded", "true");
 
-  const width = await drawer.locator("aside").evaluate((el) =>
-    Number.parseFloat((el as HTMLElement).style.width));
+  const aside = drawer.locator("aside");
+  const readWidth = () => aside.evaluate((element) => element.getBoundingClientRect().width);
+  const width = await readWidth();
   await handle.press("ArrowLeft");
-  await expect(drawer.locator("aside")).toHaveCSS("width", `${width + 24}px`);
+  await expect.poll(readWidth).toBeCloseTo(width + 24, 1);
   await handle.press("ArrowRight");
-  await expect(drawer.locator("aside")).toHaveCSS("width", `${width}px`);
+  await expect.poll(readWidth).toBeCloseTo(width, 1);
 
   await handle.press("Enter");
   await expect(handle).toHaveAttribute("aria-expanded", "false");
