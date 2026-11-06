@@ -1,6 +1,7 @@
 import { Divider, Tabs, Typography } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { hasState, type VariableStoreKey } from "../sugarcube/state";
+import { connectFavoriteStorage } from "../variables/favorites";
 import VariableSearch from "../variables/ui/VariableSearch";
 import VariableTree, { FavoritesTree, type VariableTreeSearch } from "../variables/ui/VariableTree";
 import { variableWatcher } from "../variables/watcher";
@@ -43,6 +44,7 @@ function InspectorSections() {
     variableWatcher.setScopeActive("favorites", true);
     return () => variableWatcher.setScopeActive("favorites", false);
   }, []);
+  useEffect(connectFavoriteStorage, []);
 
   useEffect(() => {
     const passages = document.getElementById("passages");

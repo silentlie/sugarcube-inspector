@@ -50,8 +50,10 @@ It reads live story and temporary variables directly without attaching a debugge
   as expandable references. Boxed primitives are handled explicitly because the
   library's general-purpose type detector rejects them; their values remain inspectable.
 - Starred property and array locations are tracked by root-relative paths, so favourites
-  follow replaced ancestors and retain missing paths. Favourites are in-memory for
-  each page session; Map/Set entry nodes cannot be pinned, but their containing
+  follow replaced ancestors and retain missing paths. The extension remembers
+  string-key paths per story IFID across reloads and new local exports. Symbol-key
+  paths and stories without an IFID use session-only favorites. Map/Set entry
+  nodes cannot be pinned, but their containing
   variables can. An always-active `favorites` scope polls pinned values, while a
   separate `favorites-tree` scope pauses structural and descendant polling off-tab.
 - Mounted virtualized rows update values while their variable scope is selected.
@@ -70,9 +72,9 @@ It reads live story and temporary variables directly without attaching a debugge
 - References retain object identity; ancestor cycles are marked and stop
   recursive discovery. Ordinary property accessors are displayed without
   invoking them; type classification uses the library defaults.
-- Unexpected inspection exceptions propagate unchanged instead of producing
-  placeholder error snapshots or silently empty child lists. Such failures may
-  interrupt the inspector; node-level error isolation is not currently implemented.
+- A favorite that is initially unreadable appears as missing and is retried.
+  Polling read failures keep the last readable snapshot.
+  Other initial inspection failures can interrupt the affected tree.
 - The virtualized Tree limits mounted rows to the viewport, but Ant still indexes
   discovered logical children. Use the pencil beside a writable top-level story
   or temporary variable to edit a string, finite number, or boolean in the live

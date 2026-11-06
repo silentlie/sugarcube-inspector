@@ -42,7 +42,7 @@ function favoriteNodes(previous: readonly VariableNode[] = []): VariableNode[] {
       key: location.id, location, ancestors: [],
       favoritePath: { root: location.root, path: location.path },
     };
-    node.isLeaf = isLeafNode(node);
+    node.isLeaf = isLeafNode(node, favoriteStore.getSubscription(location.id).getSnapshot());
     return node;
   });
 }

@@ -38,8 +38,8 @@ export class VariableWatcher {
     return state;
   }
 
-  watch<T>(read: () => T, equal: (a: T, b: T) => boolean, scope: string): VariableSubscription<T> {
-    let current = read();
+  watch<T>(read: () => T, equal: (a: T, b: T) => boolean, scope: string, initial = read()): VariableSubscription<T> {
+    let current = initial;
     const listeners = new Set<() => void>();
     const observer: ActiveWatch = () => {
       let next: T;

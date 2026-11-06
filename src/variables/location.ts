@@ -38,13 +38,18 @@ export function readLocation(location: VariableLocation): VariableRead {
     case "favorite": {
       let value = getStore(location.root);
       if (value === undefined) return { kind: "missing" };
-      for (const key of location.path) {
-        if (value === null || (typeof value !== "object" && typeof value !== "function")) {
-          return { kind: "missing" };
+      try {
+        for (const key of location.path) {
+          if (value === null || (typeof value !== "object" && typeof value !== "function")) {
+            return { kind: "missing" };
+          }
+          const current = readLocation({ kind: "property", owner: value, key });
+          if (current.kind !== "value") return current;
+          value = current.value;
         }
-        const current = readLocation({ kind: "property", owner: value, key });
-        if (current.kind !== "value") return current;
-        value = current.value;
+      } catch {
+        // A restored pin can be unreadable in a different export of the same story.
+        return { kind: "missing" };
       }
       return { kind: "value", value };
     }

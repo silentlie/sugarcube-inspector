@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { decodeFavoritePaths, getFavoriteStoragePrefix } from "./favoriteStorage";
 import { FavoriteStore, sameFavoritePath } from "./favorites";
 import { formatFavoritePath, readVariable, type FavoriteLocation } from "./location";
 import { VariableWatcher } from "./watcher";
@@ -9,6 +10,19 @@ afterEach(() => {
 });
 
 describe("favorites", () => {
+  it("restores an aggregate larger than a single storage message", () => {
+    const paths = Array.from({ length: 1000 }, (_, index) => ({
+      root: "variables", path: ["player", `equipment-description-for-slot-${index}-in-the-inventory`],
+    }));
+    expect(decodeFavoritePaths(JSON.stringify(paths))).toHaveLength(paths.length);
+  });
+
+  it("uses a valid non-UUID Twine IFID as a story identifier", () => {
+    vi.stubGlobal("document", { querySelector: () => ({ getAttribute: () => "SUGARCUBE-EXAMPLE-2026" }) });
+    vi.stubGlobal("location", { protocol: "file:" });
+    expect(getFavoriteStoragePrefix()).toBe("favorites:file::sugarcube-example-2026:");
+  });
+
   it("follows replaced ancestors and retains missing targets", () => {
     const variables: Record<string, unknown> = { player: { health: 10 } };
     vi.stubGlobal("SugarCube", { State: { variables, temporary: {} } });
@@ -23,6 +37,40 @@ describe("favorites", () => {
     expect(readVariable(location)).toEqual({ kind: "missing" });
     variables.player = { health: 70 };
     expect(readVariable(location)).toMatchObject({ kind: "value", value: 70 });
+  });
+
+  it("retains a favorite whose first read fails and recovers on a later poll", () => {
+    vi.useFakeTimers();
+    let blocked = true;
+    const player = new Proxy({ health: 10 }, {
+      getPrototypeOf(target) {
+        if (blocked) throw new Error("Temporarily unreadable");
+        return Reflect.getPrototypeOf(target);
+      },
+      getOwnPropertyDescriptor(target, key) {
+        if (blocked) throw new Error("Temporarily unreadable");
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      },
+    });
+    vi.stubGlobal("SugarCube", { State: { variables: { player }, temporary: {} } });
+    const watcher = new VariableWatcher(20);
+    const store = new FavoriteStore(watcher);
+    watcher.setScopeActive("favorites", true);
+    const favorite = store.add({ root: "variables", path: ["player", "health"] });
+    const parent = store.add({ root: "variables", path: ["player"] });
+    const subscription = store.getSubscription(favorite.id);
+    expect(subscription.getSnapshot()).toEqual({ kind: "missing" });
+    expect(store.getSubscription(parent.id).getSnapshot()).toEqual({ kind: "missing" });
+
+    blocked = false;
+    vi.advanceTimersByTime(20);
+    expect(subscription.getSnapshot()).toMatchObject({ kind: "value", value: 10 });
+    expect(store.getSubscription(parent.id).getSnapshot()).toMatchObject({ kind: "value" });
+
+    blocked = true;
+    vi.advanceTimersByTime(20);
+    expect(store.getSubscription(parent.id).getSnapshot()).toMatchObject({ kind: "value" });
+    watcher.setScopeActive("favorites", false);
   });
 
   it("does not evaluate intermediate getters and supports symbol paths", () => {

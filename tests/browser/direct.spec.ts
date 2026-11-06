@@ -1,4 +1,8 @@
 import type {} from "twine-sugarcube";
+import { copyFile, mkdtemp, rmdir, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { Locator, Page } from "@playwright/test";
 import { expect, storyUrl, test } from "./fixtures";
 
@@ -158,6 +162,41 @@ test("searches both variable scopes and reveals a result in a collapsed branch",
   const results = drawer.getByRole("list", { name: "Story variables" }).getByRole("button");
   await expect(results).toHaveCount(20);
   await expect(results.first()).toHaveAccessibleName("$capName");
+});
+
+test("restores and removes favorites across exports of the same story", async ({ page }) => {
+  const exportDir = await mkdtemp(join(tmpdir(), "inspector-export-"));
+  const exportFile = join(exportDir, "rebuilt.html");
+  try {
+    await copyFile(fileURLToPath(storyUrl), exportFile);
+    await page.goto(storyUrl);
+    const drawer = await openVariables(page);
+    const rebuilt = await page.context().newPage();
+    await rebuilt.goto(pathToFileURL(exportFile).href);
+    const rebuiltDrawer = await openVariables(rebuilt);
+
+    await expandVariable(drawer, "inventory");
+    await drawer.getByRole("button", { name: "Add 0 to favorites" }).click();
+    await rebuiltDrawer.getByRole("tab", { name: "Temporary Variables" }).click();
+    await rebuiltDrawer.getByRole("button", { name: "Add choice to favorites" }).click();
+    await rebuilt.close();
+
+    await page.goto(pathToFileURL(exportFile).href);
+    await openVariables(page);
+    await drawer.getByRole("tab", { name: "Favorites" }).click();
+    await expect(drawer.getByText("$inventory[0]", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("_choice", { exact: true })).toBeVisible();
+    await drawer.getByRole("button", { name: "Remove _choice from favorites" }).click();
+
+    await page.reload();
+    await openVariables(page);
+    await drawer.getByRole("tab", { name: "Favorites" }).click();
+    await expect(drawer.getByText("$inventory[0]", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("_choice", { exact: true })).toHaveCount(0);
+  } finally {
+    await unlink(exportFile);
+    await rmdir(exportDir);
+  }
 });
 
 test("Tailwind utilities stay inside the inspector ShadowRoot", async ({ page }) => {
