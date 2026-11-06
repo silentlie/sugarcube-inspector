@@ -243,6 +243,16 @@ test("Ant Design Tree View exposes keyboard-controlled expansion", async ({ page
   await tree.press("ArrowLeft");
   await expect(inventory).toHaveAttribute("aria-expanded", "false");
   await expect(drawer.getByRole("treeitem", { name: /^0/ })).toHaveCount(0);
+
+  const expand = inventory.getByRole("button", { name: /^inventory/ });
+  const star = inventory.getByRole("button", { name: /^(Add inventory to|Remove inventory from) favorites$/ });
+  await expect(expand).not.toHaveAccessibleName(/favorites/);
+  await expect(expand.getByRole("button")).toHaveCount(0);
+  await star.press("Enter");
+  await expect(star).toHaveAttribute("aria-pressed", "true");
+  await expect(inventory).toHaveAttribute("aria-expanded", "false");
+  await expand.press("Enter");
+  await expect(inventory).toHaveAttribute("aria-expanded", "true");
 });
 
 test("inspects shared live references and cycles without writes or serialization", async ({ page }) => {
