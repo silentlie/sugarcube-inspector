@@ -6,6 +6,7 @@ import { favoriteStore, sameFavoritePath } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
 import { getLocationName, type VariableLocation } from "../location";
 import type { VariableNode } from "../nodes";
+import { isEditablePrimitive, PrimitiveVariableEditor } from "./PrimitiveVariableEditor";
 import { useVariable } from "./useVariableWatch";
 import { MapKeyPreview, VariableTypePreview, VariableValuePreview } from "./VariableValuePreview";
 
@@ -31,7 +32,7 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle }: {
     if (node.isLeaf !== isLeaf) refresh(node.key);
   }, [isLeaf, node.isLeaf, node.key, refresh]);
 
-  return <span className="flex w-full min-w-0 items-center gap-2">
+  return <div className="flex w-full min-w-0 items-center gap-2">
     <span
       className={`flex min-w-0 flex-1 items-center gap-2 ${isLeaf ? "" : "cursor-pointer"}`}
       role={isLeaf ? undefined : "button"}
@@ -70,6 +71,10 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle }: {
         <VariableValuePreview current={current} />
       </>}
     </span>
+    {path?.path.length === 1 && node.location.kind === "property" &&
+      current.kind === "value" && isEditablePrimitive(current.value) &&
+      <PrimitiveVariableEditor name={getLocationName(node.location)} root={path.root}
+        location={node.location} value={current.value} />}
     {path && path.path.length > 0 && <button
       type="button"
       className="shrink-0 cursor-pointer rounded p-1"
@@ -86,5 +91,5 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle }: {
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         same reference
       </Typography.Text>}
-  </span>;
+  </div>;
 }

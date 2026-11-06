@@ -71,7 +71,9 @@ It reads live story and temporary variables directly without attaching a debugge
   placeholder error snapshots or silently empty child lists. Such failures may
   interrupt the inspector; node-level error isolation is not currently implemented.
 - The virtualized Tree limits mounted rows to the viewport, but Ant still indexes
-  discovered logical children. The inspector is read-only.
+  discovered logical children. Use the pencil beside a writable top-level story
+  or temporary variable to edit a string, finite number, or boolean in the live
+  game. Save preserves the variable's type.
 
 ## Accepted interaction limitations
 

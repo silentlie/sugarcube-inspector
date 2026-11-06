@@ -45,6 +45,57 @@ test("mounts the React inspector in the game's MAIN world", async ({ page }) => 
   await expect(drawer.getByTitle('"north"', { exact: true }).last()).toBeVisible();
 });
 
+test("edits top-level primitive values in the live story and temporary stores", async ({ page }) => {
+  await page.goto(storyUrl);
+  await page.evaluate(() => {
+    SugarCube.State.setVar("$ready", false);
+    SugarCube.State.setVar("$offset", -0);
+    Object.defineProperty(SugarCube.State.variables, "readOnly", { value: 1, enumerable: true });
+  });
+  const drawer = await openVariables(page);
+
+  await expect(drawer.getByRole("button", { name: "Edit inventory" })).toHaveCount(0);
+  await expect(drawer.getByRole("button", { name: "Edit readOnly" })).toHaveCount(0);
+  await drawer.getByRole("button", { name: "Edit score" }).click();
+  const score = drawer.getByRole("textbox", { name: "New value for score" });
+  await score.fill("invalid");
+  await score.press("Enter");
+  await expect(drawer.getByRole("alert")).toContainText("finite number");
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(7);
+  await page.evaluate(() => SugarCube.State.setVar("$score", 10));
+  await score.fill("21.5");
+  await score.press("Enter");
+  await expect(drawer.getByRole("alert")).toContainText("Value changed");
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(10);
+  await score.press("Escape");
+  await expect(drawer.getByTitle("10", { exact: true })).toBeVisible();
+  await drawer.getByRole("button", { name: "Edit score" }).click();
+  await score.fill("21.5");
+  await score.press("Enter");
+  await expect(drawer.getByTitle("21.5", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(21.5);
+
+  await drawer.getByRole("button", { name: "Edit ready" }).click();
+  await drawer.getByRole("combobox", { name: "New value for ready" }).selectOption("true");
+  await drawer.getByRole("button", { name: "Save value" }).click();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$ready"))).toBe(true);
+
+  await drawer.getByRole("button", { name: "Edit offset" }).click();
+  await drawer.getByRole("button", { name: "Save value" }).click();
+  expect(await page.evaluate(() => Object.is(SugarCube.State.getVar("$offset"), -0))).toBe(true);
+
+  await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
+  await drawer.getByRole("button", { name: "Edit choice" }).click();
+  const choice = drawer.getByRole("textbox", { name: "New value for choice" });
+  await choice.fill("discard this");
+  await choice.press("Escape");
+  expect(await page.evaluate(() => SugarCube.State.temporary.choice)).toBe("north");
+  await drawer.getByRole("button", { name: "Edit choice" }).click();
+  await choice.fill("north\nwest");
+  await drawer.getByRole("button", { name: "Save value" }).click();
+  expect(await page.evaluate(() => SugarCube.State.temporary.choice)).toBe("north\nwest");
+});
+
 test("Tailwind utilities stay inside the inspector ShadowRoot", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
