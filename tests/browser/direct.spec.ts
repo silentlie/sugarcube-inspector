@@ -816,6 +816,59 @@ test("opens an exact path inside previously unopened branches", async ({ page })
   await expect(drawer.getByRole("alert")).toContainText("not available");
 });
 
+test("edits full multiline strings in details with cancel, undo and lock support", async ({ page }) => {
+  await page.goto(storyUrl);
+  const original = "first line\n" + "long text ".repeat(40);
+  await page.evaluate((value) => SugarCube.State.setVar("$note", value), original);
+  const drawer = await openVariables(page);
+  await drawer.getByRole("button", { name: "Show full value for note" }).click();
+  const details = drawer.getByRole("region", { name: "Variable details" });
+  const open = details.getByRole("button", { name: "Edit string", exact: true });
+  await open.click();
+  const editor = details.getByRole("textbox", { name: "New value for $note" });
+  await expect(editor).toHaveValue(original);
+  expect(await editor.evaluate((element) => (element as HTMLTextAreaElement).rows)).toBeGreaterThan(1);
+  await editor.fill("discarded");
+  await editor.press("Escape");
+  await expect(open).toBeFocused();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$note"))).toBe(original);
+  await open.click();
+  const next = "saved line one\nsaved line two";
+  await editor.fill(next);
+  await details.getByRole("button", { name: "Save value" }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(open).toBeFocused();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$note"))).toBe(next);
+  await drawer.getByRole("button", { name: "Undo edit", exact: true }).click();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$note"))).toBe(original);
+  await drawer.getByRole("button", { name: "Lock note", exact: true }).click();
+  await open.click();
+  await editor.fill("frozen\ntext");
+  await details.getByRole("button", { name: "Save value" }).click();
+  await page.evaluate(() => SugarCube.State.setVar("$note", "game write"));
+  await expect.poll(() => page.evaluate(() => SugarCube.State.getVar("$note"))).toBe("frozen\ntext");
+});
+
+test("rejects stale full-string drafts and hides editing for read-only strings", async ({ page }) => {
+  await page.goto(storyUrl);
+  await page.evaluate(() => {
+    SugarCube.State.setVar("$note", "original");
+    Object.defineProperty(SugarCube.State.variables, "readOnlyText", { value: "read only", enumerable: true });
+  });
+  const drawer = await openVariables(page);
+  await drawer.getByRole("button", { name: "Show full value for note" }).click();
+  const details = drawer.getByRole("region", { name: "Variable details" });
+  await details.getByRole("button", { name: "Edit string", exact: true }).click();
+  await details.getByRole("textbox", { name: "New value for $note" }).fill("draft");
+  await page.evaluate(() => SugarCube.State.setVar("$note", "game change"));
+  await details.getByRole("button", { name: "Save value" }).click();
+  await expect(details.getByRole("alert")).toContainText("Value changed");
+  expect(await page.evaluate(() => SugarCube.State.getVar("$note"))).toBe("game change");
+  await details.getByRole("button", { name: "Cancel editing" }).click();
+  await drawer.getByRole("button", { name: "Show full value for readOnlyText" }).click();
+  await expect(details.getByRole("button", { name: "Edit string", exact: true })).toHaveCount(0);
+});
+
 test("shows and copies a full primitive value and follows its live path", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto(storyUrl);

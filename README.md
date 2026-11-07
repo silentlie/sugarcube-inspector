@@ -113,6 +113,9 @@ take precedence over a late load response.
   Active locks still prevent ordinary undo/redo from writing their target.
 - Use Show full value beside a string, number, or boolean to read its complete
   live value and copy its path or value. Strings are copied as plain text.
+  Writable strings also offer Edit string: a wide multiline editor with explicit
+  Save/Cancel and Escape to cancel. It reuses ordinary edit conflict/Undo checks
+  and locked-target rules; read-only strings remain viewable and copyable.
   Find in Passages opens source search with that path as literal text; matches
   are references in the exported text, not semantic read/write analysis.
 - Use the lock beside a writable primitive to keep its value for the page

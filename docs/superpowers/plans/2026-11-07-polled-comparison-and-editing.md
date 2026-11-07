@@ -27,9 +27,11 @@ Deliverable 1 evidence: compile/build, full 99-unit run before final lifecycle r
 ## Deliverable 2: Full-size string editor (feature 2)
 
 Files: PrimitiveVariableEditor, VariableDetails, relevant tests/browser, README.
-- [ ] Add a wide multiline editor in details using the same guarded save and locked-target update.
-- [ ] Verify save/cancel/Undo, locked edits, replaced-owner and later-game-write conflicts, read-only values, keyboard/focus behavior.
-- [ ] Independently review/fix/re-review until clear, commit.
+- [x] Add a wide multiline editor in details using the same guarded save and locked-target update.
+- [x] Verify save/cancel/Undo, locked edits, replaced-owner and later-game-write conflicts, read-only values, keyboard/focus behavior.
+- [x] Independently review/fix/re-review until clear, commit.
+
+Deliverable 2 evidence: compile, all 101 unit tests, build, three Chromium details/edit regressions (multiline Save/Cancel/Escape/Undo/locks; later game-write conflict/read-only strings; existing viewer/copy/live path), scoped lint. Independent review clear. Drafts capture owner/path/original/lock identity, use existing save services, and return focus to Edit string or the heading.
 
 ## Deliverable 3: Visible edit history (feature 4)
 
