@@ -531,6 +531,7 @@ test("finds exported passage source by title and tag without running it", async 
   await page.goto(storyUrl);
   await page.evaluate(() => {
     for (const passage of document.querySelectorAll("tw-passagedata")) {
+      passage.prepend("İ".repeat(40));
       passage.append("\nAdditional source line".repeat(200));
     }
   });
@@ -560,6 +561,15 @@ test("finds exported passage source by title and tag without running it", async 
   await expect(options.getByText("Next Passage", { exact: true })).toHaveCount(0);
   await options.locator(".ant-select-item-option-content").getByText("Start", { exact: true }).click();
   await expect(source).toContainText("<<set $score = 7>>");
+
+  await picker.fill("$score = 12");
+  await expect(options.locator(".ant-select-item-option-content")).toContainText("$score = 12");
+  await picker.press("Enter");
+  await expect(source).toContainText("<<set $score = 12>>");
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(7);
+  await picker.fill("$score = 12");
+  await picker.press("Enter");
+  await expect(picker).toHaveValue("");
 });
 
 test("Tailwind utilities stay inside the inspector ShadowRoot", async ({ page }) => {
