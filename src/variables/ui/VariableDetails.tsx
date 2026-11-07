@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, use, useEffect, useRef, useState } from "react";
 import { formatFavoritePath, isEditablePrimitive, type FavoritePath } from "../location";
 import { useVariablePath } from "./useVariableWatch";
 
+export const PassageSearchContext = createContext<((path: FavoritePath) => void) | null>(null);
+
 export default function VariableDetails({ path, close }: { path: FavoritePath; close: () => void }) {
+  const findPassages = use(PassageSearchContext);
   const current = useVariablePath(path);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [status, setStatus] = useState("");
@@ -29,6 +32,8 @@ export default function VariableDetails({ path, close }: { path: FavoritePath; c
       <button type="button" className="cursor-pointer underline" disabled={value === undefined}
         onClick={() => value !== undefined && void copy(value)}>Copy Value</button>
     </div>
+    {findPassages && <button type="button" className="mb-1 cursor-pointer text-xs underline"
+      onClick={() => findPassages(path)}>Find in Passages</button>}
     {value === undefined ? <p>This path no longer holds a supported primitive value.</p>
       : <pre className="text-xs wrap-anywhere whitespace-pre-wrap">{value}</pre>}
     <p role="status" className="text-xs">{status}</p>

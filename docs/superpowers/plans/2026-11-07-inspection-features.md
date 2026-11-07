@@ -29,9 +29,11 @@ Task 1 verified: compile, 3 comparison unit tests, 83-unit suite before symbol f
 ## Task 2: Find passage references
 
 Files: `VariableDetails.tsx`, `VariableTree.tsx`, `DirectInspector.tsx`, `StoryPassages.tsx`, browser regression, README.
-- [ ] Route Find in Passages from details to the existing source picker using the formatted property path and existing focus request.
-- [ ] Verify source-only matches appear without evaluating macros; keep manual searches and source selection working.
-- [ ] Review and commit.
+- [x] Route Find in Passages from details to the existing source picker using the formatted property path and existing focus request.
+- [x] Verify source-only matches appear without evaluating macros; keep manual searches and source selection working.
+- [x] Review and commit.
+
+Task 2 verified: compile/build, existing manual passage-search + new reference-search Chromium regressions, full-value browser regression, scoped lint. Independent review clear. Explicit source-search requests remount the picker and seed its query after Ant mount reset via RAF; ordinary tab switching retains it.
 
 ## Task 3: Edit locked values
 

@@ -101,6 +101,8 @@ It reads live story and temporary variables directly without attaching a debugge
   current value, and active story moment still match the last inspector edit.
 - Use Show full value beside a string, number, or boolean to read its complete
   live value and copy its path or value. Strings are copied as plain text.
+  Find in Passages opens source search with that path as literal text; matches
+  are references in the exported text, not semantic read/write analysis.
 - Use the lock beside a writable primitive to keep its value for the page
   session. The inspector restores changes on its 250 ms poll, including while
   the drawer is closed. Unlock to edit. If the path disappears, becomes

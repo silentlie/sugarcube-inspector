@@ -661,6 +661,22 @@ test("finds exported passage source by title and tag without running it", async 
   await expect(picker).toHaveValue("");
 });
 
+test("finds passage references directly from a variable details panel", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await drawer.getByRole("button", { name: "Show full value for score" }).click();
+  await drawer.getByRole("region", { name: "Variable details" }).getByRole("button", { name: "Find in Passages" }).click();
+  await expect(drawer.getByRole("tab", { name: "Passages", exact: true })).toHaveAttribute("aria-selected", "true");
+  const picker = drawer.getByRole("combobox", { name: "Find passage" });
+  await expect(picker).toHaveValue("$score");
+  await expect(picker).toBeFocused();
+  const options = drawer.locator(".ant-select-dropdown .ant-select-item-option-content");
+  await expect(options.filter({ hasText: "Next Passage" })).toContainText("$score = 12");
+  await options.filter({ hasText: "Next Passage" }).click();
+  await expect(drawer.getByLabel("Passage source")).toContainText("<<set $score = 12>>");
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(7);
+});
+
 test("compares captured primitives and reveals a changed favorite path", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => {

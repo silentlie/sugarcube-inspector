@@ -7,8 +7,9 @@ import VariableSearch from "../variables/ui/VariableSearch";
 import LockedVariables from "../variables/ui/LockedVariables";
 import UndoEdit from "../variables/ui/UndoEdit";
 import VariableComparison from "../variables/ui/VariableComparison";
+import { PassageSearchContext } from "../variables/ui/VariableDetails";
+import { formatFavoritePath, type FavoritePath } from "../variables/location";
 import { variableEdits } from "../variables/edits";
-import type { FavoritePath } from "../variables/location";
 import VariableTree, { FavoritesTree, type VariableTreeSearch } from "../variables/ui/VariableTree";
 import { variableWatcher } from "../variables/watcher";
 import StoryOverview from "./StoryOverview";
@@ -46,6 +47,7 @@ function InspectorSections() {
   const [scope, setScope] = useState<VariableScope>("variables");
   const [selectedPassage, setSelectedPassage] = useState<string>();
   const [sourceFocusRequest, setSourceFocusRequest] = useState(0);
+  const [sourceSearch, setSourceSearch] = useState("");
   const activeScope = section === "variables" ? scope : null;
   const variablesRef = useRef<VariableTreeSearch>(null);
   const temporaryRef = useRef<VariableTreeSearch>(null);
@@ -65,7 +67,12 @@ function InspectorSections() {
     return true;
   };
 
-  const variables = <>
+  const variables = <PassageSearchContext value={(path) => {
+    setSelectedPassage(undefined);
+    setSourceSearch(formatFavoritePath(path));
+    setSourceFocusRequest((count) => count + 1);
+    setSection("passages");
+  }}>
     <UndoEdit />
     <VariableSearch find={(query) => [
       ...(variablesRef.current?.find(query) ?? []),
@@ -86,7 +93,7 @@ function InspectorSections() {
         { key: "compare", label: "Compare", children: <VariableComparison reveal={reveal} /> },
       ]}
     />
-  </>;
+  </PassageSearchContext>;
 
   return (
     <section data-tailwind-layout className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -109,12 +116,13 @@ function InspectorSections() {
         items={[
           { key: "overview", label: "Overview", children: <StoryOverview openSource={(name) => {
             setSelectedPassage(name);
+            setSourceSearch("");
             setSourceFocusRequest((count) => count + 1);
             setSection("passages");
           }} /> },
           { key: "variables", label: "Variables", children: variables },
-          { key: "passages", label: "Passages", children: <StoryPassages selected={selectedPassage}
-            onSelect={setSelectedPassage} focusRequest={sourceFocusRequest} /> },
+          { key: "passages", label: "Passages", children: <StoryPassages key={sourceFocusRequest} selected={selectedPassage}
+            onSelect={setSelectedPassage} focusRequest={sourceFocusRequest} initialQuery={sourceSearch} /> },
         ]}
       />
     </section>

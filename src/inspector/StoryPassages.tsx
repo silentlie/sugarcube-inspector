@@ -16,23 +16,30 @@ function readPassages(): PassageOption[] {
     });
 }
 
-export default function StoryPassages({ selected, onSelect, focusRequest }: {
+export default function StoryPassages({ selected, onSelect, focusRequest, initialQuery = "" }: {
   selected?: string;
   onSelect: (name: string) => void;
   focusRequest: number;
+  initialQuery?: string;
 }) {
   const [passages] = useState(readPassages);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const pickerRef = useRef<ComponentRef<typeof Select>>(null);
   const passage = passages.find(({ value }) => value === selected);
 
   useEffect(() => {
-    if (focusRequest > 0) pickerRef.current?.focus();
-  }, [focusRequest]);
+    if (focusRequest <= 0) return;
+    // Ant resets search during mount; seed the requested query after tab layout.
+    const frame = requestAnimationFrame(() => {
+      setQuery(initialQuery);
+      pickerRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusRequest, initialQuery]);
 
   return <section aria-label="Passage browser" className="flex min-h-0 flex-1 flex-col gap-2 px-1 py-2">
     <Select<string, PassageOption> ref={pickerRef} aria-label="Find passage" className="w-full min-w-0"
-      placeholder="Search passage titles, tags, or source" value={selected} options={passages}
+      defaultOpen={Boolean(initialQuery)} placeholder="Search passage titles, tags, or source" value={selected} options={passages}
       onChange={onSelect} onSelect={() => setQuery("")} onBlur={() => setQuery("")}
       getPopupContainer={(trigger) => trigger.closest("aside") ?? trigger}
       showSearch={{ searchValue: query, onSearch: setQuery, filterOption: (input, option) => {
