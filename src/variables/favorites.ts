@@ -1,5 +1,6 @@
 import type { SaveObject } from "twine-sugarcube";
 import { getState } from "../sugarcube/state";
+import { polledChanges } from "./comparison";
 import { readVariable, sameVariable, type FavoriteLocation, type FavoritePath, type VariableSnapshot } from "./location";
 import { variableWatcher, type VariableSubscription, type VariableWatcher } from "./watcher";
 import { decodeFavoritePaths, decodeFavoriteUpdate, favoriteStorageEvents as events, getFavoriteStoragePrefix, inspectorSettingsKey } from "./favoriteStorage";
@@ -60,8 +61,13 @@ export class FavoriteStore {
       // A saved pin may point to a value the current export cannot preview.
       initial = { kind: "missing" };
     }
+    let sampled = initial;
     const subscription = this.watcher.watch(
-      () => readVariable(location), sameVariable, "favorites", initial,
+      () => readVariable(location), sameVariable, "favorites", initial, (next, batch) => {
+        const before = sampled;
+        sampled = next;
+        polledChanges.observeValue(path, before, next, batch);
+      },
     );
     const changes: FavoriteChange[] = [];
     let previous = changePreview(initial);

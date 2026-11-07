@@ -753,7 +753,7 @@ test("remembers drawer preferences in extension storage across story reloads", a
     .toEqual({ version: 1, favorites: [] });
 });
 
-test("compares captured primitives and reveals a changed favorite path", async ({ page }) => {
+test("automatically compares polled variables and expanded nested paths", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => {
     SugarCube.State.setVar("$player", { health: 10 });
@@ -761,10 +761,13 @@ test("compares captured primitives and reveals a changed favorite path", async (
   });
   const drawer = await openVariables(page);
   await expandVariable(drawer, "player");
-  await drawer.getByRole("button", { name: "Add health to favorites" }).click();
+  await drawer.getByRole("button", { name: "Add score to favorites" }).click();
+  await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
+  await drawer.getByRole("button", { name: "Add choice to favorites" }).click();
+  await drawer.getByRole("tab", { name: "Story Variables", exact: true }).click();
   await drawer.getByRole("tab", { name: "Compare", exact: true }).click();
   const comparison = drawer.getByRole("region", { name: "Variable comparison" });
-  await comparison.getByRole("button", { name: "Capture Baseline" }).click();
+  await expect(comparison.getByRole("button", { name: "Capture Baseline" })).toHaveCount(0);
   await page.evaluate(() => {
     SugarCube.State.setVar("$player", { health: 20 });
     SugarCube.State.setVar("$score", 15);
@@ -772,9 +775,9 @@ test("compares captured primitives and reveals a changed favorite path", async (
     Reflect.deleteProperty(SugarCube.State.variables, "removed");
     SugarCube.State.setVar("_choice", "south");
   });
-  await comparison.getByRole("button", { name: "Show Changes" }).click();
   const changes = comparison.getByRole("list", { name: "Variable changes" });
   await expect(changes).toContainText("$score · changed");
+  await expect(changes.getByRole("listitem").filter({ hasText: "$score · changed" })).toHaveCount(1);
   await expect(changes).toContainText("$removed · removed");
   await expect(changes).toContainText("$added · added");
   await expect(changes).toContainText("_choice · changed");
@@ -782,9 +785,22 @@ test("compares captured primitives and reveals a changed favorite path", async (
   const health = changes.getByRole("listitem").filter({ hasText: "$player.health · changed" });
   await expect(health).toContainText("Before: 10");
   await expect(health).toContainText("After: 20");
+  await page.evaluate(() => SugarCube.State.setVar("$score", 16));
+  await expect(changes.getByRole("listitem").filter({ hasText: "$score · changed" }).first()).toContainText("After: 16");
   await health.getByRole("button", { name: "Reveal $player.health" }).click();
   await expect(drawer.getByRole("tab", { name: "Story Variables", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(drawer.getByText("health", { exact: true })).toBeVisible();
+  await drawer.getByRole("treeitem", { name: /^player/ }).locator(".ant-tree-switcher").click();
+  await expect(drawer.getByText("health", { exact: true })).toHaveCount(0);
+  await page.evaluate(() => SugarCube.State.setVar("$player.health", 77));
+  await expandVariable(drawer, "player");
+  await expect(drawer.getByTitle("77", { exact: true })).toBeVisible();
+  await page.evaluate(() => SugarCube.State.setVar("$player.health", 20));
+  await drawer.getByRole("tab", { name: "Compare", exact: true }).click();
+  await expect(health.first()).toContainText("Before: 77");
+  await expect(health.first()).toContainText("After: 20");
+  await comparison.getByRole("button", { name: "Clear Changes" }).click();
+  await expect(comparison.getByText("No changes observed yet.", { exact: true })).toBeVisible();
 });
 
 test("opens an exact path inside previously unopened branches", async ({ page }) => {

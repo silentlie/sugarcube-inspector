@@ -1,34 +1,20 @@
-import { useState } from "react";
-import { captureVariableBaseline, compareVariables, comparisonValue, type VariableBaseline, type VariableChange } from "../comparison";
-import { favoriteStore } from "../favorites";
+import { useState, useSyncExternalStore } from "react";
+import { comparisonValue, polledChanges } from "../comparison";
 import { formatFavoritePath, type FavoritePath } from "../location";
 
 export default function VariableComparison({ reveal }: { reveal: (path: FavoritePath) => boolean }) {
-  const [baseline, setBaseline] = useState<VariableBaseline>();
-  const [changes, setChanges] = useState<VariableChange[]>();
+  const changes = useSyncExternalStore(polledChanges.subscribe, polledChanges.getSnapshot);
   const [error, setError] = useState("");
   return <section aria-label="Variable comparison" className="min-h-0 flex-1 overflow-auto px-2 py-1">
-    <p className="mb-2 text-xs">Compare top-level primitives in both scopes and favorite paths selected at capture. The baseline lasts for this page session.</p>
-    <div className="mb-2 flex gap-2">
-      <button type="button" className="cursor-pointer rounded border border-current px-2 py-1" onClick={() => {
-        try {
-          setBaseline(captureVariableBaseline(favoriteStore.getSnapshot().map(({ location }) => location)));
-          setChanges(undefined);
-          setError("");
-        } catch { setError("Could not capture variable values."); }
-      }}>Capture Baseline</button>
-      <button type="button" disabled={!baseline}
-        className="cursor-pointer rounded border border-current px-2 py-1 disabled:opacity-50" onClick={() => {
-          if (!baseline) return;
-          try { setChanges(compareVariables(baseline)); setError(""); }
-          catch { setError("Could not compare variable values."); }
-        }}>Show Changes</button>
-    </div>
+    <p className="mb-2 text-xs">Changes are compared automatically as variables are polled. The last selected variable scope stays active here; favorites keep polling independently. The latest 100 changes last for this page session.</p>
+    <button type="button" className="mb-2 cursor-pointer rounded border border-current px-2 py-1"
+      disabled={!changes.length} onClick={() => { polledChanges.clear(); setError(""); }}>Clear Changes</button>
     {error && <p role="alert">{error}</p>}
-    <p role="status">{changes ? `${changes.length} changed variables.` : baseline ? "Baseline captured." : "Capture a baseline before playing or editing."}</p>
-    {changes && changes.length > 0 && <ul aria-label="Variable changes">
-      {changes.map(({ id, path, kind, before, after }) => <li key={id} className="border-b border-current py-2 text-xs wrap-anywhere">
+    <p role="status">{changes.length ? `${changes.length} observed changes.` : "No changes observed yet."}</p>
+    {changes.length > 0 && <ul aria-label="Variable changes">
+      {changes.map(({ id, path, kind, before, after, turn, passage }) => <li key={id} className="border-b border-current py-2 text-xs wrap-anywhere">
         <p className="font-semibold">{formatFavoritePath(path)} · {kind}</p>
+        <p>Turn {turn} · {passage}</p>
         <p>Before: <code>{comparisonValue(before)}</code></p>
         <p>After: <code>{comparisonValue(after)}</code></p>
         <button type="button" className="cursor-pointer underline" onClick={() => {

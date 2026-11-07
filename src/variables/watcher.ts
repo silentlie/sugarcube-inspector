@@ -12,6 +12,7 @@ export class VariableWatcher {
   private readonly before = new Set<ActiveWatch>();
   private readonly scopes = new Map<string, WatchScope>();
   private timer: ReturnType<typeof setInterval> | undefined;
+  private sampleBatch: object | undefined;
 
   constructor(private readonly intervalMs = 250) {}
 
@@ -39,7 +40,7 @@ export class VariableWatcher {
     return state;
   }
 
-  watch<T>(read: () => T, equal: (a: T, b: T) => boolean, scope: string, initial = read()): VariableSubscription<T> {
+  watch<T>(read: () => T, equal: (a: T, b: T) => boolean, scope: string, initial = read(), onSample?: (snapshot: T, batch: object) => void): VariableSubscription<T> {
     let current = initial;
     const listeners = new Set<() => void>();
     const observer: ActiveWatch = () => {
@@ -50,6 +51,7 @@ export class VariableWatcher {
         // Keep the last readable snapshot and retry without interrupting other watches.
         return;
       }
+      try { onSample?.(next, this.sampleBatch ?? {}); } catch { /* A sample observer must not interrupt other watches. */ }
       if (equal(current, next)) return;
       current = next;
       for (const listener of [...listeners]) listener();
@@ -78,8 +80,11 @@ export class VariableWatcher {
   }
 
   refresh(): void {
-    for (const action of [...this.before]) action();
-    for (const watcher of [...this.active]) watcher();
+    this.sampleBatch = {};
+    try {
+      for (const action of [...this.before]) action();
+      for (const watcher of [...this.active]) watcher();
+    } finally { this.sampleBatch = undefined; }
   }
 
   beforeRefresh(action: ActiveWatch): () => void {

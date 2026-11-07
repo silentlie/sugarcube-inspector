@@ -2,7 +2,7 @@ import { Tree, type TreeDataNode } from "antd";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { type ComponentRef, type Key, type Ref, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type VariableStoreKey } from "../../sugarcube/state";
-import { formatFavoritePath, readLocation, type FavoritePath, type VariableLocation } from "../location";
+import { formatFavoritePath, readLocation, readPropertyPath, type FavoritePath, type VariableLocation } from "../location";
 import { favoriteStore } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
 import { variableWatcher } from "../watcher";
@@ -10,16 +10,18 @@ import { readStructure, sameStructure } from "../structure";
 import { findVariablePaths, revealVariablePath } from "../search";
 import { VariableNodeContent } from "./VariableNodeContent";
 import FavoriteHistory from "./FavoriteHistory";
+import { captureChildren, polledChanges } from "../comparison";
 import VariableDetails from "./VariableDetails";
 import { VariableScopeContext } from "./useVariableWatch";
 import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "../nodes";
 
 /** Snapshot both the current owner identity and its direct child structure. */
 function readExpanded(node: VariableNode) {
-  const current = readLocation(node.location);
+  const current = node.favoritePath ? readPropertyPath(node.favoritePath) : readLocation(node.location);
   const value = current.kind === "value" ? current.value : undefined;
   return {
     value,
+    samples: node.favoritePath ? captureChildren(node.favoritePath, value) : [],
     // Map entry children are synthetic key/value slots, not properties of its value.
     structure: node.location.kind === "map" && node.location.part === undefined
       ? [] : readStructure(value),
@@ -151,8 +153,14 @@ function RichVariableTree({ storeKey, active, searchRef }: {
     }
     for (const [id, node] of live) {
       if (watches.has(id)) continue;
+      const initial = readExpanded(node);
+      let previous = initial.samples;
       const subscription = variableWatcher.watch(
-        () => readExpanded(node), sameExpanded, watchScope,
+        () => readExpanded(node), sameExpanded, watchScope, initial, (sample, batch) => {
+          const before = previous;
+          previous = sample.samples;
+          polledChanges.observe(before, previous, batch);
+        },
       );
       watches.set(id, {
         location: node.location,

@@ -10,6 +10,7 @@ import VariableComparison from "../variables/ui/VariableComparison";
 import { PassageSearchContext } from "../variables/ui/VariableDetails";
 import { formatFavoritePath, type FavoritePath } from "../variables/location";
 import { variableEdits } from "../variables/edits";
+import { polledChanges } from "../variables/comparison";
 import VariableTree, { FavoritesTree, type VariableTreeSearch } from "../variables/ui/VariableTree";
 import { variableWatcher } from "../variables/watcher";
 import StoryOverview from "./StoryOverview";
@@ -48,7 +49,8 @@ function InspectorSections() {
   const [selectedPassage, setSelectedPassage] = useState<string>();
   const [sourceFocusRequest, setSourceFocusRequest] = useState(0);
   const [sourceSearch, setSourceSearch] = useState("");
-  const activeScope = section === "variables" ? scope : null;
+  const [lastTreeScope, setLastTreeScope] = useState<VariableStoreKey | "favorites">("variables");
+  const activeScope = section === "variables" ? scope === "compare" ? lastTreeScope : scope : null;
   const variablesRef = useRef<VariableTreeSearch>(null);
   const temporaryRef = useRef<VariableTreeSearch>(null);
 
@@ -59,11 +61,13 @@ function InspectorSections() {
   useEffect(connectFavoriteStorage, []);
   useEffect(() => variableLocks.clear, []);
   useEffect(() => variableEdits.clear, []);
+  useEffect(() => polledChanges.clear, []);
 
   const reveal = ({ root, path }: FavoritePath) => {
     const tree = root === "variables" ? variablesRef.current : temporaryRef.current;
     if (!tree?.reveal(path)) return false;
     setScope(root);
+    setLastTreeScope(root);
     return true;
   };
 
@@ -84,7 +88,10 @@ function InspectorSections() {
       className="inspector-tabs flex min-h-0 flex-1 flex-col"
       destroyOnHidden={false}
       animated={false}
-      onChange={(key) => setScope(key as VariableScope)}
+      onChange={(key) => {
+        setScope(key as VariableScope);
+        if (key === "variables" || key === "temporary" || key === "favorites") setLastTreeScope(key);
+      }}
       items={[
         { key: "variables", label: "Story Variables", forceRender: true, children: <VariableTree storeKey="variables" active={activeScope === "variables"} searchRef={variablesRef} /> },
         { key: "temporary", label: "Temporary Variables", forceRender: true, children: <VariableTree storeKey="temporary" active={activeScope === "temporary"} searchRef={temporaryRef} /> },
