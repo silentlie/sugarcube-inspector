@@ -38,7 +38,13 @@ It reads live story and temporary variables directly without attaching a debugge
   virtual-scrollbar overlays away from value previews.
 - Tailwind classes provide static drawer/layout styling; inline styles remain for live width, open/closed transform and Ant Design theme tokens.
 - The drawer uses CSS `min-width: min-content` so its minimum automatically follows content changes. Pointer and keyboard resizing cap the requested width to the viewport in hover mode or to the viewport minus the 32px tab in click mode, but CSS's intrinsic minimum takes precedence when content is wider than the viewport; in that case the drawer may extend beyond the left edge.
-- The drawer starts in hover mode, revealing itself when entered and closing after a short leave delay. Its top-right icon switches to click-to-toggle mode: a protruding edge tab then opens or closes the drawer, without mouse-leave closing it. The tab appears only in click mode and can be dragged vertically or moved with Up/Down arrow keys. The tab stays outside the drawer at all normal widths; only a content-driven overflow shifts the open tab onscreen. The closed tab always protrudes from the right edge. Its vertical position stays within the viewport and survives drawer toggles and mode switches until the page reloads. If the viewport becomes shorter, CSS keeps the tab visible; arrow-key movement clamps the saved position to the current viewport, while dragging starts from the visible position. Switching back restores hover behavior.
+- Without saved preferences, the drawer starts in hover mode, revealing itself when entered and closing after a short leave delay. Its top-right icon switches to click-to-toggle mode: a protruding edge tab then opens or closes the drawer, without mouse-leave closing it. The tab appears only in click mode and can be dragged vertically or moved with Up/Down arrow keys. The tab stays outside the drawer at all normal widths; only a content-driven overflow shifts the open tab onscreen. The closed tab always protrudes from the right edge. Its vertical position stays within the viewport and is remembered across drawer toggles, mode switches, and page reloads. If the viewport becomes shorter, CSS keeps the tab visible; arrow-key movement clamps the saved position to the current viewport, while dragging starts from the visible position. Switching back restores hover behavior.
+
+Drawer width, hover/click mode, and edge-tab position are remembered in one
+extension-wide `browser.storage.local` entry (`drawerPreferences`), shared by
+stories and independent of story saves. Open/closed state is not persisted.
+Loaded geometry is clamped to the current viewport, and active local adjustments
+take precedence over a late load response.
 
 ## Behavior
 

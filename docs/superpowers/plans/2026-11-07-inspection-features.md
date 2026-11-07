@@ -48,10 +48,12 @@ Task 3 verified: compile/build, 4 lock unit tests (stale values/owners, read-onl
 ## Task 4: Persist drawer preferences in extension storage
 
 Files: new drawer preference message/validation module, existing isolated content bridge, `Drawer.tsx`, relevant tests/browser, README.
-- [ ] Read/write one extension-wide preferences object. Validate bridge payloads; throttle writes by committing final drag/resize positions rather than every movement.
-- [ ] Apply asynchronously loaded settings without overriding newer local interaction. Clamp geometry to the viewport using existing drawer rules.
-- [ ] Test mode/width/tab-position reload persistence, invalid data fallback, hosted activation, and separation from story settings.
-- [ ] Review and commit.
+- [x] Read/write one extension-wide preferences object. Validate bridge payloads; throttle writes by committing final drag/resize positions rather than every movement.
+- [x] Apply asynchronously loaded settings without overriding newer local interaction. Clamp geometry to the viewport using existing drawer rules.
+- [x] Test mode/width/tab-position reload persistence, invalid data fallback, hosted activation, and separation from story settings.
+- [x] Review and commit.
+
+Task 4 verified: compile/build, full unit suite (91 before final drag coverage), 16 focused drawer/validation tests, hosted activation + storage reload Chromium checks, full lint (8 existing ordering warnings). Independent review found contradictory old reload documentation; corrected. Preferences use one extension-wide local-storage entry; open state remains transient. Pointer moves defer writes until completion, keyboard changes debounce 200ms.
 
 ## Task 5: Bounded edit history with back/forward controls
 

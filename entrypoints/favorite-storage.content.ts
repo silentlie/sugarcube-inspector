@@ -1,4 +1,5 @@
 import { browser } from "wxt/browser";
+import { decodeDrawerPreferences, drawerPreferenceEvents as drawerEvents, drawerPreferencesKey } from "@/src/inspector/drawerPreferences";
 import { decodeFavoriteUpdate, favoriteStorageEvents as events, favoriteSyncMessage, getFavoriteStoragePrefix, getStoryIFID } from "@/src/variables/favoriteStorage";
 
 export default defineContentScript({
@@ -7,6 +8,20 @@ export default defineContentScript({
   runAt: "document_idle",
 
   main(ctx) {
+    if (!document.querySelector('tw-storydata[format="SugarCube"]')) return;
+    document.addEventListener(drawerEvents.load, () => {
+      void browser.storage.local.get(drawerPreferencesKey).then((stored) => {
+        document.dispatchEvent(new CustomEvent(drawerEvents.loaded, { detail: JSON.stringify(stored[drawerPreferencesKey]) }));
+      }).catch(() => console.warn("SugarCube Inspector could not load drawer preferences."));
+    }, { signal: ctx.signal });
+    let saving = Promise.resolve();
+    document.addEventListener(drawerEvents.save, (event) => {
+      const preferences = decodeDrawerPreferences((event as CustomEvent<unknown>).detail);
+      if (!preferences) return;
+      saving = saving.then(() => browser.storage.local.set({ [drawerPreferencesKey]: preferences }))
+        .catch(() => console.warn("SugarCube Inspector could not save drawer preferences."));
+    }, { signal: ctx.signal });
+    document.dispatchEvent(new Event(drawerEvents.ready));
     const prefix = getFavoriteStoragePrefix();
     if (!prefix) return;
 

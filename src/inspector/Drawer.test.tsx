@@ -3,6 +3,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Drawer from "./Drawer";
+import { drawerPreferenceEvents } from "./drawerPreferences";
 
 beforeEach(() => vi.useFakeTimers());
 
@@ -24,6 +25,61 @@ function renderDrawer(initialWidth = 380) {
 }
 
 describe("drawer interaction modes", () => {
+  it("saves the final resize without writing during the drag", () => {
+    renderDrawer();
+    const handle = screen.getByRole("button", { name: "Resize SugarCube Inspector" });
+    Object.defineProperties(handle, {
+      setPointerCapture: { configurable: true, value: vi.fn() },
+      hasPointerCapture: { configurable: true, value: () => true },
+      releasePointerCapture: { configurable: true, value: vi.fn() },
+    });
+    const saved = vi.fn();
+    document.addEventListener(drawerPreferenceEvents.save, saved);
+    fireEvent.pointerDown(handle, { pointerId: 5, button: 0, clientX: 400 });
+    fireEvent.pointerMove(handle, { pointerId: 5, clientX: 350 });
+    act(() => vi.advanceTimersByTime(500));
+    expect(saved).not.toHaveBeenCalled();
+    fireEvent.pointerUp(handle, { pointerId: 5 });
+    act(() => vi.advanceTimersByTime(200));
+    expect(saved).toHaveBeenCalledTimes(1);
+    expect(JSON.parse((saved.mock.calls[0]![0] as CustomEvent<string>).detail).width).toBe(430);
+    document.removeEventListener(drawerPreferenceEvents.save, saved);
+  });
+
+  it("restores validated geometry within the viewport without restoring open state", () => {
+    const drawer = renderDrawer();
+    act(() => document.dispatchEvent(new CustomEvent(drawerPreferenceEvents.loaded, {
+      detail: JSON.stringify({ mode: "click", width: 10000, tabTop: 10000 }),
+    })));
+    expect(drawer.style.width).toBe(`${Math.max(0, window.innerWidth - 32)}px`);
+    expect(drawer.style.transform).toBe("translateX(100%)");
+    const saved = vi.fn();
+    document.addEventListener(drawerPreferenceEvents.save, saved);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Open SugarCube Inspector" }), { key: "ArrowUp" });
+    act(() => vi.advanceTimersByTime(200));
+    expect(JSON.parse((saved.mock.calls[0]![0] as CustomEvent<string>).detail).tabTop)
+      .toBe(Math.max(0, window.innerHeight - 40 - 24));
+    document.removeEventListener(drawerPreferenceEvents.save, saved);
+  });
+
+  it("keeps newer local adjustments when saved settings arrive late", () => {
+    const drawer = renderDrawer();
+    const handle = screen.getByRole("button", { name: "Resize SugarCube Inspector" });
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    const width = drawer.style.width;
+    act(() => document.dispatchEvent(new CustomEvent(drawerPreferenceEvents.loaded, {
+      detail: JSON.stringify({ mode: "click", width: 700, tabTop: 120 }),
+    })));
+    expect(drawer.style.width).toBe(width);
+    expect(screen.queryByRole("button", { name: "Close SugarCube Inspector" })).toBeNull();
+    const saved = vi.fn();
+    document.addEventListener(drawerPreferenceEvents.save, saved);
+    act(() => vi.advanceTimersByTime(200));
+    expect(saved).toHaveBeenCalledTimes(1);
+    expect(JSON.parse((saved.mock.calls[0]![0] as CustomEvent<string>).detail)).toMatchObject({ mode: "hover", width: 404 });
+    document.removeEventListener(drawerPreferenceEvents.save, saved);
+  });
+
   it("opens on hover and closes after the existing delay by default", () => {
     const drawer = renderDrawer();
     expect(drawer.style.transform).toBe("translateX(calc(100% - 8px))");

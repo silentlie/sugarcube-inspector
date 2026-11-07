@@ -700,6 +700,30 @@ test("finds passage references directly from a variable details panel", async ({
   expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(7);
 });
 
+test("remembers drawer preferences in extension storage across story reloads", async ({ page, context }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  const handle = drawer.getByRole("button", { name: "Resize SugarCube Inspector" });
+  await handle.press("ArrowLeft");
+  const edge = drawer.getByRole("button", { name: "Close SugarCube Inspector", exact: true });
+  await edge.press("ArrowDown");
+  const width = await drawer.locator("aside").evaluate((element) => element.getBoundingClientRect().width);
+  const top = await edge.evaluate((element) => element.getBoundingClientRect().top);
+  const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
+  await expect.poll(() => worker.evaluate("chrome.storage.local.get(\"drawerPreferences\")")).toEqual({
+    drawerPreferences: { mode: "click", width: expect.closeTo(width, 0), tabTop: top },
+  });
+  await page.reload();
+  const open = drawer.getByRole("button", { name: "Open SugarCube Inspector", exact: true });
+  await expect(open).toBeVisible();
+  await expect.poll(() => open.evaluate((element) => element.getBoundingClientRect().top)).toBe(top);
+  await open.click();
+  await expect(drawer.getByRole("button", { name: "Switch to hover mode", exact: true })).toBeVisible();
+  await expect.poll(() => drawer.locator("aside").evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(width, 0);
+  await expect.poll(() => page.evaluate(() => SugarCube.State.getVar("$__sugarcubeInspector")))
+    .toEqual({ version: 1, favorites: [] });
+});
+
 test("compares captured primitives and reveals a changed favorite path", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => {

@@ -1,6 +1,7 @@
 import { theme } from "antd";
 import { ChevronLeft, ChevronRight, MousePointer2, Pin } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { decodeDrawerPreferences, drawerPreferenceEvents as preferenceEvents } from "./drawerPreferences";
 
 interface DrawerProps {
   initialWidth: number;
@@ -36,6 +37,8 @@ export default function Drawer({ initialWidth, initiallyOpen = false, children }
   const [width, setWidth] = useState(initialWidth);
   const drawerRef = useRef<HTMLElement>(null);
   const [tabTop, setTabTop] = useState(TAB_START_TOP);
+  const preferencesChangedRef = useRef(false);
+  const [dragging, setDragging] = useState(false);
   const tabDragRef = useRef<{ pointerId: number; startY: number; startTop: number; moved: boolean } | null>(null);
   const suppressTabClickRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
@@ -65,12 +68,15 @@ export default function Drawer({ initialWidth, initiallyOpen = false, children }
   }
 
   function switchMode() {
+    preferencesChangedRef.current = true;
     cancelClose();
     setMode((current) => current === "hover" ? "click" : "hover");
   }
 
   function handleTabPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
     if (event.button !== 0) return;
+    preferencesChangedRef.current = true;
+    setDragging(true);
     suppressTabClickRef.current = false;
     tabDragRef.current = {
       pointerId: event.pointerId,
@@ -95,6 +101,7 @@ export default function Drawer({ initialWidth, initiallyOpen = false, children }
     if (!drag || drag.pointerId !== event.pointerId) return;
     suppressTabClickRef.current = drag.moved && event.type === "pointerup";
     tabDragRef.current = null;
+    setDragging(false);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -111,6 +118,7 @@ export default function Drawer({ initialWidth, initiallyOpen = false, children }
   function handleTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
     suppressTabClickRef.current = false;
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    preferencesChangedRef.current = true;
     event.preventDefault();
     setTabTop((current) => clampTabTop(
       current + (event.key === "ArrowDown" ? TAB_KEYBOARD_STEP : -TAB_KEYBOARD_STEP),
@@ -119,6 +127,8 @@ export default function Drawer({ initialWidth, initiallyOpen = false, children }
 
   function handleResizeStart(event: React.PointerEvent<HTMLButtonElement>) {
     if (event.button !== 0) return;
+    preferencesChangedRef.current = true;
+    setDragging(true);
     event.preventDefault();
     cancelClose();
     setOpen(true);
@@ -140,6 +150,7 @@ export default function Drawer({ initialWidth, initiallyOpen = false, children }
   function handleResizeEnd(event: React.PointerEvent<HTMLButtonElement>) {
     if (resizePointerIdRef.current !== event.pointerId) return;
     resizePointerIdRef.current = null;
+    setDragging(false);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -152,6 +163,7 @@ export default function Drawer({ initialWidth, initiallyOpen = false, children }
       return;
     }
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    preferencesChangedRef.current = true;
     event.preventDefault();
     setOpen(true);
     const delta = event.key === "ArrowLeft" ? 24 : -24;
@@ -161,6 +173,36 @@ export default function Drawer({ initialWidth, initiallyOpen = false, children }
   }
 
   useEffect(() => () => cancelClose(), []);
+
+  useEffect(() => {
+    let loaded = false;
+    const request = () => { if (!loaded) document.dispatchEvent(new Event(preferenceEvents.load)); };
+    const restore = (event: Event) => {
+      const preferences = decodeDrawerPreferences((event as CustomEvent<unknown>).detail);
+      if (!preferences) return;
+      loaded = true;
+      if (preferencesChangedRef.current) return;
+      cancelClose();
+      setMode(preferences.mode);
+      setWidth(clampWidth(preferences.width, preferences.mode));
+      setTabTop(clampTabTop(preferences.tabTop));
+    };
+    document.addEventListener(preferenceEvents.ready, request);
+    document.addEventListener(preferenceEvents.loaded, restore);
+    request();
+    return () => {
+      document.removeEventListener(preferenceEvents.ready, request);
+      document.removeEventListener(preferenceEvents.loaded, restore);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!preferencesChangedRef.current || dragging) return;
+    const timer = window.setTimeout(() => document.dispatchEvent(new CustomEvent(preferenceEvents.save, {
+      detail: JSON.stringify({ mode, width, tabTop }),
+    })), 200);
+    return () => window.clearTimeout(timer);
+  }, [mode, width, tabTop, dragging]);
 
   return (
     <aside ref={drawerRef} className="fixed top-0 right-0 h-screen transition-transform duration-150"
@@ -185,7 +227,7 @@ export default function Drawer({ initialWidth, initiallyOpen = false, children }
           onPointerMove={handleTabPointerMove}
           onPointerUp={handleTabPointerEnd}
           onPointerCancel={handleTabPointerEnd}
-          onLostPointerCapture={() => { tabDragRef.current = null; }}
+          onLostPointerCapture={() => { tabDragRef.current = null; setDragging(false); }}
           onKeyDown={handleTabKeyDown}
           style={{
             // Fixed pixel dimensions match the viewport clamp, regardless of host rem sizing.
@@ -217,7 +259,7 @@ export default function Drawer({ initialWidth, initiallyOpen = false, children }
         aria-expanded={open} inert={!open && mode === "click"} onPointerDown={handleResizeStart}
         onPointerMove={handleResize} onPointerUp={handleResizeEnd}
         onPointerCancel={handleResizeEnd}
-        onLostPointerCapture={() => { resizePointerIdRef.current = null; }}
+        onLostPointerCapture={() => { resizePointerIdRef.current = null; setDragging(false); }}
         onKeyDown={handleKeyDown}
         style={{ width: HANDLE_WIDTH, background: token.colorFillSecondary }}
       />
