@@ -572,6 +572,19 @@ test("finds exported passage source by title and tag without running it", async 
   await expect(picker).toHaveValue("");
 });
 
+test("opens an exact path inside previously unopened branches", async ({ page }) => {
+  await page.goto(storyUrl);
+  await page.evaluate(() => SugarCube.State.setVar("$Player", { stats: [{ "health points": 42 }] }));
+  const drawer = await openVariables(page);
+  const search = drawer.getByRole("searchbox", { name: "Search variables" });
+  await search.fill('$Player.stats[0]["health points"]');
+  await search.press("Enter");
+  await expect(drawer.getByText("health points", { exact: true })).toBeVisible();
+  await search.fill("$player.stats");
+  await search.press("Enter");
+  await expect(drawer.getByRole("alert")).toContainText("not available");
+});
+
 test("shows and copies a full primitive value and follows its live path", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto(storyUrl);

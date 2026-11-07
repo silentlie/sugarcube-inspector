@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { formatFavoritePath, type FavoritePath } from "../location";
+import { parseVariablePath } from "../search";
 
 const scopes = { variables: "Story variables", temporary: "Temporary variables" } as const;
 
@@ -15,10 +16,15 @@ export default function VariableSearch({ find, reveal }: {
     onKeyDown={(event) => event.stopPropagation()}
     onSubmit={(event) => {
       event.preventDefault();
-      const query = inputRef.current?.value.trim().toLowerCase();
+      const query = inputRef.current?.value.trim() ?? "";
       setError("");
       try {
-        setMatches(query ? find(query) : null);
+        if (query.startsWith("$") || query.startsWith("_")) {
+          setMatches(null);
+          const path = parseVariablePath(query);
+          if (!path) setError('Use a property path such as $player.stats[0]["health points"].');
+          else if (!reveal(path)) setError("That variable is not available.");
+        } else setMatches(query ? find(query.toLowerCase()) : null);
       } catch {
         setMatches(null);
         setError("Could not search variables.");

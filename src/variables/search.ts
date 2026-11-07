@@ -1,6 +1,31 @@
 import { formatFavoritePath, getLocationName, type FavoritePath } from "./location";
 import { refreshItem, type VariableNode } from "./nodes";
 
+/** Property paths only: identifiers, array indices, and JSON-quoted keys. */
+export function parseVariablePath(input: string): FavoritePath | undefined {
+  if (input[0] !== "$" && input[0] !== "_") return;
+  const root = input[0] === "$" ? "variables" : "temporary";
+  let rest = input.slice(1);
+  const path: string[] = [];
+  const first = /^[A-Za-z_$][\w$]*/.exec(rest);
+  if (first) {
+    path.push(first[0]);
+    rest = rest.slice(first[0].length);
+  }
+  while (rest) {
+    const part = /^(?:\.([A-Za-z_$][\w$]*)|\[(0|[1-9]\d*|"(?:[^"\\]|\\.)*")\])/.exec(rest);
+    if (!part || (!path.length && part[1])) return;
+    const key = part[1] ?? part[2]!;
+    try {
+      path.push(key.startsWith('"') ? JSON.parse(key) as string : key);
+    } catch {
+      return;
+    }
+    rest = rest.slice(part[0].length);
+  }
+  return path.length ? { root, path } : undefined;
+}
+
 export function findVariablePaths(items: readonly VariableNode[], query: string): FavoritePath[] {
   const limit = 20;
   const exact: FavoritePath[] = [];

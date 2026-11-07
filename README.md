@@ -14,7 +14,9 @@ It reads live story and temporary variables directly without attaching a debugge
   variables. Passages lets you search a Twine 2 export by passage title, tag, or source text
   and read the source as plain text. Overview links to the current passage source
   when it exists in the export.
-- Under Variables, search both scopes by name or path. Search lists up to 20
+- Under Variables, enter an exact `$` or `_` path to open unopened branches
+  (for example `$player.stats[0]["health points"]`). Property names are case sensitive;
+  bracketed strings use JSON quotes. Other searches list up to 20
   results per scope from top-level variables and already discovered branches.
   Selecting a result opens its scope and reveals its row.
 - The variable tree uses Ant Design's built-in virtualization and discovers children
