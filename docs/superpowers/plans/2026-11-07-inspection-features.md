@@ -58,12 +58,14 @@ Task 4 verified: compile/build, full unit suite (91 before final drag coverage),
 ## Task 5: Bounded edit history with back/forward controls
 
 Files: `edits.ts`, new `.test.ts`, `UndoEdit.tsx`, affected browser expectations, README.
-- [ ] Replace one edit with bounded undo/redo stacks; new edits discard redo. Back/forward buttons have accessible Undo/Redo labels and path titles.
-- [ ] Clear on passage/moment change; keep owner/current-value/writable/lock guards and isolate stale edits. Locked-target updates remain outside ordinary undo unless explicitly integrated safely.
-- [ ] Test multi-step undo/redo, capacity, branch edits, no-ops, moment change and conflicting game writes; verify real browser buttons.
-- [ ] Review and commit.
+- [x] Replace one edit with bounded undo/redo stacks; new edits discard redo. Back/forward buttons have accessible Undo/Redo labels and path titles.
+- [x] Clear on passage/moment change; keep owner/current-value/writable/lock guards and isolate stale edits. Locked-target updates remain outside ordinary undo unless explicitly integrated safely.
+- [x] Test multi-step undo/redo, capacity, branch edits, no-ops, moment change and conflicting game writes; verify real browser buttons.
+- [x] Review and commit.
+
+Task 5 verified: compile/build, all 97 unit tests, focused old undo/new Back-Forward/locked editor Chromium checks, final 53-test standard browser suite, full lint (8 existing ordering warnings). Independent review clear. Legacy migration assertion is scoped to favorites keys because global drawer preferences now legitimately share extension storage.
 
 ## Final verification
 
-- [ ] `npm run compile`, `npm test`, `npm run lint`, and `npm run test:browser` pass (existing lint warnings reported).
-- [ ] Confirm meaningful changes committed and unrelated local work preserved. Report decisions, review results, checks, and limitations.
+- [x] `npm run compile`, `npm test`, `npm run lint`, and `npm run test:browser` pass (existing lint warnings reported).
+- [x] Confirm meaningful changes committed and unrelated local work preserved. Report decisions, review results, checks, and limitations.

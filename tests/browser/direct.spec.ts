@@ -199,7 +199,7 @@ test("undoes the last inspector edit and refuses to overwrite a later game chang
   await page.goto(storyUrl);
   const drawer = await openVariables(page);
   const score = drawer.getByRole("button", { name: /^score\s*:/ });
-  const undo = drawer.getByRole("button", { name: "Undo Last Edit", exact: true });
+  const undo = drawer.getByRole("button", { name: "Undo edit", exact: true });
   await expect(undo).toBeDisabled();
   await score.click();
   const draft = drawer.getByRole("textbox", { name: "New value for score" });
@@ -224,9 +224,37 @@ test("undoes the last inspector edit and refuses to overwrite a later game chang
   await draft.press("Enter");
   await page.getByRole("link", { name: "Continue" }).click();
   await openVariables(page);
-  await undo.click();
-  await expect(drawer.getByRole("alert")).toContainText("passage changed");
+  await expect(undo).toBeDisabled();
+  await expect(drawer.getByRole("button", { name: "Redo edit", exact: true })).toBeDisabled();
   expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(12);
+});
+
+test("moves back and forward through several inspector edits", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  const score = drawer.getByRole("button", { name: /^score\s*:/ });
+  const back = drawer.getByRole("button", { name: "Undo edit", exact: true });
+  const forward = drawer.getByRole("button", { name: "Redo edit", exact: true });
+  await expect(back).toHaveText("Back");
+  await expect(forward).toHaveText("Forward");
+  await expect(forward).toBeDisabled();
+  for (const value of [15, 20]) {
+    await score.click();
+    const editor = drawer.getByRole("textbox", { name: "New value for score" });
+    await editor.fill(String(value));
+    await editor.press("Enter");
+    await expect(score.getByTitle(String(value), { exact: true })).toBeVisible();
+  }
+  await back.click();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(15);
+  await back.click();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(7);
+  await expect(back).toBeDisabled();
+  await forward.click();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(15);
+  await forward.click();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(20);
+  await expect(forward).toBeDisabled();
 });
 
 test("locks a nested primitive across game writes and releases it on unlock or removal", async ({ page }) => {
@@ -573,7 +601,8 @@ test("migrates legacy extension favorites into the hidden story object", async (
   await expect(drawer.getByText("$score", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => SugarCube.State.getVar("$__sugarcubeInspector"))).toEqual({ version: 1, favorites: [path] });
   await drawer.getByRole("button", { name: "Clear All", exact: true }).click();
-  expect(await worker.evaluate("chrome.storage.local.get(null)")).toEqual({ [key]: path });
+  const stored = await worker.evaluate("chrome.storage.local.get(null)") as Record<string, unknown>;
+  expect(Object.fromEntries(Object.entries(stored).filter(([name]) => name.startsWith("favorites:")))).toEqual({ [key]: path });
 });
 
 test("favorites follow the story moment when moving through history", async ({ page }) => {

@@ -103,8 +103,10 @@ take precedence over a late load response.
   discovered logical children. Click a writable string, finite number, or
   boolean row to edit it, including ordinary nested properties and array entries.
   Expandable rows still expand or collapse. Save preserves the variable's type.
-  Undo Last Edit restores the previous primitive value while its live target,
-  current value, and active story moment still match the last inspector edit.
+  Back and Forward undo/redo up to 20 successful primitive edits while the live
+  target and current value still match. New edits discard the redo branch;
+  no-op saves keep it. Both directions clear when the story moment changes.
+  Active locks still prevent ordinary undo/redo from writing their target.
 - Use Show full value beside a string, number, or boolean to read its complete
   live value and copy its path or value. Strings are copied as plain text.
   Find in Passages opens source search with that path as literal text; matches
