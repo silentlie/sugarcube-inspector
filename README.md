@@ -90,7 +90,8 @@ It reads live story and temporary variables directly without attaching a debugge
   read-only, or holds an object, the lock releases.
   If two locked paths come to reference the same property, the earlier lock wins.
   The Locked Variables tab lists active locks from both scopes with their frozen
-  values and an unlock control for each path.
+  values and an unlock control for each path. Unlock All releases every active
+  lock. Clear All in Favorites removes every saved pin for the current story.
 
 ## Accepted interaction limitations
 

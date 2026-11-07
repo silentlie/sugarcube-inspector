@@ -308,6 +308,44 @@ test("lists locks from both stores and unlocks them directly from Locked Variabl
   await expect(drawer.getByText("No locked variables.", { exact: true })).toBeVisible();
 });
 
+test("bulk actions clear saved favorites and release locks independently", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await drawer.getByRole("button", { name: "Add score to favorites" }).click();
+  await drawer.getByRole("button", { name: "Lock score", exact: true }).click();
+  await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
+  await drawer.getByRole("button", { name: "Add choice to favorites" }).click();
+  await drawer.getByRole("button", { name: "Lock choice", exact: true }).click();
+
+  await drawer.getByRole("tab", { name: "Favorites" }).click();
+  const clearAll = drawer.getByRole("button", { name: "Clear All", exact: true });
+  await expect(clearAll).toBeVisible();
+  await clearAll.press("Enter");
+  await expect(drawer.getByRole("region", { name: "Favorite variables", exact: true })).toBeFocused();
+  await expect(drawer.getByText("Star a variable to watch it here.", { exact: true })).toBeVisible();
+  await expect(clearAll).toBeDisabled();
+
+  await drawer.getByRole("tab", { name: "Locked Variables" }).click();
+  const list = drawer.getByRole("list", { name: "Locked variables" });
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+  const unlockAll = drawer.getByRole("button", { name: "Unlock All", exact: true });
+  await unlockAll.press("Enter");
+  await expect(drawer.getByRole("region", { name: "Locked variables", exact: true })).toBeFocused();
+  await expect(drawer.getByText("No locked variables.", { exact: true })).toBeVisible();
+  await expect(unlockAll).toBeDisabled();
+
+  await page.evaluate(() => SugarCube.State.setVar("$score", 31));
+  await drawer.getByRole("tab", { name: "Story Variables" }).click();
+  await expect(drawer.getByTitle("31", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(31);
+
+  await page.reload();
+  await openVariables(page);
+  await drawer.getByRole("tab", { name: "Favorites" }).click();
+  await expect(drawer.getByText("Star a variable to watch it here.", { exact: true })).toBeVisible();
+  await expect(clearAll).toBeDisabled();
+});
+
 test("searches both variable scopes and reveals a result in a collapsed branch", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => {

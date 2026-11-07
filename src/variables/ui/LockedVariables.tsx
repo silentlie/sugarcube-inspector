@@ -11,6 +11,14 @@ export default function LockedVariables() {
 
   return <section ref={sectionRef} tabIndex={-1} aria-label="Locked variables"
     className="min-h-0 flex-1 overflow-auto px-2 py-1">
+    <div className="mb-2 flex justify-end">
+      <button type="button" disabled={locks.length === 0}
+        className="cursor-pointer rounded border border-current px-2 py-1 disabled:cursor-default disabled:opacity-50"
+        onClick={() => {
+          variableLocks.clear();
+          sectionRef.current?.focus();
+        }}>Unlock All</button>
+    </div>
     {locks.length === 0 ? <p role="status">No locked variables.</p> :
       <ul aria-label="Locked variables">
         {locks.map(({ id, path, value }) => {
@@ -24,7 +32,7 @@ export default function LockedVariables() {
             <button type="button" className="shrink-0 cursor-pointer rounded p-1"
               aria-label={`Unlock ${name}`} title="Unlock value"
               onClick={(event) => {
-                const buttons = [...sectionRef.current!.querySelectorAll("button")];
+                const buttons = [...sectionRef.current!.querySelectorAll<HTMLButtonElement>("ul button")];
                 const index = buttons.indexOf(event.currentTarget);
                 const nextFocus = buttons[index + 1] ?? buttons[index - 1] ?? sectionRef.current;
                 variableLocks.unlock(id);

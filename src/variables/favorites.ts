@@ -88,6 +88,10 @@ export class FavoriteStore {
     this.notify(entry.location, false);
   }
 
+  clear(): void {
+    for (const { location } of this.snapshot) this.remove(location);
+  }
+
   toggle(path: FavoritePath): void {
     if (this.isFavorite(path)) this.remove(path);
     else this.add(path);

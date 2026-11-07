@@ -1,6 +1,6 @@
 import { Tree, type TreeDataNode } from "antd";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { type ComponentRef, type Key, type Ref, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { type ComponentRef, type Key, type Ref, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type VariableStoreKey } from "../../sugarcube/state";
 import { readLocation, type FavoritePath, type VariableLocation } from "../location";
 import { favoriteStore } from "../favorites";
@@ -259,14 +259,25 @@ export default function VariableTree({ storeKey, active, searchRef }: {
 
 /** Favourites retain independent polling when this tree is hidden. */
 export function FavoritesTree({ active }: { active: boolean }) {
+  const favorites = useSyncExternalStore(favoriteStore.subscribe, favoriteStore.getSnapshot);
+  const sectionRef = useRef<HTMLElement>(null);
   useEffect(() => {
     variableWatcher.setScopeActive("favorites-tree", active);
     return () => variableWatcher.setScopeActive("favorites-tree", false);
   }, [active]);
 
-  return <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+  return <section ref={sectionRef} tabIndex={-1} aria-label="Favorite variables"
+    className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="mb-2 flex shrink-0 justify-end">
+      <button type="button" disabled={favorites.length === 0}
+        className="cursor-pointer rounded border border-current px-2 py-1 disabled:cursor-default disabled:opacity-50"
+        onClick={() => {
+          favoriteStore.clear();
+          sectionRef.current?.focus();
+        }}>Clear All</button>
+    </div>
     <VariableScopeContext value="favorites-tree">
       <RichVariableTree storeKey="favorites" active={active} />
     </VariableScopeContext>
-  </div>;
+  </section>;
 }
