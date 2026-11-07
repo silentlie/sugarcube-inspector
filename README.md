@@ -111,6 +111,9 @@ take precedence over a late load response.
   target and current value still match. New edits discard the redo branch;
   no-op saves keep it. Both directions clear when the story moment changes.
   Active locks still prevent ordinary undo/redo from writing their target.
+  Show edit history lists retained edits chronologically with paths, complete
+  before/after values, applied/undone status and the next Undo/Redo steps.
+  The list is read-only; use Back/Forward to move through edits.
 - Use Show full value beside a string, number, or boolean to read its complete
   live value and copy its path or value. Strings are copied as plain text.
   Writable strings also offer Edit string: a wide multiline editor with explicit

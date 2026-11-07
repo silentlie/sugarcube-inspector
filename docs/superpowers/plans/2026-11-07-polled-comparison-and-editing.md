@@ -36,11 +36,13 @@ Deliverable 2 evidence: compile, all 101 unit tests, build, three Chromium detai
 ## Deliverable 3: Visible edit history (feature 4)
 
 Files: edit-history UI/model if needed, tests/browser, README.
-- [ ] Display retained records with path and full before/after values, status and clear next Undo/Redo indication; preserve Back/Forward controls.
-- [ ] Verify mixed paths, undo/redo/new-edit branching, capacity/current-moment cleanup, accessibility and absence of arbitrary-jump writes.
-- [ ] Independently review/fix/re-review until clear, commit.
+- [x] Display retained records with path and full before/after values, status and clear next Undo/Redo indication; preserve Back/Forward controls.
+- [x] Verify mixed paths, undo/redo/new-edit branching, capacity/current-moment cleanup, accessibility and absence of arbitrary-jump writes.
+- [x] Independently review/fix/re-review until clear, commit.
+
+Deliverable 3 evidence: compile, all 101 unit tests, build, three focused edit-history Chromium checks and final full 56-test Chromium suite. Full lint has no errors and the same eight pre-existing ordering warnings. Independent review clear. Stable edit IDs preserve identity across Undo/Redo and replacement branches; read-only chronological panel has a keyboard-focusable scroll region and conditional ARIA controls.
 
 ## Final checks
 
-- [ ] Compile, full unit suite, lint and standard Chromium browser suite pass; report existing warnings and scope limits.
-- [ ] Confirm commits and preserve unrelated local changes; report autonomous decisions and review results.
+- [x] Compile, full unit suite, lint and standard Chromium browser suite pass; report existing warnings and scope limits.
+- [x] Confirm commits and preserve unrelated local changes; report autonomous decisions and review results.

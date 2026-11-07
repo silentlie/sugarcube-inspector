@@ -5,10 +5,11 @@ import { variableLocks } from "./locks";
 import { variableWatcher } from "./watcher";
 
 type PropertyLocation = Extract<VariableLocation, { kind: "property" }>;
-type Edit = { path: FavoritePath; location: PropertyLocation; before: Primitive; after: Primitive; moment: StateAPI["active"] };
+type Edit = { id: number; path: FavoritePath; location: PropertyLocation; before: Primitive; after: Primitive; moment: StateAPI["active"] };
 type EditHistory = { undo: readonly Edit[]; redo: readonly Edit[] };
 const emptyHistory: EditHistory = { undo: [], redo: [] };
 let history = emptyHistory;
+let nextEditId = 0;
 let stopPolling: (() => void) | undefined;
 const listeners = new Set<() => void>();
 
@@ -66,7 +67,7 @@ export const variableEdits = {
     resetForMoment();
     const error = writeValue(path, location, before, after);
     if (!error && !Object.is(before, after)) publish({
-      undo: [...history.undo, { path, location, before, after, moment: getState().active }].slice(-20), redo: [],
+      undo: [...history.undo, { id: nextEditId++, path, location, before, after, moment: getState().active }].slice(-20), redo: [],
     });
     return error;
   },

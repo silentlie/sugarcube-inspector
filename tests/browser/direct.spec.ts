@@ -257,6 +257,51 @@ test("moves back and forward through several inspector edits", async ({ page }) 
   await expect(forward).toBeDisabled();
 });
 
+test("shows retained edit history, next actions and discarded redo branches", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await drawer.getByRole("button", { name: "Show edit history", exact: true }).click();
+  const history = drawer.getByRole("region", { name: "Inspector edit history" });
+  await expect(history).toContainText("No edits yet.");
+  const score = drawer.getByRole("button", { name: /^score\s*:/ });
+  for (const value of [15, 20]) {
+    await score.click();
+    const editor = drawer.getByRole("textbox", { name: "New value for score" });
+    await editor.fill(String(value));
+    await editor.press("Enter");
+    await expect(score.getByTitle(String(value), { exact: true })).toBeVisible();
+  }
+  const edits = history.getByRole("listitem");
+  await expect(edits).toHaveCount(2);
+  await expect(edits.first()).toContainText("Before: 7");
+  await expect(edits.first()).toContainText("After: 15");
+  await expect(edits.last()).toContainText("Next Undo");
+  await drawer.getByRole("button", { name: "Undo edit", exact: true }).click();
+  await expect(edits.last()).toContainText("Undone");
+  await expect(edits.last()).toContainText("Next Redo");
+  await expect(score.getByTitle("15", { exact: true })).toBeVisible();
+  await score.click();
+  const draft = drawer.getByRole("textbox", { name: "New value for score" });
+  await draft.fill("25");
+  await draft.press("Enter");
+  await expect(edits).toHaveCount(2);
+  await expect(edits.last()).toContainText("After: 25");
+  await expect(history).not.toContainText("After: 20");
+  await drawer.getByRole("button", { name: /^marker\s*:/ }).click();
+  await drawer.getByRole("textbox", { name: "New value for marker" }).fill("edited");
+  await drawer.getByRole("button", { name: "Save value", exact: true }).click();
+  await expect(edits.last()).toContainText("$marker");
+  await expect(edits.last()).toContainText('Before: "initial"');
+  await expect(edits.last()).toContainText('After: "edited"');
+  await expect(history.getByRole("button")).toHaveCount(0);
+  await page.getByRole("link", { name: "Continue" }).click();
+  await expect(history).toContainText("No edits yet.");
+  const hide = drawer.getByRole("button", { name: "Hide edit history", exact: true });
+  await hide.click();
+  await expect(history).toHaveCount(0);
+  await expect(drawer.getByRole("button", { name: "Show edit history", exact: true })).toBeFocused();
+});
+
 test("locks a nested primitive across game writes and releases it on unlock or removal", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => SugarCube.State.setVar("$player", { health: 10 }));
