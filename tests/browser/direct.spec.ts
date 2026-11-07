@@ -238,7 +238,7 @@ test("locks a nested primitive across game writes and releases it on unlock or r
   await expect(lock).toBeVisible();
   await lock.click();
   await expect(lock).toHaveAttribute("aria-pressed", "true");
-  await expect(drawer.getByRole("button", { name: /^health\s*:/ })).toHaveCount(0);
+  await expect(drawer.getByRole("button", { name: /^health\s*:/ })).toHaveAttribute("aria-description", "Edit locked value");
 
   await drawer.getByRole("tab", { name: "Overview" }).click();
   const handle = drawer.getByRole("button", { name: "Resize SugarCube Inspector" });
@@ -309,12 +309,35 @@ test("keeps the earlier lock when two variable paths converge on the same proper
   await expect(playerLock!).toHaveAttribute("aria-pressed", "true");
   expect(await page.evaluate(() => SugarCube.State.getVar("$leader.health"))).toBe(10);
 
-  await drawer.getByRole("button", { name: /^health\s*:/ }).click();
+  await drawer.getByRole("button", { name: /^health\s*:/ }).and(drawer.locator('[aria-description="Edit value"]')).click();
   const draft = drawer.getByRole("textbox", { name: "New value for health" });
   await draft.fill("8");
   await draft.press("Enter");
   await expect(drawer.getByRole("alert")).toContainText("Unlock the value");
   expect(await page.evaluate(() => SugarCube.State.getVar("$player.health"))).toBe(10);
+});
+
+test("edits a frozen value from its tree tile and Locked Variables", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  const lock = drawer.getByRole("button", { name: "Lock score", exact: true });
+  await lock.click();
+  await drawer.getByRole("button", { name: /^score\s*:/ }).click();
+  const editor = drawer.getByRole("textbox", { name: "New value for score" });
+  await editor.fill("20");
+  await editor.press("Enter");
+  await expect(lock).toHaveAttribute("aria-pressed", "true");
+  await page.evaluate(() => SugarCube.State.setVar("$score", 3));
+  await expect.poll(() => page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(20);
+  await drawer.getByRole("tab", { name: "Locked Variables" }).click();
+  await drawer.getByRole("button", { name: "Edit locked $score", exact: true }).click();
+  const lockedEditor = drawer.getByRole("textbox", { name: "New value for $score" });
+  await lockedEditor.fill("30");
+  await lockedEditor.press("Enter");
+  await expect(drawer.getByRole("button", { name: "Edit locked $score", exact: true })).toBeFocused();
+  await page.evaluate(() => SugarCube.State.setVar("$score", 4));
+  await expect.poll(() => page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(30);
+  await expect(drawer.getByRole("button", { name: "Unlock $score" })).toBeVisible();
 });
 
 test("lists locks from both stores and unlocks them directly from Locked Variables", async ({ page }) => {

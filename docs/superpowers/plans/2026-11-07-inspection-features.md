@@ -38,10 +38,12 @@ Task 2 verified: compile/build, existing manual passage-search + new reference-s
 ## Task 3: Edit locked values
 
 Files: `locks.ts`, `PrimitiveVariableEditor.tsx`, `VariableNodeContent.tsx`, `LockedVariables.tsx`, focused tests/browser, README.
-- [ ] Add guarded update of a lock's live primitive and frozen target, retaining its identity and lock state.
-- [ ] Reuse primitive editor for locked tree tiles and Locked Variables list; reject stale/missing/read-only/type-changed targets and alias conflicts.
-- [ ] Verify subsequent game writes are restored to the new frozen value; ordinary edit and unlock behavior remains correct.
-- [ ] Review and commit.
+- [x] Add guarded update of a lock's live primitive and frozen target, retaining its identity and lock state.
+- [x] Reuse primitive editor for locked tree tiles and Locked Variables list; reject stale/missing/read-only/type-changed targets and alias conflicts.
+- [x] Verify subsequent game writes are restored to the new frozen value; ordinary edit and unlock behavior remains correct.
+- [x] Review and commit.
+
+Task 3 verified: compile/build, 4 lock unit tests (stale values/owners, read-only, type changes, alias ownership), full unit suite before final coverage additions, Chromium tree/list edit + enforcement/list/unlock/alias regressions, scoped lint (existing ordering warnings only). Independent review and small draft-guard re-review clear. Locked edits do not enter ordinary undo history.
 
 ## Task 4: Persist drawer preferences in extension storage
 

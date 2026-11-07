@@ -2,13 +2,15 @@ import { Check, X } from "lucide-react";
 import { useState } from "react";
 import { type FavoritePath, type Primitive, type VariableLocation } from "../location";
 import { variableEdits } from "../edits";
+import { variableLocks } from "../locks";
 
-export function PrimitiveVariableEditor({ name, path, location, original, close }: {
+export function PrimitiveVariableEditor({ name, path, location, original, close, lockId }: {
   name: string;
   path: FavoritePath;
   location: Extract<VariableLocation, { kind: "property" }>;
   original: Primitive;
   close: () => void;
+  lockId?: number;
 }) {
   const [draft, setDraft] = useState(() => Object.is(original, -0) ? "-0" : String(original));
   const [error, setError] = useState("");
@@ -21,7 +23,8 @@ export function PrimitiveVariableEditor({ name, path, location, original, close 
       return;
     }
 
-    const failure = variableEdits.save(path, location, original, next);
+    const failure = lockId === undefined ? variableEdits.save(path, location, original, next)
+      : variableLocks.update(lockId, location, original, next);
     if (failure) setError(failure);
     else close();
   }

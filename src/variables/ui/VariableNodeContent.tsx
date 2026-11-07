@@ -26,20 +26,21 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
   const locks = useSyncExternalStore(variableLocks.subscribe, variableLocks.getSnapshot);
   const path = node.favoritePath;
   const pinned = path !== undefined && favorites.some(({ location }) => sameFavoritePath(path, location));
-  const locked = path !== undefined && locks.some((lock) => sameFavoritePath(path, lock.path));
+  const lock = path === undefined ? undefined : locks.find((item) => sameFavoritePath(path, item.path));
+  const locked = lock !== undefined;
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
   const isLeaf = isLeafNode(node, current);
   const name = isMapEntry || isSetMember ? "" : getLocationName(node.location);
   const tileRef = useRef<HTMLSpanElement>(null);
-  const [original, setOriginal] = useState<Primitive>();
-  if (locked && original !== undefined) setOriginal(undefined);
+  const [original, setOriginal] = useState<{ value: Primitive; lockId?: number }>();
+  if (original && original.lockId !== lock?.id) setOriginal(undefined);
   const location = node.location;
   const editableValue = isLeaf && path && location.kind === "property" &&
     current.kind === "value" && current.editable && isEditablePrimitive(current.value) &&
     path.path.length > 0 ? current.value : undefined;
-  const activate = !isLeaf ? onToggle : editableValue !== undefined && !locked ? () => {
-    if (original === undefined) setOriginal(editableValue);
+  const activate = !isLeaf ? onToggle : editableValue !== undefined ? () => {
+    if (original === undefined) setOriginal({ value: lock?.value ?? editableValue, lockId: lock?.id });
   } : undefined;
   const circular = !isMapEntry && current.kind === "value" &&
     isObject(current.value) && isLeaf;
@@ -55,7 +56,7 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
       className={`flex min-w-0 flex-1 items-center gap-2 ${activate ? "cursor-pointer" : ""}`}
       role={activate ? "button" : undefined}
       tabIndex={activate ? 0 : -1}
-      aria-description={editableValue !== undefined && !locked ? "Edit value" : undefined}
+      aria-description={editableValue !== undefined ? locked ? "Edit locked value" : "Edit value" : undefined}
       aria-expanded={isLeaf ? undefined : expanded}
       onClick={activate ? (event) => {
         event.stopPropagation();
@@ -91,7 +92,7 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
       </>}
     </span>
     {original !== undefined && path && location.kind === "property" &&
-      <PrimitiveVariableEditor name={name} path={path} location={location} original={original}
+      <PrimitiveVariableEditor name={name} path={path} location={location} original={original.value} lockId={original.lockId}
         close={() => {
           setOriginal(undefined);
           tileRef.current?.focus();

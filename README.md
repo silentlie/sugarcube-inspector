@@ -105,7 +105,9 @@ It reads live story and temporary variables directly without attaching a debugge
   are references in the exported text, not semantic read/write analysis.
 - Use the lock beside a writable primitive to keep its value for the page
   session. The inspector restores changes on its 250 ms poll, including while
-  the drawer is closed. Unlock to edit. If the path disappears, becomes
+  the drawer is closed. Clicking a locked primitive tile (including in Locked
+  Variables) edits its frozen target while keeping the lock active. These changes
+  stay outside ordinary edit undo history. If the path disappears, becomes
   read-only, or holds an object, the lock releases.
   If two locked paths come to reference the same property, the earlier lock wins.
   The Locked Variables tab lists active locks from both scopes with their frozen

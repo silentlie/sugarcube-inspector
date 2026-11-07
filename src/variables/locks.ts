@@ -1,6 +1,6 @@
 import { isPrimitive } from "@sindresorhus/is";
 import { sameFavoritePath } from "./favorites";
-import { isEditablePrimitive, readLocation, resolvePropertyPath, type FavoritePath, type Primitive } from "./location";
+import { isEditablePrimitive, readLocation, resolvePropertyPath, type FavoritePath, type Primitive, type VariableLocation } from "./location";
 import { variableWatcher } from "./watcher";
 
 type VariableLock = { id: number; path: FavoritePath; value: Primitive };
@@ -59,6 +59,26 @@ export const variableLocks = {
       const location = resolvePropertyPath(path);
       return location?.owner === owner && location.key === key;
     });
+  },
+  update(id: number, target: Extract<VariableLocation, { kind: "property" }>, expected: Primitive, value: Primitive): string | undefined {
+    try {
+      const lock = locks.find((item) => item.id === id);
+      if (!lock || !Object.is(lock.value, expected)) return "Lock changed. Reopen the editor.";
+      const location = resolvePropertyPath(lock.path);
+      if (!location || location.owner !== target.owner || location.key !== target.key) return "Value changed. Reopen the editor.";
+      const current = readLocation(location);
+      if (current.kind !== "value" || !current.editable || !isEditablePrimitive(current.value) ||
+          typeof current.value !== typeof expected || !isEditablePrimitive(value) || typeof value !== typeof expected) {
+        return "Value changed or is no longer editable.";
+      }
+      const first = locks.find((item) => {
+        const live = resolvePropertyPath(item.path);
+        return live?.owner === location.owner && live.key === location.key;
+      });
+      if (first?.id !== id) return "Another lock already controls this value.";
+      Object.defineProperty(location.owner, location.key, { value });
+      setLocks(locks.map((item) => item.id === id ? { ...item, value } : item));
+    } catch { return "Could not update the locked value."; }
   },
   toggle(path: FavoritePath) {
     const existing = locks.find((lock) => sameFavoritePath(lock.path, path));
