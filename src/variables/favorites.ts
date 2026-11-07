@@ -2,7 +2,7 @@ import type { SaveObject } from "twine-sugarcube";
 import { getState } from "../sugarcube/state";
 import { readVariable, sameVariable, type FavoriteLocation, type FavoritePath, type VariableSnapshot } from "./location";
 import { variableWatcher, type VariableSubscription, type VariableWatcher } from "./watcher";
-import { decodeFavoritePaths, favoriteStorageEvents as events, getFavoriteStoragePrefix, inspectorSettingsKey } from "./favoriteStorage";
+import { decodeFavoritePaths, decodeFavoriteUpdate, favoriteStorageEvents as events, getFavoriteStoragePrefix, inspectorSettingsKey } from "./favoriteStorage";
 import { readStoryFavorites, writeStoryFavorites } from "./storySettings";
 
 export type Favorite = { location: FavoriteLocation };
@@ -176,8 +176,29 @@ export function connectFavoriteStorage(): (() => void) | undefined {
       } finally { applying = false; }
       write();
       if (!restored) pending.set(encode(location), pinned);
+      document.dispatchEvent(new CustomEvent(pinned ? events.pin : events.unpin, {
+        detail: JSON.stringify([{ root: location.root, path: location.path }]),
+      }));
     } catch (error) { console.warn("SugarCube Inspector could not save story settings.", error); }
   });
+  const receive = (event: Event) => {
+    try {
+      const detail: unknown = (event as CustomEvent<unknown>).detail;
+      if (typeof detail !== "string") return;
+      const update = decodeFavoriteUpdate(JSON.parse(detail));
+      if (!update) return;
+      const path = decodeFavoritePaths(update.detail)![0]!;
+      refresh();
+      applying = true;
+      try {
+        if (update.pinned) favoriteStore.add(path);
+        else favoriteStore.remove(path);
+      } finally { applying = false; }
+      write();
+      if (!restored) pending.set(encode(path), update.pinned);
+    } catch (error) { console.warn("SugarCube Inspector could not apply a synchronized favorite.", error); }
+  };
+  document.addEventListener(events.remote, receive);
   const load = () => { if (!restored) document.dispatchEvent(new Event(events.load)); };
   const restore = (event: Event) => {
     if (restored) return;
@@ -212,6 +233,7 @@ export function connectFavoriteStorage(): (() => void) | undefined {
     unsubscribe();
     stopRefreshing();
     SugarCube.Save.onSave.delete(onSave);
+    document.removeEventListener(events.remote, receive);
     document.removeEventListener(events.ready, load);
     document.removeEventListener(events.loaded, restore);
   };

@@ -1,5 +1,5 @@
 import type {} from "twine-sugarcube";
-import { copyFile, mkdtemp, readFile, rmdir, unlink } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, rmdir, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -490,6 +490,48 @@ test("saves hidden inspector settings with the story and restores them in anothe
   } finally {
     await unlink(exportFile);
     await rmdir(exportDir);
+  }
+});
+
+test("synchronizes favorite operations between open exports of the same story", async ({ page, context }) => {
+  const directory = await mkdtemp(join(tmpdir(), "inspector-sync-"));
+  const copy = join(directory, "copy.html");
+  const other = join(directory, "other.html");
+  try {
+    const html = await readFile(fileURLToPath(storyUrl), "utf8");
+    await writeFile(copy, html);
+    await writeFile(other, html.replace("8A6E4307-C73B-4F1B-9322-7CF69B980FB1", "DIFFERENT-STORY-2026"));
+    await page.goto(storyUrl);
+    const drawer = await openVariables(page);
+    const second = await context.newPage();
+    await second.goto(pathToFileURL(copy).href);
+    const secondDrawer = await openVariables(second);
+    const unrelated = await context.newPage();
+    await unrelated.goto(pathToFileURL(other).href);
+    const unrelatedDrawer = await openVariables(unrelated);
+    await unrelatedDrawer.getByRole("tab", { name: "Favorites" }).click();
+    await secondDrawer.getByRole("tab", { name: "Temporary Variables" }).click();
+    await Promise.all([
+      drawer.getByRole("button", { name: "Add score to favorites" }).click(),
+      secondDrawer.getByRole("button", { name: "Add choice to favorites" }).click(),
+    ]);
+    for (const host of [drawer, secondDrawer]) {
+      await host.getByRole("tab", { name: "Favorites" }).click();
+      await expect(host.getByText("$score", { exact: true })).toBeVisible();
+      await expect(host.getByText("_choice", { exact: true })).toBeVisible();
+    }
+    await secondDrawer.getByRole("button", { name: "Remove $score from favorites" }).click();
+    await expect(drawer.getByText("$score", { exact: true })).toHaveCount(0);
+    await drawer.getByRole("button", { name: "Clear All", exact: true }).click();
+    await expect(secondDrawer.getByText("Star a variable to watch it here.", { exact: true })).toBeVisible();
+    await expect(unrelatedDrawer.getByText("Star a variable to watch it here.", { exact: true })).toBeVisible();
+    for (const tab of [page, second, unrelated]) {
+      expect(await tab.evaluate(() => SugarCube.State.getVar("$__sugarcubeInspector"))).toEqual({ version: 1, favorites: [] });
+    }
+  } finally {
+    await unlink(copy);
+    await unlink(other);
+    await rmdir(directory);
   }
 });
 

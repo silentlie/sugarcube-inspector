@@ -60,7 +60,11 @@ It reads live story and temporary variables directly without attaching a debugge
   They travel with story saves and history, including when a save is loaded in
   another export. Save the game to retain changes across reloads. Existing
   extension-stored favorites are imported when no story settings exist; old
-  entries remain as a migration backup. Symbol-key paths use session-only favorites. Map/Set entry
+  entries remain as a migration backup. Pin/unpin operations synchronize between
+  open inspectors with the same site origin and IFID (all local file exports use
+  the file origin). Each tab updates its own story settings; loading saves and
+  history does not replace another tab's saved list. Sync needs a valid IFID;
+  saving settings within one story does not. Symbol-key paths use session-only favorites. Map/Set entry
   nodes cannot be pinned, but their containing
   variables can. An always-active `favorites` scope polls pinned values, while a
   separate `favorites-tree` scope pauses structural and descendant polling off-tab.

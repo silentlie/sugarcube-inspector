@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { decodeFavoritePaths, getFavoriteStoragePrefix } from "./favoriteStorage";
+import { decodeFavoritePaths, decodeFavoriteUpdate, favoriteSyncGroup, getFavoriteStoragePrefix } from "./favoriteStorage";
 import { FavoriteStore, sameFavoritePath } from "./favorites";
 import { formatFavoritePath, readVariable, type FavoriteLocation } from "./location";
 import { VariableWatcher } from "./watcher";
@@ -10,6 +10,23 @@ afterEach(() => {
 });
 
 describe("favorites", () => {
+  it("scopes live sync by origin and IFID while grouping local exports", () => {
+    expect(favoriteSyncGroup("file:///one.html", "example-story")).toBe(favoriteSyncGroup("file:///two.html", "example-story"));
+    expect(favoriteSyncGroup("https://one.test/story", "example-story")).not.toBe(favoriteSyncGroup("https://two.test/story", "example-story"));
+    expect(favoriteSyncGroup("https://one.test/story", "example-story")).not.toBe(favoriteSyncGroup("https://one.test/story", "different-story"));
+    expect(favoriteSyncGroup("chrome://extensions", "example-story")).toBeUndefined();
+    expect(favoriteSyncGroup("https://one.test/story", "../invalid")).toBeUndefined();
+  });
+
+  it("validates live favorite messages and rejects hidden settings paths", () => {
+    const detail = JSON.stringify([{ root: "variables", path: ["score"] }]);
+    expect(decodeFavoriteUpdate({ detail, pinned: true })).toEqual({ detail, pinned: true });
+    for (const message of [{ detail, pinned: "true" }, { detail: "[]", pinned: false },
+      { detail: detail.repeat(2000), pinned: true },
+      { detail: JSON.stringify([{ root: "variables", path: ["__sugarcubeInspector"] }]), pinned: true }]) {
+      expect(decodeFavoriteUpdate(message)).toBeUndefined();
+    }
+  });
   it("restores an aggregate larger than a single storage message", () => {
     const paths = Array.from({ length: 1000 }, (_, index) => ({
       root: "variables", path: ["player", `equipment-description-for-slot-${index}-in-the-inventory`],
@@ -19,7 +36,7 @@ describe("favorites", () => {
 
   it("uses a valid non-UUID Twine IFID as a story identifier", () => {
     vi.stubGlobal("document", { querySelector: () => ({ getAttribute: () => "SUGARCUBE-EXAMPLE-2026" }) });
-    vi.stubGlobal("location", { protocol: "file:" });
+    vi.stubGlobal("location", { href: "file:///story.html" });
     expect(getFavoriteStoragePrefix()).toBe("favorites:file::sugarcube-example-2026:");
   });
 

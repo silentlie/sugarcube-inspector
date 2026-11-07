@@ -1,4 +1,5 @@
 import { browser } from "wxt/browser";
+import { decodeFavoriteUpdate, favoriteSyncGroup, favoriteSyncMessage } from "@/src/variables/favoriteStorage";
 
 async function inspectHostedStory(tabId: number, url: string) {
   const [story] = await browser.scripting.executeScript({
@@ -17,6 +18,17 @@ async function inspectHostedStory(tabId: number, url: string) {
 }
 
 export default defineBackground(() => {
+  browser.runtime.onMessage.addListener((message: unknown, sender) => {
+    if (!sender.tab || sender.frameId !== 0 || !sender.url || !message || typeof message !== "object") return;
+    const data = message as Record<string, unknown>;
+    const update = decodeFavoriteUpdate(data);
+    const group = favoriteSyncGroup(sender.url, data.ifid);
+    if (data.type !== favoriteSyncMessage || !group || !update) return;
+    // Query on each operation so a sleeping service worker needs no tab registry.
+    return browser.tabs.query({}).then((tabs) => Promise.allSettled(tabs
+      .filter((tab) => tab.id !== undefined && tab.id !== sender.tab?.id)
+      .map((tab) => browser.tabs.sendMessage(tab.id!, { type: favoriteSyncMessage, group, ...update })))).then(() => undefined);
+  });
   browser.action.onClicked.addListener(({ id, url }) => {
     if (id === undefined || !url || !/^https?:\/\//.test(url)) return;
     void inspectHostedStory(id, url).catch((error: unknown) => {
