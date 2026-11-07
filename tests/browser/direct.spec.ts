@@ -10,7 +10,7 @@ async function openDrawer(page: Page) {
   const drawer = page.locator("sugarcube-inspector");
   await expect(drawer).toHaveCount(1);
   const handle = drawer.getByRole("button", { name: "Resize SugarCube Inspector" });
-  await handle.press("Enter");
+  if (await handle.getAttribute("aria-expanded") !== "true") await handle.press("Enter");
   await handle.hover();
   await expect(drawer.getByText("MAIN world · direct references", { exact: true })).toBeVisible();
   return drawer;
