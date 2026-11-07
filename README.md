@@ -84,6 +84,11 @@ It reads live story and temporary variables directly without attaching a debugge
   discovered logical children. Click a writable string, finite number, or
   boolean row to edit it, including ordinary nested properties and array entries.
   Expandable rows still expand or collapse. Save preserves the variable's type.
+- Use the lock beside a writable primitive to keep its value for the page
+  session. The inspector restores changes on its 250 ms poll, including while
+  the drawer is closed. Unlock to edit. If the path disappears, becomes
+  read-only, or holds an object, the lock releases.
+  If two locked paths come to reference the same property, the earlier lock wins.
 
 ## Accepted interaction limitations
 

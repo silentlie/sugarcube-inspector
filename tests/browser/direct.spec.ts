@@ -188,6 +188,94 @@ test("expands containers and edits nested primitive tiles without a pencil", asy
   await expect(drawer.locator("svg.lucide-pencil")).toHaveCount(0);
 });
 
+test("locks a nested primitive across game writes and releases it on unlock or removal", async ({ page }) => {
+  await page.goto(storyUrl);
+  await page.evaluate(() => SugarCube.State.setVar("$player", { health: 10 }));
+  const drawer = await openVariables(page);
+  await expandVariable(drawer, "player");
+  const lock = drawer.getByRole("button", { name: "Lock health", exact: true });
+  await expect(lock).toBeVisible();
+  await lock.click();
+  await expect(lock).toHaveAttribute("aria-pressed", "true");
+  await expect(drawer.getByRole("button", { name: /^health\s*:/ })).toHaveCount(0);
+
+  await drawer.getByRole("tab", { name: "Overview" }).click();
+  const handle = drawer.getByRole("button", { name: "Resize SugarCube Inspector" });
+  await handle.press("Enter");
+  await expect(handle).toHaveAttribute("aria-expanded", "false");
+  await page.evaluate(() => SugarCube.State.setVar("$player", { health: 7 }));
+  const read = () => page.evaluate(() => SugarCube.State.getVar("$player.health"));
+  await expect.poll(read).toBe(10);
+  const writeResult = await page.evaluate(() => {
+    const player = SugarCube.State.getVar("$player") as { health: number };
+    player.health = 5;
+    return [player.health, Object.getOwnPropertyDescriptor(player, "health")?.writable];
+  });
+  expect(writeResult).toEqual([5, true]);
+  await expect.poll(read).toBe(10);
+
+  await openVariables(page);
+  await lock.click();
+  await expect(lock).toHaveAttribute("aria-pressed", "false");
+  await page.evaluate(() => SugarCube.State.setVar("$player.health", 4));
+  await expect(drawer.getByTitle("4", { exact: true })).toBeVisible();
+  expect(await read()).toBe(4);
+
+  await lock.click();
+  await page.evaluate(() => SugarCube.State.setVar("$player", {}));
+  await expect(lock).toHaveCount(0);
+  await page.evaluate(() => SugarCube.State.setVar("$player.health", 2));
+  await expect(lock).toBeVisible();
+  await expect(lock).toHaveAttribute("aria-pressed", "false");
+  await expect(drawer.getByTitle("2", { exact: true })).toBeVisible();
+  expect(await read()).toBe(2);
+
+  await drawer.getByRole("button", { name: "Add player to favorites" }).click();
+  const favoritesTab = drawer.getByRole("tab", { name: "Favorites" });
+  const storyTab = drawer.getByRole("tab", { name: "Story Variables" });
+  await favoritesTab.click();
+  await expandVariable(drawer, "\\$player");
+  await drawer.getByRole("button", { name: /^health\s*:/ }).click();
+  const draft = drawer.getByRole("textbox", { name: "New value for health" });
+  await draft.fill("20");
+  await storyTab.click();
+  await lock.click();
+  await favoritesTab.click();
+  await expect(draft).toHaveCount(0);
+  await lock.click();
+  await expect(draft).toHaveCount(0);
+});
+
+test("keeps the earlier lock when two variable paths converge on the same property", async ({ page }) => {
+  await page.goto(storyUrl);
+  await page.evaluate(() => {
+    SugarCube.State.setVar("$player", { health: 10 });
+    SugarCube.State.setVar("$leader", { health: 20 });
+  });
+  const drawer = await openVariables(page);
+  await expandVariable(drawer, "player");
+  await expandVariable(drawer, "leader");
+  const [playerLock, leaderLock] = [0, 1].map((index) =>
+    drawer.getByRole("button", { name: "Lock health", exact: true }).nth(index));
+  await playerLock!.click();
+  await leaderLock!.click();
+
+  await page.evaluate(() => {
+    SugarCube.State.setVar("$leader", SugarCube.State.getVar("$player"));
+    SugarCube.State.setVar("$player.health", 3);
+  });
+  await expect(leaderLock!).toHaveAttribute("aria-pressed", "false");
+  await expect(playerLock!).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => SugarCube.State.getVar("$leader.health"))).toBe(10);
+
+  await drawer.getByRole("button", { name: /^health\s*:/ }).click();
+  const draft = drawer.getByRole("textbox", { name: "New value for health" });
+  await draft.fill("8");
+  await draft.press("Enter");
+  await expect(drawer.getByRole("alert")).toContainText("Unlock the value");
+  expect(await page.evaluate(() => SugarCube.State.getVar("$player.health"))).toBe(10);
+});
+
 test("searches both variable scopes and reveals a result in a collapsed branch", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => {

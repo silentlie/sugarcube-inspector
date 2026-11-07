@@ -1,12 +1,13 @@
 import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
-import { History, Star } from "lucide-react";
+import { History, Lock, LockOpen, Star } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { favoriteStore, sameFavoritePath } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
-import { getLocationName, type VariableLocation } from "../location";
+import { getLocationName, isEditablePrimitive, type Primitive, type VariableLocation } from "../location";
+import { variableLocks } from "../locks";
 import type { VariableNode } from "../nodes";
-import { isEditablePrimitive, PrimitiveVariableEditor, type Primitive } from "./PrimitiveVariableEditor";
+import { PrimitiveVariableEditor } from "./PrimitiveVariableEditor";
 import { useVariable } from "./useVariableWatch";
 import { MapKeyPreview, VariableTypePreview, VariableValuePreview } from "./VariableValuePreview";
 
@@ -21,19 +22,22 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
 }) {
   const current = useVariable(node.location);
   const favorites = useSyncExternalStore(favoriteStore.subscribe, favoriteStore.getSnapshot);
+  const locks = useSyncExternalStore(variableLocks.subscribe, variableLocks.getSnapshot);
   const path = node.favoritePath;
   const pinned = path !== undefined && favorites.some(({ location }) => sameFavoritePath(path, location));
+  const locked = path !== undefined && locks.some((lock) => sameFavoritePath(path, lock.path));
   const isMapEntry = node.location.kind === "map" && node.location.part === undefined;
   const isSetMember = node.location.kind === "set";
   const isLeaf = isLeafNode(node, current);
   const name = isMapEntry || isSetMember ? "" : getLocationName(node.location);
   const tileRef = useRef<HTMLSpanElement>(null);
   const [original, setOriginal] = useState<Primitive>();
+  if (locked && original !== undefined) setOriginal(undefined);
   const location = node.location;
   const editableValue = isLeaf && path && location.kind === "property" &&
     current.kind === "value" && current.editable && isEditablePrimitive(current.value) &&
     path.path.length > 0 ? current.value : undefined;
-  const activate = !isLeaf ? onToggle : editableValue !== undefined ? () => {
+  const activate = !isLeaf ? onToggle : editableValue !== undefined && !locked ? () => {
     if (original === undefined) setOriginal(editableValue);
   } : undefined;
   const circular = !isMapEntry && current.kind === "value" &&
@@ -50,7 +54,7 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
       className={`flex min-w-0 flex-1 items-center gap-2 ${activate ? "cursor-pointer" : ""}`}
       role={activate ? "button" : undefined}
       tabIndex={activate ? 0 : -1}
-      aria-description={editableValue !== undefined ? "Edit value" : undefined}
+      aria-description={editableValue !== undefined && !locked ? "Edit value" : undefined}
       aria-expanded={isLeaf ? undefined : expanded}
       onClick={activate ? (event) => {
         event.stopPropagation();
@@ -91,6 +95,17 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
           setOriginal(undefined);
           tileRef.current?.focus();
         }} />}
+    {path && (editableValue !== undefined || locked) && <button type="button"
+      className="shrink-0 cursor-pointer rounded p-1"
+      aria-label={`Lock ${name}`} aria-pressed={locked}
+      title={locked ? "Unlock value" : "Lock value until unlocked"}
+      onClick={(event) => {
+        event.stopPropagation();
+        variableLocks.toggle(path);
+      }}
+      onKeyDown={(event) => event.stopPropagation()}>
+      {locked ? <Lock size={14} aria-hidden="true" /> : <LockOpen size={14} aria-hidden="true" />}
+    </button>}
     {onShowHistory && <button type="button" className="shrink-0 cursor-pointer rounded p-1"
       aria-label={`Show change history for ${name}`} title="Show change history"
       aria-expanded={historyOpen} aria-controls={historyOpen ? "sugarcube-favorite-history" : undefined}

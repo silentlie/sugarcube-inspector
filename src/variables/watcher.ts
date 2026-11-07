@@ -9,6 +9,7 @@ type WatchScope = { active: boolean; subscribed: Set<ActiveWatch> };
 /** Shared scheduler: one interval for all mounted variable and structure subscriptions. */
 export class VariableWatcher {
   private readonly active = new Set<ActiveWatch>();
+  private readonly before = new Set<ActiveWatch>();
   private readonly scopes = new Map<string, WatchScope>();
   private timer: ReturnType<typeof setInterval> | undefined;
 
@@ -77,11 +78,25 @@ export class VariableWatcher {
   }
 
   refresh(): void {
+    for (const action of [...this.before]) action();
     for (const watcher of [...this.active]) watcher();
+  }
+
+  beforeRefresh(action: ActiveWatch): () => void {
+    this.before.add(action);
+    this.startTimer();
+    return () => {
+      this.before.delete(action);
+      this.stopTimerIfIdle();
+    };
   }
 
   private start(observer: ActiveWatch): void {
     this.active.add(observer);
+    this.startTimer();
+  }
+
+  private startTimer(): void {
     if (this.timer === undefined) {
       this.timer = setInterval(() => this.refresh(), this.intervalMs);
     }
@@ -89,7 +104,11 @@ export class VariableWatcher {
 
   private stop(observer: ActiveWatch): void {
     this.active.delete(observer);
-    if (this.active.size === 0 && this.timer !== undefined) {
+    this.stopTimerIfIdle();
+  }
+
+  private stopTimerIfIdle(): void {
+    if (this.active.size === 0 && this.before.size === 0 && this.timer !== undefined) {
       clearInterval(this.timer);
       this.timer = undefined;
     }

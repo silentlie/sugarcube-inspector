@@ -17,6 +17,13 @@ export type VariableLocation =
   | { kind: "map"; owner: Map<unknown, unknown>; key: unknown; part?: "key" | "value" }
   | { kind: "set"; owner: Set<unknown>; member: unknown };
 
+export type Primitive = string | number | boolean;
+
+export function isEditablePrimitive(value: unknown): value is Primitive {
+  return typeof value === "string" || typeof value === "boolean" ||
+    (typeof value === "number" && Number.isFinite(value));
+}
+
 /** Enumerated children cannot themselves be synthetic roots or favourites. */
 export type ChildLocation = Exclude<VariableLocation, { kind: "state" } | FavoriteLocation>;
 
@@ -49,6 +56,17 @@ export function readPropertyPath({ root, path }: FavoritePath): VariableRead {
     return { kind: "missing" };
   }
   return { kind: "value", value };
+}
+
+export function resolvePropertyPath({ root, path }: FavoritePath): Extract<VariableLocation, { kind: "property" }> | undefined {
+  const key = path.at(-1);
+  if (key === undefined) return;
+  const parent = readPropertyPath({ root, path: path.slice(0, -1) });
+  if (parent.kind !== "value") return;
+  const owner = parent.value;
+  if (owner !== null && (typeof owner === "object" || typeof owner === "function")) {
+    return { kind: "property", owner, key };
+  }
 }
 
 /** Only SugarCube's two trusted State getters may be read as accessors. */

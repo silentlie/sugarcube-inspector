@@ -1,13 +1,7 @@
 import { Check, X } from "lucide-react";
 import { useState } from "react";
-import { readPropertyPath, type FavoritePath, type VariableLocation } from "../location";
-
-export type Primitive = string | number | boolean;
-
-export function isEditablePrimitive(value: unknown): value is Primitive {
-  return typeof value === "string" || typeof value === "boolean" ||
-    (typeof value === "number" && Number.isFinite(value));
-}
+import { resolvePropertyPath, type FavoritePath, type Primitive, type VariableLocation } from "../location";
+import { variableLocks } from "../locks";
 
 export function PrimitiveVariableEditor({ name, path, location, original, close }: {
   name: string;
@@ -29,9 +23,13 @@ export function PrimitiveVariableEditor({ name, path, location, original, close 
     }
 
     try {
-      const liveOwner = readPropertyPath({ root: path.root, path: path.path.slice(0, -1) });
+      if (variableLocks.blocksEdit(owner, key)) {
+        setError("Unlock the value before editing.");
+        return;
+      }
+      const live = resolvePropertyPath(path);
       const descriptor = Object.getOwnPropertyDescriptor(owner, key);
-      if (liveOwner.kind !== "value" || liveOwner.value !== owner ||
+      if (live?.owner !== owner ||
           !descriptor?.writable || !Object.is(descriptor.value, original)) {
         setError("Value changed. Reopen the editor.");
         return;
