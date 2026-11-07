@@ -10,8 +10,12 @@ async function openDrawer(page: Page) {
   const drawer = page.locator("sugarcube-inspector");
   await expect(drawer).toHaveCount(1);
   const handle = drawer.getByRole("button", { name: "Resize SugarCube Inspector" });
-  if (await handle.getAttribute("aria-expanded") !== "true") await handle.press("Enter");
+  const openTab = drawer.getByRole("button", { name: "Open SugarCube Inspector", exact: true });
+  if (await openTab.count()) await openTab.click();
+  else if (await handle.getAttribute("aria-expanded") !== "true") await handle.press("Enter");
   await handle.hover();
+  const pin = drawer.getByRole("button", { name: "Switch to click-to-toggle mode", exact: true });
+  if (await pin.count()) await pin.click();
   await expect(drawer.getByText("MAIN world · direct references", { exact: true })).toBeVisible();
   return drawer;
 }
