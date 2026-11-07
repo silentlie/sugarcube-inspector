@@ -84,6 +84,8 @@ It reads live story and temporary variables directly without attaching a debugge
   discovered logical children. Click a writable string, finite number, or
   boolean row to edit it, including ordinary nested properties and array entries.
   Expandable rows still expand or collapse. Save preserves the variable's type.
+  Undo Last Edit restores the previous primitive value while its live target,
+  current value, and active story moment still match the last inspector edit.
 - Use the lock beside a writable primitive to keep its value for the page
   session. The inspector restores changes on its 250 ms poll, including while
   the drawer is closed. Unlock to edit. If the path disappears, becomes

@@ -188,6 +188,40 @@ test("expands containers and edits nested primitive tiles without a pencil", asy
   await expect(drawer.locator("svg.lucide-pencil")).toHaveCount(0);
 });
 
+test("undoes the last inspector edit and refuses to overwrite a later game change", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  const score = drawer.getByRole("button", { name: /^score\s*:/ });
+  const undo = drawer.getByRole("button", { name: "Undo Last Edit", exact: true });
+  await expect(undo).toBeDisabled();
+  await score.click();
+  const draft = drawer.getByRole("textbox", { name: "New value for score" });
+  await draft.fill("15");
+  await draft.press("Enter");
+  await undo.click();
+  await expect(undo).toBeDisabled();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(7);
+  await expect(score.getByTitle("7", { exact: true })).toBeVisible();
+
+  await score.click();
+  await draft.fill("16");
+  await draft.press("Enter");
+  await page.evaluate(() => SugarCube.State.setVar("$score", 19));
+  await undo.click();
+  await expect(drawer.getByRole("alert")).toContainText("Value changed");
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(19);
+
+  await expect(score.getByTitle("19", { exact: true })).toBeVisible();
+  await score.click();
+  await draft.fill("20");
+  await draft.press("Enter");
+  await page.getByRole("link", { name: "Continue" }).click();
+  await openVariables(page);
+  await undo.click();
+  await expect(drawer.getByRole("alert")).toContainText("passage changed");
+  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(12);
+});
+
 test("locks a nested primitive across game writes and releases it on unlock or removal", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => SugarCube.State.setVar("$player", { health: 10 }));

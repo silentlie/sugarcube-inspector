@@ -5,6 +5,8 @@ import { connectFavoriteStorage } from "../variables/favorites";
 import { variableLocks } from "../variables/locks";
 import VariableSearch from "../variables/ui/VariableSearch";
 import LockedVariables from "../variables/ui/LockedVariables";
+import UndoEdit from "../variables/ui/UndoEdit";
+import { variableEdits } from "../variables/edits";
 import VariableTree, { FavoritesTree, type VariableTreeSearch } from "../variables/ui/VariableTree";
 import { variableWatcher } from "../variables/watcher";
 import StoryOverview from "./StoryOverview";
@@ -52,8 +54,10 @@ function InspectorSections() {
   }, []);
   useEffect(connectFavoriteStorage, []);
   useEffect(() => variableLocks.clear, []);
+  useEffect(() => variableEdits.clear, []);
 
   const variables = <>
+    <UndoEdit />
     <VariableSearch find={(query) => [
       ...(variablesRef.current?.find(query) ?? []),
       ...(temporaryRef.current?.find(query) ?? []),

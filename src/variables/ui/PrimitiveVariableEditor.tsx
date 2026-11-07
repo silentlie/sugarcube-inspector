@@ -1,7 +1,7 @@
 import { Check, X } from "lucide-react";
 import { useState } from "react";
-import { resolvePropertyPath, type FavoritePath, type Primitive, type VariableLocation } from "../location";
-import { variableLocks } from "../locks";
+import { type FavoritePath, type Primitive, type VariableLocation } from "../location";
+import { variableEdits } from "../edits";
 
 export function PrimitiveVariableEditor({ name, path, location, original, close }: {
   name: string;
@@ -12,7 +12,6 @@ export function PrimitiveVariableEditor({ name, path, location, original, close 
 }) {
   const [draft, setDraft] = useState(() => Object.is(original, -0) ? "-0" : String(original));
   const [error, setError] = useState("");
-  const { owner, key } = location;
 
   function save() {
     const next = typeof original === "number" ? Number(draft)
@@ -22,23 +21,9 @@ export function PrimitiveVariableEditor({ name, path, location, original, close 
       return;
     }
 
-    try {
-      if (variableLocks.blocksEdit(owner, key)) {
-        setError("Unlock the value before editing.");
-        return;
-      }
-      const live = resolvePropertyPath(path);
-      const descriptor = Object.getOwnPropertyDescriptor(owner, key);
-      if (live?.owner !== owner ||
-          !descriptor?.writable || !Object.is(descriptor.value, original)) {
-        setError("Value changed. Reopen the editor.");
-        return;
-      }
-      Object.defineProperty(owner, key, { value: next });
-      close();
-    } catch {
-      setError("Could not save the value.");
-    }
+    const failure = variableEdits.save(path, location, original, next);
+    if (failure) setError(failure);
+    else close();
   }
 
   const inputLabel = `New value for ${name}`;
