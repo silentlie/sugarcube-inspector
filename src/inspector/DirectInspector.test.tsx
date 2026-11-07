@@ -23,7 +23,8 @@ describe("SugarCube startup gating", () => {
     expect(screen.queryByText("SugarCube Inspector")).toBeNull();
 
     vi.stubGlobal("SugarCube", {
-      State: { variables: { day: 1 }, temporary: {} },
+      Save: { onSave: { add: vi.fn(), delete: vi.fn() } },
+      State: { passage: "Start", variables: { day: 1 }, temporary: {} },
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
@@ -36,7 +37,8 @@ describe("SugarCube startup gating", () => {
 
   it("activates only the selected scope while the Variables tab is active", () => {
     vi.stubGlobal("SugarCube", {
-      State: { variables: { day: 1 }, temporary: { choice: "north" } },
+      Save: { onSave: { add: vi.fn(), delete: vi.fn() } },
+      State: { passage: "Start", variables: { day: 1 }, temporary: { choice: "north" } },
     });
     const view = render(<DirectInspector />);
 

@@ -54,8 +54,11 @@ test("hosts opt in through the extension action for the current document", async
   await expect(host.getByRole("region", { name: "Story overview" })).toBeVisible();
   await host.getByRole("tab", { name: "Variables", exact: true }).click();
   await host.getByRole("button", { name: "Add score to favorites" }).click();
+  const saved = await page.evaluate(() => SugarCube.Save.base64.save());
 
   await page.reload();
+  await expect(page.locator("#passages")).toContainText("Smoke story ready.");
+  await page.evaluate((saved) => SugarCube.Save.base64.load(saved), saved);
   await expect(host).toHaveCount(0);
   await triggerAction();
   await host.getByRole("tab", { name: "Variables", exact: true }).click();
@@ -444,39 +447,79 @@ test("searches both variable scopes and reveals a result in a collapsed branch",
   await expect(results.first()).toHaveAccessibleName("$capName");
 });
 
-test("restores and removes favorites across exports of the same story", async ({ page }) => {
+test("saves hidden inspector settings with the story and restores them in another export", async ({ page }) => {
   const exportDir = await mkdtemp(join(tmpdir(), "inspector-export-"));
   const exportFile = join(exportDir, "rebuilt.html");
   try {
     await copyFile(fileURLToPath(storyUrl), exportFile);
     await page.goto(storyUrl);
     const drawer = await openVariables(page);
-    const rebuilt = await page.context().newPage();
-    await rebuilt.goto(pathToFileURL(exportFile).href);
-    const rebuiltDrawer = await openVariables(rebuilt);
-
     await expandVariable(drawer, "inventory");
     await drawer.getByRole("button", { name: "Add 0 to favorites" }).click();
-    await rebuiltDrawer.getByRole("tab", { name: "Temporary Variables" }).click();
-    await rebuiltDrawer.getByRole("button", { name: "Add choice to favorites" }).click();
-    await rebuilt.close();
+    const metadata = await page.evaluate(() => SugarCube.State.getVar("$__sugarcubeInspector"));
+    expect(metadata).toEqual({ version: 1, favorites: [{ root: "variables", path: ["inventory", "0"] }] });
+    await expect(drawer.getByText("__sugarcubeInspector", { exact: true })).toHaveCount(0);
+    const search = drawer.getByRole("searchbox", { name: "Search variables" });
+    await search.fill("sugarcubeInspector");
+    await search.press("Enter");
+    await expect(drawer.getByText("No matching variables.", { exact: true })).toBeVisible();
+    await search.fill("$__sugarcubeInspector.favorites");
+    await search.press("Enter");
+    await expect(drawer.getByRole("alert")).toContainText("not available");
+    const saved = await page.evaluate(() => SugarCube.Save.base64.save());
 
     await page.goto(pathToFileURL(exportFile).href);
     await openVariables(page);
-    await drawer.getByRole("tab", { name: "Favorites" }).click();
-    await expect(drawer.getByText("$inventory[0]", { exact: true })).toBeVisible();
-    await expect(drawer.getByText("_choice", { exact: true })).toBeVisible();
-    await drawer.getByRole("button", { name: "Remove _choice from favorites" }).click();
-
-    await page.reload();
+    await page.evaluate((saved) => SugarCube.Save.base64.load(saved), saved);
     await openVariables(page);
     await drawer.getByRole("tab", { name: "Favorites" }).click();
     await expect(drawer.getByText("$inventory[0]", { exact: true })).toBeVisible();
-    await expect(drawer.getByText("_choice", { exact: true })).toHaveCount(0);
+    await drawer.getByRole("button", { name: "Clear All", exact: true }).click();
+    const emptySave = await page.evaluate(() => SugarCube.Save.base64.save());
+
+    await page.reload();
+    await openVariables(page);
+    await page.evaluate((saved) => SugarCube.Save.base64.load(saved), emptySave);
+    await openVariables(page);
+    await drawer.getByRole("tab", { name: "Favorites" }).click();
+    await expect(drawer.getByText("Star a variable to watch it here.", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => {
+      SugarCube.State.setVar("$__sugarcubeInspector", { version: 2, favorites: [] });
+      return SugarCube.Save.base64.save();
+    })).toEqual(expect.any(String));
   } finally {
     await unlink(exportFile);
     await rmdir(exportDir);
   }
+});
+
+test("migrates legacy extension favorites into the hidden story object", async ({ page, context }) => {
+  const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
+  const path = { root: "variables", path: ["score"] };
+  const key = 'favorites:file::8a6e4307-c73b-4f1b-9322-7cf69b980fb1:' + JSON.stringify(path);
+  await worker.evaluate(`chrome.storage.local.set(${JSON.stringify({ [key]: path })})`);
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await drawer.getByRole("tab", { name: "Favorites" }).click();
+  await expect(drawer.getByText("$score", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => SugarCube.State.getVar("$__sugarcubeInspector"))).toEqual({ version: 1, favorites: [path] });
+  await drawer.getByRole("button", { name: "Clear All", exact: true }).click();
+  expect(await worker.evaluate("chrome.storage.local.get(null)")).toEqual({ [key]: path });
+});
+
+test("favorites follow the story moment when moving through history", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await drawer.getByRole("button", { name: "Add score to favorites" }).click();
+  await page.getByRole("link", { name: "Continue" }).click();
+  await openVariables(page);
+  await drawer.getByRole("tab", { name: "Favorites" }).click();
+  await drawer.getByRole("button", { name: "Clear All", exact: true }).click();
+  await page.getByRole("link", { name: "Return" }).click();
+  await page.evaluate(() => SugarCube.Engine.backward());
+  await openVariables(page);
+  await drawer.getByRole("tab", { name: "Favorites" }).click();
+  await expect(drawer.getByText("$score", { exact: true })).toBeVisible();
 });
 
 test("overview follows the current passage and playable history", async ({ page }) => {

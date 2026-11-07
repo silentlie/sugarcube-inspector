@@ -1,7 +1,9 @@
+import type { SaveObject } from "twine-sugarcube";
 import { getState } from "../sugarcube/state";
 import { readVariable, sameVariable, type FavoriteLocation, type FavoritePath, type VariableSnapshot } from "./location";
 import { variableWatcher, type VariableSubscription, type VariableWatcher } from "./watcher";
-import { decodeFavoritePaths, favoriteStorageEvents as events, getFavoriteStoragePrefix } from "./favoriteStorage";
+import { decodeFavoritePaths, favoriteStorageEvents as events, getFavoriteStoragePrefix, inspectorSettingsKey } from "./favoriteStorage";
+import { readStoryFavorites, writeStoryFavorites } from "./storySettings";
 
 export type Favorite = { location: FavoriteLocation };
 type FavoriteChange = { id: number; before: string; after: string; turn: number; passage: string };
@@ -115,39 +117,101 @@ export class FavoriteStore {
 export const favoriteStore = new FavoriteStore();
 
 export function connectFavoriteStorage(): (() => void) | undefined {
-  if (!getFavoriteStoragePrefix()) return;
-  let restored = false;
+  if (!getState().passage) {
+    let disconnect: (() => void) | undefined;
+    const stopWaiting = variableWatcher.beforeRefresh(() => {
+      if (!getState().passage) return;
+      stopWaiting();
+      disconnect = connectFavoriteStorage();
+    });
+    return () => { stopWaiting(); disconnect?.(); };
+  }
+  let initial: FavoritePath[] | undefined;
+  try {
+    initial = readStoryFavorites();
+    if (!initial) writeStoryFavorites([]);
+  } catch (error) {
+    console.warn("SugarCube Inspector could not initialize story settings.", error);
+    return;
+  }
+  let applying = false;
+  let signature = JSON.stringify(initial ?? []);
+  let restored = initial !== undefined || !getFavoriteStoragePrefix();
+  const initialMoment = getState().active;
   const pending = new Map<string, boolean>();
-  const load = () => document.dispatchEvent(new Event(events.load));
-  const encode = ({ root, path }: FavoritePath) => JSON.stringify([{ root, path }]);
-  const save = (detail: string, pinned: boolean) =>
-    document.dispatchEvent(new CustomEvent(pinned ? events.pin : events.unpin, { detail }));
-  const onChange: FavoriteListener = (location, pinned) => {
-    if (!location.path.every((key) => typeof key === "string")) return;
-    const detail = encode(location);
-    if (restored) save(detail, pinned);
-    else pending.set(detail, pinned);
+  const encode = ({ root, path }: FavoritePath) => JSON.stringify({ root, path });
+  const serializable = (path: FavoritePath) => path.path.every((key) => typeof key === "string");
+  const apply = (paths: FavoritePath[]) => {
+    applying = true;
+    try {
+      for (const { location } of favoriteStore.getSnapshot()) {
+        if (serializable(location) && !paths.some((path) => sameFavoritePath(location, path))) favoriteStore.remove(location);
+      }
+      for (const path of paths) favoriteStore.add(path);
+    } finally { applying = false; }
   };
-  let unsubscribe = favoriteStore.subscribe(onChange);
+  const write = () => {
+    const paths = favoriteStore.getSnapshot().map(({ location: { root, path } }) => ({ root, path }))
+      .filter(serializable);
+    writeStoryFavorites(paths);
+    signature = JSON.stringify(paths);
+  };
+  const refresh = () => {
+    const paths = readStoryFavorites() ?? [];
+    const next = JSON.stringify(paths);
+    if (next !== signature) {
+      apply(paths);
+      signature = next;
+    }
+  };
+  apply(initial ?? []);
+  const unsubscribe = favoriteStore.subscribe((location, pinned) => {
+    if (applying || !serializable(location)) return;
+    try {
+      refresh();
+      applying = true;
+      try {
+        if (pinned) favoriteStore.add(location);
+        else favoriteStore.remove(location);
+      } finally { applying = false; }
+      write();
+      if (!restored) pending.set(encode(location), pinned);
+    } catch (error) { console.warn("SugarCube Inspector could not save story settings.", error); }
+  });
+  const load = () => { if (!restored) document.dispatchEvent(new Event(events.load)); };
   const restore = (event: Event) => {
     if (restored) return;
     const paths = decodeFavoritePaths((event as CustomEvent<unknown>).detail);
     if (!paths) return;
-    unsubscribe();
-    for (const path of paths) {
-      if (!pending.has(encode(path))) favoriteStore.add(path);
-    }
     restored = true;
-    for (const [detail, pinned] of pending) save(detail, pinned);
+    if (getState().active !== initialMoment) return;
+    const merged: FavoritePath[] = favoriteStore.getSnapshot().map(({ location }) => location).filter(serializable);
+    for (const path of paths) {
+      if (pending.get(encode(path)) !== false && !merged.some((old) => sameFavoritePath(old, path))) merged.push(path);
+    }
+    try { apply(merged); write(); }
+    catch (error) { console.warn("SugarCube Inspector could not migrate favorites.", error); }
     pending.clear();
-    unsubscribe = favoriteStore.subscribe(onChange);
   };
-
+  const stopRefreshing = variableWatcher.beforeRefresh(() => {
+    try { refresh(); } catch { /* Keep session favorites if reserved metadata becomes unreadable. */ }
+  });
   document.addEventListener(events.ready, load);
   document.addEventListener(events.loaded, restore);
+  // SugarCube saves the pre-render history snapshot, not the live active moment.
+  const onSave = (save: SaveObject) => {
+    try {
+      const moment = save.state.history[save.state.index];
+      const favorites = readStoryFavorites();
+      if (moment && favorites) moment.variables[inspectorSettingsKey] = { version: 1, favorites };
+    } catch { /* Invalid inspector metadata must not block saving game progress. */ }
+  };
+  SugarCube.Save.onSave.add(onSave);
   load();
   return () => {
     unsubscribe();
+    stopRefreshing();
+    SugarCube.Save.onSave.delete(onSave);
     document.removeEventListener(events.ready, load);
     document.removeEventListener(events.loaded, restore);
   };

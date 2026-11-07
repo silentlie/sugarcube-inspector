@@ -2,6 +2,7 @@ import type { TreeDataNode } from "antd";
 import { isLeafNode } from "./isLeafNode";
 import { readLocation, type ChildLocation, type FavoritePath, type VariableLocation, type VariableRead } from "./location";
 import { listChildren } from "./structure";
+import { inspectorSettingsKey } from "./favoriteStorage";
 
 /** One node model for both live inspection and Ant's treeData. */
 export type VariableNode = TreeDataNode & {
@@ -45,7 +46,9 @@ function childLocations(item: VariableNode, current: VariableRead): {
   }
 
   return {
-    locations: listChildren(current.value),
+    locations: listChildren(current.value).filter((child) =>
+      !(location.kind === "state" && location.key === "variables" &&
+        child.kind === "property" && child.key === inspectorSettingsKey)),
     ancestors: [...item.ancestors, current.value as object],
   };
 }

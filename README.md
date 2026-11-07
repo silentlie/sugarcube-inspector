@@ -55,9 +55,12 @@ It reads live story and temporary variables directly without attaching a debugge
   as expandable references. Boxed primitives are handled explicitly because the
   library's general-purpose type detector rejects them; their values remain inspectable.
 - Starred property and array locations are tracked by root-relative paths, so favourites
-  follow replaced ancestors and retain missing paths. The extension remembers
-  string-key paths per story IFID across reloads and new local exports. Symbol-key
-  paths and stories without an IFID use session-only favorites. Map/Set entry
+  follow replaced ancestors and retain missing paths. String-key favorites live
+  in `$__sugarcubeInspector`, a reserved top-level object hidden from the inspector.
+  They travel with story saves and history, including when a save is loaded in
+  another export. Save the game to retain changes across reloads. Existing
+  extension-stored favorites are imported when no story settings exist; old
+  entries remain as a migration backup. Symbol-key paths use session-only favorites. Map/Set entry
   nodes cannot be pinned, but their containing
   variables can. An always-active `favorites` scope polls pinned values, while a
   separate `favorites-tree` scope pauses structural and descendant polling off-tab.
@@ -150,5 +153,5 @@ For a hosted SugarCube story, open the story in its own tab and click the
 extension toolbar icon to activate inspection. The drawer opens when it first
 attaches. Use its handle or toggle tab to reopen it in the same document. Click
 the toolbar icon again after reloading or navigating to a new document. Hosted
-favorites are stored separately for each site origin and story IFID. A site's
+favorites are saved in the story's hidden inspector settings object. A site's
 content security policy can prevent the drawer's styles from loading.

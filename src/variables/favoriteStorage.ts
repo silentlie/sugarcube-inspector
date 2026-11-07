@@ -1,5 +1,7 @@
 import type { FavoritePath } from "./location";
 
+export const inspectorSettingsKey = "__sugarcubeInspector";
+
 export const favoriteStorageEvents = {
   ready: "sugarcube-inspector:favorites-ready",
   load: "sugarcube-inspector:favorites-load",
@@ -24,13 +26,18 @@ export function decodeFavoritePaths(detail: unknown): FavoritePath[] | undefined
   } catch {
     return;
   }
+  return validateFavoritePaths(data);
+}
+
+export function validateFavoritePaths(data: unknown): FavoritePath[] | undefined {
   if (!Array.isArray(data)) return;
   const paths: FavoritePath[] = [];
   for (const item of data) {
     if (item === null || typeof item !== "object") return;
     const { root, path } = item as { root?: unknown; path?: unknown };
     if ((root !== "variables" && root !== "temporary") || !Array.isArray(path) ||
-        !path.length || !path.every((key) => typeof key === "string")) return;
+        !path.length || !path.every((key) => typeof key === "string") ||
+        (root === "variables" && path[0] === inspectorSettingsKey)) return;
     paths.push({ root, path });
   }
   return paths;
