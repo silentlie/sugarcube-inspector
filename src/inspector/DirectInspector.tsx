@@ -6,14 +6,16 @@ import { variableLocks } from "../variables/locks";
 import VariableSearch from "../variables/ui/VariableSearch";
 import LockedVariables from "../variables/ui/LockedVariables";
 import UndoEdit from "../variables/ui/UndoEdit";
+import VariableComparison from "../variables/ui/VariableComparison";
 import { variableEdits } from "../variables/edits";
+import type { FavoritePath } from "../variables/location";
 import VariableTree, { FavoritesTree, type VariableTreeSearch } from "../variables/ui/VariableTree";
 import { variableWatcher } from "../variables/watcher";
 import StoryOverview from "./StoryOverview";
 import StoryPassages from "./StoryPassages";
 
 type Section = "overview" | "variables" | "passages";
-type VariableScope = VariableStoreKey | "favorites" | "locked";
+type VariableScope = VariableStoreKey | "favorites" | "locked" | "compare";
 
 /** Wait for initialization before any inspection hook can read the State API. */
 export default function DirectInspector() {
@@ -56,17 +58,19 @@ function InspectorSections() {
   useEffect(() => variableLocks.clear, []);
   useEffect(() => variableEdits.clear, []);
 
+  const reveal = ({ root, path }: FavoritePath) => {
+    const tree = root === "variables" ? variablesRef.current : temporaryRef.current;
+    if (!tree?.reveal(path)) return false;
+    setScope(root);
+    return true;
+  };
+
   const variables = <>
     <UndoEdit />
     <VariableSearch find={(query) => [
       ...(variablesRef.current?.find(query) ?? []),
       ...(temporaryRef.current?.find(query) ?? []),
-    ]} reveal={({ root, path }) => {
-      const tree = root === "variables" ? variablesRef.current : temporaryRef.current;
-      if (!tree?.reveal(path)) return false;
-      setScope(root);
-      return true;
-    }} />
+    ]} reveal={reveal} />
     <Tabs
       activeKey={scope}
       aria-label="Variable scope"
@@ -79,6 +83,7 @@ function InspectorSections() {
         { key: "temporary", label: "Temporary Variables", forceRender: true, children: <VariableTree storeKey="temporary" active={activeScope === "temporary"} searchRef={temporaryRef} /> },
         { key: "favorites", label: "Favorites", children: <FavoritesTree active={activeScope === "favorites"} /> },
         { key: "locked", label: "Locked Variables", children: <LockedVariables /> },
+        { key: "compare", label: "Compare", children: <VariableComparison reveal={reveal} /> },
       ]}
     />
   </>;

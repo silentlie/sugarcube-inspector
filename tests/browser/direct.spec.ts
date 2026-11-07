@@ -661,6 +661,40 @@ test("finds exported passage source by title and tag without running it", async 
   await expect(picker).toHaveValue("");
 });
 
+test("compares captured primitives and reveals a changed favorite path", async ({ page }) => {
+  await page.goto(storyUrl);
+  await page.evaluate(() => {
+    SugarCube.State.setVar("$player", { health: 10 });
+    SugarCube.State.setVar("$removed", true);
+  });
+  const drawer = await openVariables(page);
+  await expandVariable(drawer, "player");
+  await drawer.getByRole("button", { name: "Add health to favorites" }).click();
+  await drawer.getByRole("tab", { name: "Compare", exact: true }).click();
+  const comparison = drawer.getByRole("region", { name: "Variable comparison" });
+  await comparison.getByRole("button", { name: "Capture Baseline" }).click();
+  await page.evaluate(() => {
+    SugarCube.State.setVar("$player", { health: 20 });
+    SugarCube.State.setVar("$score", 15);
+    SugarCube.State.setVar("$added", false);
+    Reflect.deleteProperty(SugarCube.State.variables, "removed");
+    SugarCube.State.setVar("_choice", "south");
+  });
+  await comparison.getByRole("button", { name: "Show Changes" }).click();
+  const changes = comparison.getByRole("list", { name: "Variable changes" });
+  await expect(changes).toContainText("$score · changed");
+  await expect(changes).toContainText("$removed · removed");
+  await expect(changes).toContainText("$added · added");
+  await expect(changes).toContainText("_choice · changed");
+  await expect(changes).not.toContainText("__sugarcubeInspector");
+  const health = changes.getByRole("listitem").filter({ hasText: "$player.health · changed" });
+  await expect(health).toContainText("Before: 10");
+  await expect(health).toContainText("After: 20");
+  await health.getByRole("button", { name: "Reveal $player.health" }).click();
+  await expect(drawer.getByRole("tab", { name: "Story Variables", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(drawer.getByText("health", { exact: true })).toBeVisible();
+});
+
 test("opens an exact path inside previously unopened branches", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => SugarCube.State.setVar("$Player", { stats: [{ "health points": 42 }] }));

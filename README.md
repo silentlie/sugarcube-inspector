@@ -14,6 +14,10 @@ It reads live story and temporary variables directly without attaching a debugge
   variables. Passages lets you search a Twine 2 export by passage title, tag, or source text
   and read the source as plain text. Overview links to the current passage source
   when it exists in the export.
+- Variables → Compare captures a page-session baseline of top-level primitives
+  in both scopes and the favorite paths selected at capture. Show Changes lists
+  additions, removals, and changed values with before/after values and Reveal.
+  Comparison is manual; objects are not recursively snapshotted.
 - Under Variables, enter an exact `$` or `_` path to open unopened branches
   (for example `$player.stats[0]["health points"]`). Property names are case sensitive;
   bracketed strings use JSON quotes. Other searches list up to 20
