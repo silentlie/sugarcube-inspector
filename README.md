@@ -89,6 +89,8 @@ It reads live story and temporary variables directly without attaching a debugge
   the drawer is closed. Unlock to edit. If the path disappears, becomes
   read-only, or holds an object, the lock releases.
   If two locked paths come to reference the same property, the earlier lock wins.
+  The Locked Variables tab lists active locks from both scopes with their frozen
+  values and an unlock control for each path.
 
 ## Accepted interaction limitations
 

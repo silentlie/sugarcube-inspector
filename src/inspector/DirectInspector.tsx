@@ -4,13 +4,14 @@ import { hasState, type VariableStoreKey } from "../sugarcube/state";
 import { connectFavoriteStorage } from "../variables/favorites";
 import { variableLocks } from "../variables/locks";
 import VariableSearch from "../variables/ui/VariableSearch";
+import LockedVariables from "../variables/ui/LockedVariables";
 import VariableTree, { FavoritesTree, type VariableTreeSearch } from "../variables/ui/VariableTree";
 import { variableWatcher } from "../variables/watcher";
 import StoryOverview from "./StoryOverview";
 import StoryPassages from "./StoryPassages";
 
 type Section = "overview" | "variables" | "passages";
-type VariableScope = VariableStoreKey | "favorites";
+type VariableScope = VariableStoreKey | "favorites" | "locked";
 
 /** Wait for initialization before any inspection hook can read the State API. */
 export default function DirectInspector() {
@@ -73,6 +74,7 @@ function InspectorSections() {
         { key: "variables", label: "Story Variables", forceRender: true, children: <VariableTree storeKey="variables" active={activeScope === "variables"} searchRef={variablesRef} /> },
         { key: "temporary", label: "Temporary Variables", forceRender: true, children: <VariableTree storeKey="temporary" active={activeScope === "temporary"} searchRef={temporaryRef} /> },
         { key: "favorites", label: "Favorites", children: <FavoritesTree active={activeScope === "favorites"} /> },
+        { key: "locked", label: "Locked Variables", children: <LockedVariables /> },
       ]}
     />
   </>;

@@ -276,6 +276,38 @@ test("keeps the earlier lock when two variable paths converge on the same proper
   expect(await page.evaluate(() => SugarCube.State.getVar("$player.health"))).toBe(10);
 });
 
+test("lists locks from both stores and unlocks them directly from Locked Variables", async ({ page }) => {
+  await page.goto(storyUrl);
+  await page.evaluate(() => SugarCube.State.setVar("$player", { health: 10 }));
+  const drawer = await openVariables(page);
+  await expandVariable(drawer, "player");
+  await drawer.getByRole("button", { name: "Lock health", exact: true }).click();
+  await drawer.getByRole("tab", { name: "Temporary Variables" }).click();
+  await drawer.getByRole("button", { name: "Lock choice", exact: true }).click();
+
+  const lockedTab = drawer.getByRole("tab", { name: "Locked Variables" });
+  await expect(lockedTab).toBeVisible();
+  await lockedTab.click();
+  const list = drawer.getByRole("list", { name: "Locked variables" });
+  const health = list.getByRole("listitem").filter({ hasText: "$player.health" });
+  const choice = list.getByRole("listitem").filter({ hasText: "_choice" });
+  await expect(health.getByTitle("10", { exact: true })).toBeVisible();
+  await expect(choice.getByTitle('"north"', { exact: true })).toBeVisible();
+
+  await health.getByRole("button", { name: "Unlock $player.health" }).press("Enter");
+  await expect(health).toHaveCount(0);
+  const unlockChoice = choice.getByRole("button", { name: "Unlock _choice" });
+  await expect(unlockChoice).toBeFocused();
+  await page.evaluate(() => {
+    SugarCube.State.setVar("$player.health", 4);
+    SugarCube.State.setVar("_choice", "south");
+  });
+  await expect.poll(() => page.evaluate(() => SugarCube.State.getVar("_choice"))).toBe("north");
+  expect(await page.evaluate(() => SugarCube.State.getVar("$player.health"))).toBe(4);
+  await unlockChoice.press("Enter");
+  await expect(drawer.getByText("No locked variables.", { exact: true })).toBeVisible();
+});
+
 test("searches both variable scopes and reveals a result in a collapsed branch", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => {

@@ -3,9 +3,10 @@ import { sameFavoritePath } from "./favorites";
 import { isEditablePrimitive, readLocation, resolvePropertyPath, type FavoritePath, type Primitive } from "./location";
 import { variableWatcher } from "./watcher";
 
-type VariableLock = { path: FavoritePath; value: Primitive };
+type VariableLock = { id: number; path: FavoritePath; value: Primitive };
 
 let locks: readonly VariableLock[] = [];
+let nextLockId = 0;
 let stopPolling: (() => void) | undefined;
 const listeners = new Set<() => void>();
 
@@ -16,6 +17,11 @@ function setLocks(next: readonly VariableLock[]) {
     stopPolling = undefined;
   }
   for (const listener of listeners) listener();
+}
+
+function unlock(id: number) {
+  const remaining = locks.filter((lock) => lock.id !== id);
+  if (remaining.length !== locks.length) setLocks(remaining);
 }
 
 function enforceLocks() {
@@ -43,6 +49,7 @@ function enforceLocks() {
 
 export const variableLocks = {
   getSnapshot: () => locks,
+  unlock,
   subscribe(listener: () => void) {
     listeners.add(listener);
     return () => { listeners.delete(listener); };
@@ -56,7 +63,7 @@ export const variableLocks = {
   toggle(path: FavoritePath) {
     const existing = locks.find((lock) => sameFavoritePath(lock.path, path));
     if (existing) {
-      setLocks(locks.filter((lock) => lock !== existing));
+      unlock(existing.id);
       return;
     }
 
@@ -66,7 +73,7 @@ export const variableLocks = {
       const current = readLocation(location);
       if (current.kind !== "value" || !current.editable || !isEditablePrimitive(current.value)) return;
       stopPolling ??= variableWatcher.beforeRefresh(enforceLocks);
-      setLocks([...locks, { path, value: current.value }]);
+      setLocks([...locks, { id: nextLockId++, path, value: current.value }]);
     } catch {
       // An unreadable property cannot be locked.
     }
