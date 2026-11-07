@@ -2,7 +2,7 @@ import { Tree, type TreeDataNode } from "antd";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { type ComponentRef, type Key, type Ref, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type VariableStoreKey } from "../../sugarcube/state";
-import { readLocation, type FavoritePath, type VariableLocation } from "../location";
+import { formatFavoritePath, readLocation, type FavoritePath, type VariableLocation } from "../location";
 import { favoriteStore } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
 import { variableWatcher } from "../watcher";
@@ -10,6 +10,7 @@ import { readStructure, sameStructure } from "../structure";
 import { findVariablePaths, revealVariablePath } from "../search";
 import { VariableNodeContent } from "./VariableNodeContent";
 import FavoriteHistory from "./FavoriteHistory";
+import VariableDetails from "./VariableDetails";
 import { VariableScopeContext } from "./useVariableWatch";
 import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "../nodes";
 
@@ -81,6 +82,8 @@ function RichVariableTree({ storeKey, active, searchRef }: {
   const [height, setHeight] = useState(0);
   const [historyKey, setHistoryKey] = useState<number | null>(null);
   const historyButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [detailsPath, setDetailsPath] = useState<FavoritePath | null>(null);
+  const detailsButtonRef = useRef<HTMLButtonElement | null>(null);
   const historyLocation = historyKey === null ? undefined : items.find((item) => item.key === historyKey)?.location;
   const treeRef = useRef<ComponentRef<typeof Tree>>(null);
   const [activeKey, setActiveKey] = useState<Key | null>(null);
@@ -187,6 +190,13 @@ function RichVariableTree({ storeKey, active, searchRef }: {
   }, [expanded, refresh]);
 
   return <>
+  {detailsPath && <VariableDetails key={formatFavoritePath(detailsPath)} path={detailsPath}
+    close={() => {
+      setDetailsPath(null);
+      const button = detailsButtonRef.current;
+      if (button?.isConnected) button.focus();
+      else viewport?.querySelector<HTMLElement>('[role="tree"]')?.focus();
+    }} />}
   {historyLocation?.kind === "favorite" && <FavoriteHistory key={historyLocation.id} location={historyLocation}
     close={() => {
       setHistoryKey(null);
@@ -231,7 +241,13 @@ function RichVariableTree({ storeKey, active, searchRef }: {
         expanded={expanded.has(item.key)}
         onToggle={() => toggleExpanded(item)}
         historyOpen={historyKey === item.key}
+        onShowDetails={item.favoritePath ? (button) => {
+          detailsButtonRef.current = button;
+          setHistoryKey(null);
+          setDetailsPath(item.favoritePath!);
+        } : undefined}
         onShowHistory={item.location.kind === "favorite" ? (button) => {
+          setDetailsPath(null);
           historyButtonRef.current = button;
           setHistoryKey(item.key);
         } : undefined}

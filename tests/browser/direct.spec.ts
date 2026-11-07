@@ -572,6 +572,30 @@ test("finds exported passage source by title and tag without running it", async 
   await expect(picker).toHaveValue("");
 });
 
+test("shows and copies a full primitive value and follows its live path", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(storyUrl);
+  const value = "<b>plain text</b>\n" + "long value ".repeat(40);
+  await page.evaluate((value) => SugarCube.State.setVar("$player", { note: value }), value);
+  const drawer = await openVariables(page);
+  await expandVariable(drawer, "player");
+  const opener = drawer.getByRole("button", { name: "Show full value for note" });
+  await opener.click();
+  const details = drawer.getByRole("region", { name: "Variable details" });
+  await expect(details.locator("pre")).toHaveText(value);
+  await expect(details.locator("b")).toHaveCount(0);
+  await details.getByRole("button", { name: "Copy Path" }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("$player.note");
+  await details.getByRole("button", { name: "Copy Value" }).click();
+  expect((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n")).toBe(value);
+  await page.evaluate(() => SugarCube.State.setVar("$player", { note: "replacement" }));
+  await expect(details.locator("pre")).toHaveText("replacement");
+  await details.getByRole("button", { name: "Close details" }).click();
+  await expect(details).toHaveCount(0);
+  // Replaced owners rebuild tree rows; closing still returns focus to the tree.
+  await expect(drawer.getByRole("tree", { name: "Story variables tree" })).toBeFocused();
+});
+
 test("Tailwind utilities stay inside the inspector ShadowRoot", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);

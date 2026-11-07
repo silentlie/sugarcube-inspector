@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useSyncExternalStore } from "react";
 import type { VariableStoreKey } from "../../sugarcube/state";
-import { readVariable, sameVariable, type VariableLocation } from "../location";
+import { readVariable, resolvePropertyPath, sameVariable, type FavoritePath, type VariableLocation, type VariableSnapshot } from "../location";
 import { favoriteStore } from "../favorites";
 import { variableWatcher } from "../watcher";
 
@@ -20,6 +20,15 @@ export function useVariable(location: VariableLocation) {
       : variableWatcher.watch(() => readVariable(location), sameVariable, scope),
     [location, scope],
   );
+  return useSyncExternalStore(subscription.subscribe, subscription.getSnapshot);
+}
+
+export function useVariablePath(path: FavoritePath) {
+  const scope = useScope();
+  const subscription = useMemo(() => variableWatcher.watch<VariableSnapshot>(() => {
+    const location = resolvePropertyPath(path);
+    return location ? readVariable(location) : { kind: "missing" };
+  }, sameVariable, scope), [path, scope]);
   return useSyncExternalStore(subscription.subscribe, subscription.getSnapshot);
 }
 

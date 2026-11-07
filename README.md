@@ -86,6 +86,8 @@ It reads live story and temporary variables directly without attaching a debugge
   Expandable rows still expand or collapse. Save preserves the variable's type.
   Undo Last Edit restores the previous primitive value while its live target,
   current value, and active story moment still match the last inspector edit.
+- Use Show full value beside a string, number, or boolean to read its complete
+  live value and copy its path or value. Strings are copied as plain text.
 - Use the lock beside a writable primitive to keep its value for the page
   session. The inspector restores changes on its 250 ms poll, including while
   the drawer is closed. Unlock to edit. If the path disappears, becomes

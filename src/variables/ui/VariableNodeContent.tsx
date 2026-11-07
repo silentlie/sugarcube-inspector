@@ -1,6 +1,6 @@
 import { isObject } from "@sindresorhus/is";
 import { Typography } from "antd";
-import { History, Lock, LockOpen, Star } from "lucide-react";
+import { History, Lock, LockOpen, ScanText, Star } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { favoriteStore, sameFavoritePath } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
@@ -12,13 +12,14 @@ import { useVariable } from "./useVariableWatch";
 import { MapKeyPreview, VariableTypePreview, VariableValuePreview } from "./VariableValuePreview";
 
 /** Virtualized rows own only visible-value subscriptions. */
-export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowHistory, historyOpen }: {
+export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowHistory, historyOpen, onShowDetails }: {
   node: VariableNode;
   refresh: (id: number, load?: boolean) => void;
   expanded: boolean;
   onToggle: () => void;
   onShowHistory?: (button: HTMLButtonElement) => void;
   historyOpen?: boolean;
+  onShowDetails?: (button: HTMLButtonElement) => void;
 }) {
   const current = useVariable(node.location);
   const favorites = useSyncExternalStore(favoriteStore.subscribe, favoriteStore.getSnapshot);
@@ -106,6 +107,11 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
       onKeyDown={(event) => event.stopPropagation()}>
       {locked ? <Lock size={14} aria-hidden="true" /> : <LockOpen size={14} aria-hidden="true" />}
     </button>}
+    {path && current.kind === "value" && isEditablePrimitive(current.value) && onShowDetails &&
+      <button type="button" className="shrink-0 cursor-pointer rounded p-1"
+        aria-label={`Show full value for ${name}`} title="Show full value"
+        onClick={(event) => { event.stopPropagation(); onShowDetails(event.currentTarget); }}
+        onKeyDown={(event) => event.stopPropagation()}><ScanText size={14} aria-hidden="true" /></button>}
     {onShowHistory && <button type="button" className="shrink-0 cursor-pointer rounded p-1"
       aria-label={`Show change history for ${name}`} title="Show change history"
       aria-expanded={historyOpen} aria-controls={historyOpen ? "sugarcube-favorite-history" : undefined}
