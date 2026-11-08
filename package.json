@@ -2,7 +2,7 @@
   "name": "sugarcube-inspector",
   "description": "Live SugarCube story inspector for Chromium",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
