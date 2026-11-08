@@ -134,6 +134,11 @@ take precedence over a late load response.
 
 ## Accepted interaction limitations
 
+- Primitive edits change live values, not SugarCube's saved passage checkpoint.
+  Saving immediately in the same passage and loading that save can restore the
+  earlier value. Advancing to another passage normally checkpoints the edit,
+  provided the story does not overwrite it. The inspector does not save or
+  reapply primitive-edit overrides; its save hook preserves favorites only.
 - Expandable variable titles have their own keyboard focus target in addition
   to Ant Design Tree's navigation. This adds Tab stops for expandable rows;
   Enter or Space on a focused title expands or collapses that row.
