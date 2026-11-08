@@ -108,10 +108,12 @@ test("edits top-level primitive values in the live story and temporary stores", 
   const scoreTile = drawer.getByRole("button", { name: /^score\s*:/ });
   await scoreTile.getByText("score", { exact: true }).click();
   const score = drawer.getByRole("textbox", { name: "New value for score" });
-  await score.fill("invalid");
-  await score.press("Enter");
-  await expect(drawer.getByRole("alert")).toContainText("finite number");
-  expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(7);
+  for (const invalid of ["invalid", ""]) {
+    await score.fill(invalid);
+    await score.press("Enter");
+    await expect(drawer.getByRole("alert")).toContainText("finite number");
+    expect(await page.evaluate(() => SugarCube.State.getVar("$score"))).toBe(7);
+  }
   await page.evaluate(() => SugarCube.State.setVar("$score", 10));
   await score.fill("21.5");
   await score.press("Enter");
@@ -620,6 +622,20 @@ test("synchronizes favorite operations between open exports of the same story", 
       await expect(host.getByText("$score", { exact: true })).toBeVisible();
       await expect(host.getByText("_choice", { exact: true })).toBeVisible();
     }
+    const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
+    // Await a foreign update's receipt before checking isolation, while pins still exist.
+    await worker.evaluate(`(async () => {
+      const tabs = await chrome.tabs.query({});
+      const tab = tabs.find(({ url }) => url === ${JSON.stringify(unrelated.url())});
+      await chrome.tabs.sendMessage(tab.id, ${JSON.stringify({
+        type: "sugarcube-inspector:favorite-update",
+        group: "favorites:file::8a6e4307-c73b-4f1b-9322-7cf69b980fb1:",
+        detail: JSON.stringify([{ root: "variables", path: ["score"] }]), pinned: true,
+      })});
+    })()`);
+    expect(await unrelated.evaluate(() => SugarCube.State.getVar("$__sugarcubeInspector")))
+      .toEqual({ version: 1, favorites: [] });
+    await expect(unrelatedDrawer.getByText("Star a variable to watch it here.", { exact: true })).toBeVisible();
     await secondDrawer.getByRole("button", { name: "Remove $score from favorites" }).click();
     await expect(drawer.getByText("$score", { exact: true })).toHaveCount(0);
     await drawer.getByRole("button", { name: "Clear All", exact: true }).click();
