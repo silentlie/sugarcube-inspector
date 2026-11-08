@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { captureChildren, compareVariables, PolledChanges } from "./comparison";
+import { captureChildren, compareVariables, PolledChanges, rebaseChildren } from "./comparison";
 import { VariableWatcher } from "./watcher";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -66,6 +66,28 @@ it("retains a fresh watcher baseline after a gap instead of using old history", 
   store.observe(captureChildren(root, { score: {} }), captureChildren(root, {}));
   store.observe(captureChildren(root, {}), captureChildren(root, { score: 3 }));
   expect(store.getSnapshot()[0]).toMatchObject({ kind: "added", before: { kind: "missing" } });
+});
+
+it("rebases only matching direct children, including additions, removals and symbol keys", () => {
+  const parent = { root: "variables" as const, path: ["player"] };
+  const a = Symbol("health");
+  const b = Symbol("health");
+  const before = captureChildren(parent, { health: 7, removed: true, [a]: 10, [b]: 20 });
+  const after = captureChildren(parent, { health: 8, added: false, [a]: 11, [b]: 20 });
+  const changes = [
+    ...compareVariables(before, after),
+    ...compareVariables(captureChildren({ ...parent, root: "temporary" }, { health: 1 }),
+      captureChildren({ ...parent, root: "temporary" }, { health: 2 })),
+    ...compareVariables(captureChildren({ ...parent, path: ["player", "stats"] }, { level: 1 }),
+      captureChildren({ ...parent, path: ["player", "stats"] }, { level: 2 })),
+  ];
+  const rebased = new Map(rebaseChildren(parent, before, changes).map(({ path, value }) => [path.path.at(-1), value]));
+  expect(rebased.size).toBe(4);
+  expect(rebased.get("health")).toEqual({ kind: "value", value: 8 });
+  expect(rebased.has("removed")).toBe(false);
+  expect(rebased.get("added")).toEqual({ kind: "value", value: false });
+  expect(rebased.get(a)).toEqual({ kind: "value", value: 11 });
+  expect(rebased.get(b)).toEqual({ kind: "value", value: 20 });
 });
 
 it("does not replay a favorite change when its paused tree resumes", () => {

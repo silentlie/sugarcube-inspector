@@ -881,6 +881,26 @@ test("resuming a tree does not replay changes already observed by favorites", as
   await expect(scores.first()).toContainText("After: 9");
 });
 
+test("unpin and Clear All do not replay changes when a paused tree resumes", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  const comparison = drawer.getByRole("region", { name: "Variable comparison" });
+  const scores = comparison.getByRole("listitem").filter({ hasText: "$score · changed" });
+  for (const [index, clearAll] of [false, true].entries()) {
+    await drawer.getByRole("tab", { name: "Story Variables", exact: true }).click();
+    await drawer.getByRole("button", { name: "Add score to favorites", exact: true }).click();
+    await drawer.getByRole("tab", { name: "Temporary Variables", exact: true }).click();
+    await page.evaluate((score) => SugarCube.State.setVar("$score", score), 8 + index);
+    await drawer.getByRole("tab", { name: "Compare", exact: true }).click();
+    await expect(scores).toHaveCount(index + 1);
+    await drawer.getByRole("tab", { name: "Favorites", exact: true }).click();
+    await drawer.getByRole("button", { name: clearAll ? "Clear All" : "Remove $score from favorites", exact: true }).click();
+    await drawer.getByRole("tab", { name: "Story Variables", exact: true }).click();
+    await drawer.getByRole("tab", { name: "Compare", exact: true }).click();
+    await expect(scores).toHaveCount(index + 1);
+  }
+});
+
 test("opens an exact path inside previously unopened branches", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => SugarCube.State.setVar("$Player", { stats: [{ "health points": 42 }] }));

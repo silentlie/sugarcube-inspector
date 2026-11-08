@@ -55,10 +55,26 @@ export function compareVariables(baseline: VariableBaseline, current: VariableBa
   return changes;
 }
 
+/** Keep retained container baselines current even while their tree scope is paused. */
+export function rebaseChildren(parent: FavoritePath, baseline: VariableBaseline, changes: readonly VariableChange[]): VariableBaseline {
+  let entries: Map<PropertyKey, Entry> | undefined;
+  for (const change of changes) {
+    const path = change.path;
+    if (path.root !== parent.root || path.path.length !== parent.path.length + 1 ||
+        !parent.path.every((key, index) => Object.is(key, path.path[index]))) continue;
+    entries ??= new Map(baseline.map((entry) => [entry.path.path.at(-1)!, entry]));
+    const key = path.path.at(-1)!;
+    if (change.after.kind === "missing") entries.delete(key);
+    else entries.set(key, { path, value: change.after });
+  }
+  return entries ? [...entries.values()] : baseline;
+}
+
 export class PolledChanges {
   private changes: readonly ObservedChange[] = [];
   private nextId = 0;
   private readonly listeners = new Set<() => void>();
+  private readonly changeListeners = new Set<(changes: readonly VariableChange[]) => void>();
   private batch: object | undefined;
   private keyFor = pathKeys();
   private readonly sampled = new Map<string, CapturedValue>();
@@ -67,6 +83,10 @@ export class PolledChanges {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
   };
+  subscribeChanges(listener: (changes: readonly VariableChange[]) => void) {
+    this.changeListeners.add(listener);
+    return () => { this.changeListeners.delete(listener); };
+  }
   observe(before: VariableBaseline, after: VariableBaseline, batch: object = {}) {
     if (this.batch !== batch) {
       this.batch = batch;
@@ -86,6 +106,7 @@ export class PolledChanges {
     // An unchanged favorite can already account for a resumed tree's stale baseline.
     for (const { path, value } of after) this.sampled.set(this.keyFor(path), value);
     if (!added.length) return;
+    for (const listener of [...this.changeListeners]) listener(added);
     this.changes = [...added.reverse(), ...this.changes].slice(0, 100);
     for (const listener of this.listeners) listener();
   }

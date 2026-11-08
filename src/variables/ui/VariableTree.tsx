@@ -10,7 +10,7 @@ import { readStructure, sameStructure } from "../structure";
 import { findVariablePaths, revealVariablePath } from "../search";
 import { VariableNodeContent } from "./VariableNodeContent";
 import FavoriteHistory from "./FavoriteHistory";
-import { captureChildren, polledChanges } from "../comparison";
+import { captureChildren, polledChanges, rebaseChildren } from "../comparison";
 import VariableDetails from "./VariableDetails";
 import { VariableScopeContext } from "./useVariableWatch";
 import { reconcileChildren, refreshItem, updateTreeItem, type VariableNode } from "../nodes";
@@ -155,6 +155,10 @@ function RichVariableTree({ storeKey, active, searchRef }: {
       if (watches.has(id)) continue;
       const initial = readExpanded(node);
       let previous = initial.samples;
+      const parent = node.favoritePath;
+      const stopRebasing = parent && polledChanges.subscribeChanges((changes) => {
+        previous = rebaseChildren(parent, previous, changes);
+      });
       const subscription = variableWatcher.watch(
         () => readExpanded(node), sameExpanded, watchScope, initial, (sample, batch) => {
           const before = previous;
@@ -162,15 +166,16 @@ function RichVariableTree({ storeKey, active, searchRef }: {
           polledChanges.observe(before, previous, batch);
         },
       );
+      const stopWatching = subscription.subscribe(() => {
+        if (rootNode && id === rootNode.key) {
+          setItems((old) => reconcileChildren(rootNode, old));
+        } else {
+          refresh(id, true);
+        }
+      });
       watches.set(id, {
         location: node.location,
-        unsubscribe: subscription.subscribe(() => {
-          if (rootNode && id === rootNode.key) {
-            setItems((old) => reconcileChildren(rootNode, old));
-          } else {
-            refresh(id, true);
-          }
-        }),
+        unsubscribe: () => { stopWatching(); stopRebasing?.(); },
       });
     }
   }, [items, expanded, refresh, rootNode, watchScope]);
