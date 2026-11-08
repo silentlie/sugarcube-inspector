@@ -4,7 +4,7 @@ import { History, Lock, LockOpen, ScanText, Star } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { favoriteStore, sameFavoritePath } from "../favorites";
 import { isLeafNode } from "../isLeafNode";
-import { getLocationName, isEditablePrimitive, type Primitive, type VariableLocation } from "../location";
+import { getLocationName, isEditablePrimitive, readLocation, resolvePropertyPath, type Primitive, type VariableLocation } from "../location";
 import { variableLocks } from "../locks";
 import type { VariableNode } from "../nodes";
 import { PrimitiveVariableEditor } from "./PrimitiveVariableEditor";
@@ -33,14 +33,18 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
   const isLeaf = isLeafNode(node, current);
   const name = isMapEntry || isSetMember ? "" : getLocationName(node.location);
   const tileRef = useRef<HTMLSpanElement>(null);
-  const [original, setOriginal] = useState<{ value: Primitive; lockId?: number }>();
+  const [original, setOriginal] = useState<{ value: Primitive; lockId?: number; location: Extract<VariableLocation, { kind: "property" }> }>();
   if (original && original.lockId !== lock?.id) setOriginal(undefined);
   const location = node.location;
-  const editableValue = isLeaf && path && location.kind === "property" &&
+  const editableValue = isLeaf && path && (location.kind === "property" || location.kind === "favorite") &&
     current.kind === "value" && current.editable && isEditablePrimitive(current.value) &&
     path.path.length > 0 ? current.value : undefined;
   const activate = !isLeaf ? onToggle : editableValue !== undefined ? () => {
-    if (original === undefined) setOriginal({ value: lock?.value ?? editableValue, lockId: lock?.id });
+    if (original !== undefined || !path) return;
+    const target = resolvePropertyPath(path);
+    const live = target && readLocation(target);
+    if (!target || live?.kind !== "value" || !live.editable || !isEditablePrimitive(live.value)) return;
+    setOriginal({ value: lock?.value ?? live.value, lockId: lock?.id, location: target });
   } : undefined;
   const circular = !isMapEntry && current.kind === "value" &&
     isObject(current.value) && isLeaf;
@@ -91,8 +95,8 @@ export function VariableNodeContent({ node, refresh, expanded, onToggle, onShowH
         <VariableValuePreview current={current} />
       </>}
     </span>
-    {original !== undefined && path && location.kind === "property" &&
-      <PrimitiveVariableEditor name={name} path={path} location={location} original={original.value} lockId={original.lockId}
+    {original !== undefined && path &&
+      <PrimitiveVariableEditor name={name} path={path} location={original.location} original={original.value} lockId={original.lockId}
         close={() => {
           setOriginal(undefined);
           tileRef.current?.focus();

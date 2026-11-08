@@ -42,12 +42,13 @@ export type VariableSnapshot =
 export function readPropertyPath({ root, path }: FavoritePath): VariableRead {
   let value = getStore(root);
   if (value === undefined) return { kind: "missing" };
+  let current: VariableRead = { kind: "value", value };
   try {
     for (const key of path) {
       if (value === null || (typeof value !== "object" && typeof value !== "function")) {
         return { kind: "missing" };
       }
-      const current = readLocation({ kind: "property", owner: value, key });
+      current = readLocation({ kind: "property", owner: value, key });
       if (current.kind !== "value") return current;
       value = current.value;
     }
@@ -55,7 +56,7 @@ export function readPropertyPath({ root, path }: FavoritePath): VariableRead {
     // A saved path can be unreadable in a different export of the story.
     return { kind: "missing" };
   }
-  return { kind: "value", value };
+  return current;
 }
 
 export function resolvePropertyPath({ root, path }: FavoritePath): Extract<VariableLocation, { kind: "property" }> | undefined {

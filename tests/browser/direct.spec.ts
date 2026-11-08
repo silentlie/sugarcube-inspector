@@ -1523,6 +1523,47 @@ test("renders VS Code-style type labels and value token colors", async ({ page }
   await expect(inventoryPreview.locator(".token.number")).toHaveText("2");
 });
 
+test("edits and locks primitive favorites through their current property path", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await page.evaluate(() => {
+    const variables = SugarCube.State.variables as unknown as Record<string, unknown>;
+    variables.pinnedPlayer = { health: 10 };
+  });
+  await expandVariable(drawer, "pinnedPlayer");
+  await drawer.getByRole("tree", { name: "Story variables tree" })
+    .getByRole("treeitem", { name: /^health/ })
+    .getByRole("button", { name: "Add health to favorites" }).click();
+  await drawer.getByRole("tab", { name: "Favorites", exact: true }).click();
+  const pinned = drawer.getByRole("tree", { name: "Favorite variables tree" })
+    .getByRole("treeitem", { name: /^\$pinnedPlayer\.health/ });
+  // Equal replacement values do not publish a new favorite snapshot.
+  await page.evaluate(() => {
+    const variables = SugarCube.State.variables as unknown as Record<string, unknown>;
+    variables.pinnedPlayer = { health: 10 };
+  });
+  await pinned.getByText("$pinnedPlayer.health", { exact: true }).click();
+  const input = pinned.getByRole("textbox", { name: "New value for $pinnedPlayer.health", exact: true });
+  await expect(input).toBeVisible();
+  await input.fill("20");
+  await pinned.getByRole("button", { name: "Save value", exact: true }).click();
+  const read = () => page.evaluate(() => SugarCube.State.getVar("$pinnedPlayer.health"));
+  await expect.poll(read).toBe(20);
+  await drawer.getByRole("button", { name: "Undo edit", exact: true }).click();
+  await expect.poll(read).toBe(10);
+  const lock = pinned.getByRole("button", { name: "Lock $pinnedPlayer.health", exact: true });
+  await lock.click();
+  await expect(lock).toHaveAttribute("aria-pressed", "true");
+  await pinned.getByText("$pinnedPlayer.health", { exact: true }).click();
+  await input.fill("25");
+  await pinned.getByRole("button", { name: "Save value", exact: true }).click();
+  await page.evaluate(() => SugarCube.State.setVar("$pinnedPlayer.health", 3));
+  await expect.poll(read).toBe(25);
+  await lock.click();
+  await page.evaluate(() => SugarCube.State.setVar("$pinnedPlayer.health", 9));
+  await expect.poll(read).toBe(9);
+});
+
 test("favourites stay live across tabs, object replacement, and missing paths", async ({ page }) => {
   await page.goto(storyUrl);
   const drawer = await openVariables(page);

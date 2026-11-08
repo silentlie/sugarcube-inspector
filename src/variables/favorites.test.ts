@@ -90,6 +90,17 @@ describe("favorites", () => {
     watcher.setScopeActive("favorites", false);
   });
 
+  it("exposes the current property's writable flag for primitive favorites", () => {
+    const player = { health: 10 };
+    vi.stubGlobal("SugarCube", { State: { variables: { player }, temporary: {} } });
+    const location: FavoriteLocation = {
+      kind: "favorite", id: -1, root: "variables", path: ["player", "health"],
+    };
+    expect(readVariable(location)).toMatchObject({ kind: "value", value: 10, editable: true });
+    Object.defineProperty(player, "health", { writable: false });
+    expect(readVariable(location)).toMatchObject({ kind: "value", value: 10, editable: false });
+  });
+
   it("does not evaluate intermediate getters and supports symbol paths", () => {
     const getter = vi.fn(() => ({ health: 1 }));
     const variables: Record<PropertyKey, unknown> = {};

@@ -107,6 +107,7 @@ take precedence over a late load response.
   discovered logical children. Click a writable string, finite number, or
   boolean row to edit it, including ordinary nested properties and array entries.
   Expandable rows still expand or collapse. Save preserves the variable's type.
+  Primitive favorites offer the same tile editing and lock controls.
   Back and Forward undo/redo up to 20 successful primitive edits while the live
   target and current value still match. New edits discard the redo branch;
   no-op saves keep it. Both directions clear when the story moment changes.
