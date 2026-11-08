@@ -848,6 +848,39 @@ test("automatically compares polled variables and expanded nested paths", async 
   await expect(comparison.getByText("No changes observed yet.", { exact: true })).toBeVisible();
 });
 
+test("resuming a tree does not replay changes already observed by favorites", async ({ page }) => {
+  await page.goto(storyUrl);
+  const drawer = await openVariables(page);
+  await drawer.getByRole("button", { name: "Add score to favorites" }).click();
+  await drawer.getByRole("tab", { name: "Temporary Variables", exact: true }).click();
+  await page.evaluate(() => SugarCube.State.setVar("$score", 8));
+  await drawer.getByRole("tab", { name: "Compare", exact: true }).click();
+  const comparison = drawer.getByRole("region", { name: "Variable comparison" });
+  const scores = comparison.getByRole("listitem").filter({ hasText: "$score · changed" });
+  await expect(scores).toHaveCount(1);
+  await expect(scores.first()).toContainText("After: 8");
+  await drawer.getByRole("tab", { name: "Story Variables", exact: true }).click();
+  await drawer.getByRole("tab", { name: "Compare", exact: true }).click();
+  await expect(scores).toHaveCount(1);
+
+  await drawer.getByRole("tab", { name: "Temporary Variables", exact: true }).click();
+  await page.evaluate(() => SugarCube.State.setVar("$score", 9));
+  await drawer.getByRole("tab", { name: "Compare", exact: true }).click();
+  await expect(scores.first()).toContainText("After: 9");
+  await comparison.getByRole("button", { name: "Clear Changes", exact: true }).click();
+  await drawer.getByRole("tab", { name: "Story Variables", exact: true }).click();
+  await drawer.getByRole("tab", { name: "Compare", exact: true }).click();
+  await expect(comparison.getByText("No changes observed yet.", { exact: true })).toBeVisible();
+
+  await page.evaluate(() => SugarCube.State.setVar("$score", 8));
+  await expect(scores).toHaveCount(1);
+  await expect(scores.first()).toContainText("Before: 9");
+  await page.evaluate(() => SugarCube.State.setVar("$score", 9));
+  await expect(scores).toHaveCount(2);
+  await expect(scores.first()).toContainText("Before: 8");
+  await expect(scores.first()).toContainText("After: 9");
+});
+
 test("opens an exact path inside previously unopened branches", async ({ page }) => {
   await page.goto(storyUrl);
   await page.evaluate(() => SugarCube.State.setVar("$Player", { stats: [{ "health points": 42 }] }));

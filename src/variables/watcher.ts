@@ -24,11 +24,12 @@ export class VariableWatcher {
     for (const observer of state.subscribed) {
       if (active) {
         this.start(observer);
-        observer(); // Catch changes made while the tab was hidden.
       } else {
         this.stop(observer);
       }
     }
+    // Catch up alongside active favorites so overlapping samples share a batch.
+    if (active) this.refresh();
   }
 
   private getScope(scope: string): WatchScope {

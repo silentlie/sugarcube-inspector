@@ -19,7 +19,8 @@ It reads live story and temporary variables directly without attaching a debugge
   Favorites are sampled independently. It keeps the latest 100 transitions with
   full before/after values, passage/turn context, Clear Changes and Reveal.
   Compare keeps the last selected variable scope polling; other scope pausing
-  rules remain unchanged. First samples establish the baseline. No manual
+  rules remain unchanged. Returning to a tree does not replay changes already
+  sampled by favorites. First samples establish the baseline. No manual
   capture, container selection, recursive scan or separate timer is needed.
   Changes that happen and revert between polls are not observable.
 - Under Variables, enter an exact `$` or `_` path to open unopened branches

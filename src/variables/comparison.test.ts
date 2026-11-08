@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { captureChildren, compareVariables, PolledChanges } from "./comparison";
+import { VariableWatcher } from "./watcher";
 
 afterEach(() => vi.unstubAllGlobals());
 const root = { root: "variables" as const, path: [] };
@@ -65,4 +66,36 @@ it("retains a fresh watcher baseline after a gap instead of using old history", 
   store.observe(captureChildren(root, { score: {} }), captureChildren(root, {}));
   store.observe(captureChildren(root, {}), captureChildren(root, { score: 3 }));
   expect(store.getSnapshot()[0]).toMatchObject({ kind: "added", before: { kind: "missing" } });
+});
+
+it("does not replay a favorite change when its paused tree resumes", () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("SugarCube", { State: { turns: 1, passage: "Start" } });
+  const watcher = new VariableWatcher();
+  const store = new PolledChanges();
+  const value = { score: 7 };
+  const stops = ["variables", "favorites"].map((scope) => {
+    let previous = captureChildren(root, value);
+    return watcher.watch(() => captureChildren(root, value), () => true, scope, previous, (next, batch) => {
+      store.observe(previous, next, batch);
+      previous = next;
+    }).subscribe(() => {});
+  });
+  try {
+    watcher.setScopeActive("variables", true);
+    watcher.setScopeActive("favorites", true);
+    watcher.setScopeActive("variables", false);
+    value.score = 8;
+    watcher.refresh();
+    expect(store.getSnapshot()).toHaveLength(1);
+    watcher.setScopeActive("variables", true);
+    expect(store.getSnapshot()).toHaveLength(1);
+    store.clear();
+    watcher.setScopeActive("variables", false);
+    watcher.setScopeActive("variables", true);
+    expect(store.getSnapshot()).toHaveLength(0);
+  } finally {
+    for (const stop of stops) stop();
+    vi.useRealTimers();
+  }
 });

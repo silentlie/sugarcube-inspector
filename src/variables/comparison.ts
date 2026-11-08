@@ -83,6 +83,8 @@ export class PolledChanges {
       const { turns: turn, passage } = getState();
       added.push({ ...change, id: String(this.nextId++), turn, passage });
     }
+    // An unchanged favorite can already account for a resumed tree's stale baseline.
+    for (const { path, value } of after) this.sampled.set(this.keyFor(path), value);
     if (!added.length) return;
     this.changes = [...added.reverse(), ...this.changes].slice(0, 100);
     for (const listener of this.listeners) listener();
